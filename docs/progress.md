@@ -60,10 +60,10 @@
 
 - [x] `app/(public)/` を用意する（公開 UI）※実体は `src/app/(public)/`
 - [x] `app/(admin)/` を用意する（管理 UI・認証ガード）※実体は `src/app/(admin)/`
-- [x] `app/api/` に Route Handlers を置く※実体は `src/app/api/`
+- [x] `app/api/` に Route Handlers を置く※実体は `src/app/api/`（置き場所の用意まで。`route.ts` の実装は 1-4〜1-7 および末尾の API チェックリスト）
 - [x] `domains/reservations/` `domains/matching/` `domains/notifications/` `domains/weather/` を段階的に用意する※実体は `src/domains/...`
 - [x] `lib/db/` `lib/auth/` `lib/validators/` を用意する※実体は `src/lib/...`
-- [x] `supabase/migrations/` に SQL migration を置く（初回: `20260407120000_initial_schema.sql`）
+- [x] `supabase/migrations/` に SQL migration を置く（`20260407120000_initial_schema.sql`・`20260407120100_enable_rls.sql`）
 
 ### 0-4. 型・品質・CI
 
@@ -80,66 +80,66 @@
 
 ### 1-1. データベース migration（設計書 7章）
 
-**メモ:** 初回スキーマは `supabase/migrations/20260407120000_initial_schema.sql` にある。**Supabase の SQL Editor で実行し、Table Editor にテーブルが出たあと**、下の細目チェックを `[x]` にしていく（未実行のまま付けないこと）。
+**メモ:** Supabase SQL Editor で `20260407120000_initial_schema.sql` → `20260407120100_enable_rls.sql` を適用済み。`set_updated_at` に `SET search_path = public` を付与し Security Advisor の Function Search Path 警告を解消済み。**同じ初期 SQL を二重実行しない**（ENUM already exists 回避）。本番 DB には未適用なら 3-6 のタイミングで同手順を踏む。
 
 **ENUM・区分値**
 
-- [ ] `event_days.status` に draft / open / locked / confirmed / cancelled_weather / cancelled_minimum を表現する
-- [ ] 天候用の内部状態（`weather_status` 等）と `event_days.status` を分離する
-- [ ] `reservations.status` に active / cancelled を表現する
-- [ ] `matching_runs.status` に success / failed を表現する
-- [ ] `match_assignments.status` に scheduled / cancelled を表現する
-- [ ] `teams.strength_category`（または同等）を strong / potential のみに制限する
-- [ ] `event_day_slots.phase` を morning / afternoon に制限する
-- [ ] `match_assignments.assignment_type` に morning_fixed / morning_fill / afternoon_auto を表現する
+- [x] `event_days.status` に draft / open / locked / confirmed / cancelled_weather / cancelled_minimum を表現する
+- [x] 天候用の内部状態（`weather_status` 等）と `event_days.status` を分離する
+- [x] `reservations.status` に active / cancelled を表現する
+- [x] `matching_runs.status` に success / failed を表現する
+- [x] `match_assignments.status` に scheduled / cancelled を表現する
+- [x] `teams.strength_category`（または同等）を strong / potential のみに制限する
+- [x] `event_day_slots.phase` を morning / afternoon に制限する
+- [x] `match_assignments.assignment_type` に morning_fixed / morning_fill / afternoon_auto を表現する
 
 **テーブル（MVP）**
 
-- [ ] `teams` テーブルを作成する（`normalized_team_name` は NULL 可・将来用）
-- [ ] `event_days` テーブルを作成する（`UNIQUE(event_date)`）
-- [ ] `event_day_slots` テーブルを作成する（一意制約・時間 CHECK・容量・is_active・is_time_changed・is_locked）
-- [ ] `reservations` テーブルを作成する（token ハッシュ・participant_count CHECK）
-- [ ] `meal_orders` テーブルを作成する（reservation 1:1・meal_count CHECK）
-- [ ] `matching_runs` テーブルを作成する（is_current・部分一意で current 一意）
-- [ ] `match_assignments` テーブルを作成する（reservation_a ≠ reservation_b・referee_reservation_id・warning_json・manual 系）
-- [ ] `weather_decisions` テーブルを作成する
-- [ ] `notifications` テーブルを作成する
-- [ ] `reservation_events` テーブルを作成する
-- [ ] `settings` テーブルを作成する（meal_count 0 許容など）
-- [ ] `slot_change_logs` テーブルを作成する
-- [ ] `match_adjustment_logs` テーブルを作成する
+- [x] `teams` テーブルを作成する（`normalized_team_name` は NULL 可・将来用）
+- [x] `event_days` テーブルを作成する（`UNIQUE(event_date)`）
+- [x] `event_day_slots` テーブルを作成する（一意制約・時間 CHECK・容量・is_active・is_time_changed・is_locked）
+- [x] `reservations` テーブルを作成する（token ハッシュ・participant_count CHECK）
+- [x] `meal_orders` テーブルを作成する（reservation 1:1・meal_count CHECK）
+- [x] `matching_runs` テーブルを作成する（is_current・部分一意で current 一意）
+- [x] `match_assignments` テーブルを作成する（reservation_a ≠ reservation_b・referee_reservation_id・warning_json・manual 系）
+- [x] `weather_decisions` テーブルを作成する
+- [x] `notifications` テーブルを作成する
+- [x] `reservation_events` テーブルを作成する
+- [x] `settings` テーブルを作成する（meal_count 0 許容など）
+- [x] `slot_change_logs` テーブルを作成する
+- [x] `match_adjustment_logs` テーブルを作成する
 
 **インデックス（設計書 7-5）**
 
-- [ ] `teams` に INDEX (team_name, contact_email) を付ける
-- [ ] `event_day_slots` に INDEX (event_day_id, phase, is_active) を付ける
-- [ ] `event_day_slots` に INDEX (event_day_id, phase, is_time_changed) を付ける
-- [ ] `reservations` に INDEX (event_day_id, team_id) を付ける
-- [ ] `reservations` に INDEX (selected_morning_slot_id, status) を付ける
-- [ ] `match_adjustment_logs` に INDEX (match_assignment_id, changed_at DESC) を付ける
+- [x] `teams` に INDEX (team_name, contact_email) を付ける
+- [x] `event_day_slots` に INDEX (event_day_id, phase, is_active) を付ける
+- [x] `event_day_slots` に INDEX (event_day_id, phase, is_time_changed) を付ける
+- [x] `reservations` に INDEX (event_day_id, team_id) を付ける
+- [x] `reservations` に INDEX (selected_morning_slot_id, status) を付ける
+- [x] `match_adjustment_logs` に INDEX (match_assignment_id, changed_at DESC) を付ける
 
 **管理者と users**
 
-- [ ] Supabase Auth と admin 判定の方針を決める（`auth.users` のみ / `profiles` 等）
-- [ ] 管理 API・管理画面ルートに admin ガードを適用する
+- [x] Supabase Auth と admin 判定の方針を決める（`auth.users` のみ / `profiles` 等）
+- [ ] 管理 API・管理画面ルートに admin ガードを適用する（※`POST /api/admin/event-days` に `getAdminUser` は適用済み。管理画面ルート・他 API は未）
 
 ### 1-2. RLS・データ更新経路（設計書 4-2・10章）
 
-- [ ] 方針: クライアントから anon でテーブルを直接更新しない
-- [ ] 公開予約・管理更新はサーバー（Route Handler 等）と service role または RPC で行う
-- [ ] 各テーブルで RLS を有効化し、ポリシーを最小限に設定する
-- [ ] service role キーがフロントのバンドルに含まれないことを確認する
+- [x] 方針: クライアントから anon でテーブルを直接更新しない
+- [x] 公開予約・管理更新はサーバー（Route Handler 等）と service role または RPC で行う
+- [x] 各テーブルで RLS を有効化し、ポリシーを最小限に設定する
+- [x] service role キーがフロントのバンドルに含まれないことを確認する
 
 ### 1-3. 開催日・初期6枠（設計書 3-1・5章）
 
-- [ ] 開催日作成時に午前3枠・午後3枠の `event_day_slots` を自動生成する（時刻は設計書どおり）
-- [ ] `slot_code`（MORNING_1〜3、AFTERNOON_1〜3）の一意性を担保する
-- [ ] 開催日に `grade_band`（1-2 / 3-4 / 5-6 等）を保持し、管理画面で登録できるようにする
-- [ ] `reservation_deadline_at`（前日13:00 相当）を保持し、API で参照する
+- [x] 開催日作成時に午前3枠・午後3枠の `event_day_slots` を自動生成する（時刻は設計書どおり）※`src/domains/event-days/default-slots.ts` と `POST /api/admin/event-days`
+- [x] `slot_code`（MORNING_1〜3、AFTERNOON_1〜3）の一意性を担保する（※DB `UNIQUE(event_day_id, slot_code)` ＋初期データで固定コード）
+- [x] 開催日に `grade_band`（1-2 / 3-4 / 5-6 等）を保持し、管理画面で登録できるようにする（※API ボディで受け付け。管理 UI は未）
+- [x] `reservation_deadline_at`（前日13:00 相当）を保持し、API で参照する（※`POST` で ISO 8601 受け取り。算出ロジックの共通化は任意）
 
 ### 1-4. 管理 API / UI（Phase 1 最小）
 
-- [ ] `POST /api/admin/event-days` で開催日の作成・更新と初期6枠生成ができる
+- [x] `POST /api/admin/event-days` で開催日の作成・更新と初期6枠生成ができる（※**作成**＋初期6枠まで。**更新 PATCH** は未続行）
 - [ ] `draft` / `open` など状態を管理画面から切り替えられる
 - [ ] SCR-13 開催日管理の最小 UI を実装する
 - [ ] SCR-14 は Phase 3 で本実装する前提で、Phase 1 では枠一覧表示のみでもよい（方針をメモ欄に残す）
@@ -466,7 +466,156 @@
 
 （チェックリストにしない自由記述）
 
+### 作業再開メモ（次セッション）
+
+- **完了済み:** `server-only` 導入、`src/lib/supabase/service.ts`（service role）、`src/domains/event-days/default-slots.ts`（初期6枠）、`src/lib/auth/require-admin.ts`（`getAdminUser`）、`POST /api/admin/event-days`（管理者のみ・開催日作成＋6枠 insert・409 重複日）、`supabase/migrations` の `set_updated_at` に `SET search_path = public`、`20260407120100_enable_rls.sql` をリポジトリに追加。
+- **次にやる:** 管理ログイン画面（例 `/admin/login`）、`(admin)` レイアウトのガード、SCR-13 最小 UI、`draft`/`open` 切替用の更新 API、Cookie 付きで `POST /api/admin/event-days` を叩ける動線、`GET /api/event-days` 以降（progress 1-4 残・1-5）。
+
 - morning_fixed 即時作成時の matching_run の扱い:
 - タイムゾーン（JST 固定か、event に TZ を持つか）:
-- admin ロールの付与方法:
+- admin ロールの付与方法: **`public.app_admins`** に Supabase Auth の `user_id`（`auth.users.id`）を 1 行 INSERT。`is_app_admin()` は `SECURITY DEFINER` + `SET search_path = public`。管理用の DB 直参照は `app_admins` 登録ユーザのみ（authenticated ポリシー）。業務更新の主経路は Route Handler + **service_role** 推奨。
 - その他:
+
+### 次にやること（ここからの手順・詳細）
+
+正本仕様は `docs/spec/design-mvp.md`（特に §3 時間枠・§5 フロー・§8 API・§10 セキュリティ）。チェックは `docs/progress.md` の 1-3〜1-10 と末尾の API 一覧。
+
+---
+
+#### A. 運用・Supabase（未了があれば）
+
+1. **管理用 Auth ユーザー**  
+   Supabase Dashboard → Authentication → Users でユーザーを 1 人用意する（メール＋パスワード等）。
+
+2. **`app_admins` 登録**  
+   SQL Editor（Role: postgres）で  
+   `INSERT INTO public.app_admins (user_id) VALUES ('<auth.users の UUID>');`  
+   自分の UUID は Users 一覧からコピー。
+
+3. **疎通確認**  
+   Table Editor で `event_days` / `event_day_slots` / `app_admins` が見えること。Security Advisor を再スキャン（警告が残る場合は内容に応じて対応）。
+
+4. **migration 履歴**  
+   いま SQL Editor 手実行なら、将来 CLI を使う場合に備え「リモートとリポジトリの migration の突き合わせ方針」だけ決めてメモ（本番反映は 3-6）。
+
+---
+
+#### B. アプリ基盤（サーバーから DB に触る準備）
+
+1. **`src/lib/supabase/service.ts`（名前は任意）**  
+   `createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })` のような **service role 専用**ファクトリを 1 箇所に集約。  
+   **import できるのは Server のみ**（`route.ts`・Server Actions・`server-only` 付与などでクライアントから参照されないようにする）。
+
+2. **秘密がクライアントに乗らないことの確認**  
+   `SUPABASE_SERVICE_ROLE_KEY` を `NEXT_PUBLIC_*` にしない。`rg` / エディタ検索で `SERVICE_ROLE` が `src/app/**/*.tsx` や `client.ts` から参照されていないことを確認。`npm run build` 後、必要なら `.next` 内にキー文字列が含まれないか spot 確認。
+
+3. **（任意・0-4）型**  
+   `supabase gen types typescript --project-id ...` 等で `Database` 型を生成し、`src/lib/db/` で利用。未導入なら当面 `as any` 最小で進めてもよい。
+
+---
+
+#### C. 初期6枠のドメインロジック（1-3）
+
+設計書 **§3-1 表**どおり、開催日に紐づく 6 行を定義する関数または定数を `src/domains/` 側に置く。
+
+| slot_code   | phase     | start | end   |
+| ----------- | --------- | ----- | ----- |
+| MORNING_1   | morning   | 09:00 | 10:00 |
+| MORNING_2   | morning   | 10:00 | 11:00 |
+| MORNING_3   | morning   | 11:00 | 12:00 |
+| AFTERNOON_1 | afternoon | 13:00 | 14:00 |
+| AFTERNOON_2 | afternoon | 14:00 | 15:00 |
+| AFTERNOON_3 | afternoon | 15:00 | 16:00 |
+
+- `capacity = 2`、午前・午後は ENUM `morning` / `afternoon` と一致させる。  
+- **`reservation_deadline_at`** は「開催前日 13:00（JST 想定）」のルールを決め、メモ欄の「タイムゾーン」に一文書く（例: DB は `timestamptz`、計算は Asia/Tokyo）。
+
+---
+
+#### D. 管理 API・認可（1-4・1-1 管理者ガード）
+
+1. **`POST /api/admin/event-days`**（または REST に沿ったパス）  
+   - リクエスト例: `event_date`, `grade_band`, `status`（初期 `draft`）, `reservation_deadline_at`（またはサーバー側で前日 13:00 から算出）。  
+   - **同一トランザクション**で `event_days` 1 行 insert の直後に、上記 C の 6 枠を `event_day_slots` に bulk insert。  
+   - 更新時は既存行の更新方針（同日 UNIQUE・枠の再生成はしない等）を決めて実装。
+
+2. **admin ガード**  
+   - **推奨:** Cookie セッション（既存 `createServerClient`）で `auth.getUser()` し、DB で `app_admins` に含まれるか照会（または RPC `is_app_admin()` を叩く）。含まれなければ **401/403**。  
+   - **代替:** 共有シークレットヘッダ（Cron や緊急用）。Phase 1 の画面操作はセッション方式がよい。
+
+3. **SCR-13 最小 UI**  
+   `src/app/(admin)/` に開催日 1 件作成フォーム＋一覧（`draft` / `open` 切替ができればよい）。枠一覧だけでも可（SCR-14 本実装は Phase 3）。
+
+---
+
+#### E. 公開 API（1-5）
+
+1. **`GET /api/event-days`**  
+   `status = open` のみ、`event_date` 昇順など。レスポンスに **メール・電話を含めない**（設計 §10）。
+
+2. **`GET /api/event-days/[date]/availability`**（パスはプロジェクトで統一）  
+   対象日の **午前枠ごと**に active 予約件数（0/1/2）と、strong/potential の内訳が取れる形（設計 §6-1・§8）。
+
+---
+
+#### F. 予約作成 API（1-6・難所）
+
+`POST /api/reservations` を **service role + 1 トランザクション**で実装。
+
+1. バリデーション（participantCount、mealCount、枠 ID、カテゴリ ENUM 等）。  
+2. `event_days` が `open` かつ締切前。  
+3. 枠が `morning` かつ `is_active`。  
+4. 同日 active 予約が **6 未満**。  
+5. 対象 `event_day_slots` 行を **`SELECT ... FOR UPDATE`**。  
+6. 枠内 active が **2 未満**を再確認、満杯なら **409**。  
+7. **team:** `team_name` + `contact_email` で候補検索 → なければ insert / あればルールどおり更新（設計 §7-6・名寄せ）。`is_active = false` の team は拒否。  
+8. `reservations` + `meal_orders` を insert。  
+9. 枠が **2 件目**になったら同一 TX で `match_assignments`（`morning_fixed`）を作成。**`matching_run` をどう付けるか**はメモ欄「morning_fixed 即時…」に決め打ちを短く書く。  
+10. **token:** 十分な長さのランダム → レスポンスは平文 1 回のみ、DB はハッシュのみ。  
+11. `reservation_events` に action 記録。  
+12. HTTP コードは設計 **§8-4**（400/404/409/422 等）。
+
+---
+
+#### G. 照会・取消 API（1-7）
+
+1. **`GET /api/reservations/[token]`**  
+   平文 token をハッシュ化して `reservation_token_hash` と照合。開催日から **30 日超**は 404 等（設計 §8-3）。
+
+2. **`POST /api/reservations/[token]/cancel`**  
+   締切前のみ `cancelled`。関連 `morning_fixed` を `cancelled` に（設計 §5-1）。
+
+3. **レート制限**  
+   Middleware または Route 内で IP / token 単位の粗い制限の土台を置く。
+
+4. **ログ**に token 平文・個人情報全文を残さない。
+
+---
+
+#### H. 公開 UI（1-8）
+
+1. **SCR-01** 開催日一覧・午前枠 0/2・1/2・2/2、満席は選択不可。  
+2. 文言で「午前は予約で確定」「午後は前日自動」。  
+3. **SCR-02** 完了画面で token 表示。  
+4. **SCR-03** 照会・取消。  
+5. 合宿導線は外部リンクのみ（設計付録）。
+
+---
+
+#### I. 通知（0-1・1-6）
+
+Resend 等のアカウントと API キー（0-1）が決まったら、予約完了時にメール送信。失敗時は `notifications` に `failed` で残す（設計 §9 周辺・progress 1-6）。
+
+---
+
+#### J. 完了の確認（1-10）
+
+手動または自動テストで、progress **1-10** の項目（枠 3 件目 409、同日 7 件目 409、2 件目で `morning_fixed`、取消後の表示、同一 team 同日複数予約）を潰す。
+
+---
+
+#### K. 任意・あとで
+
+- `npm run progress:sync`（`docs/progress.md` を直したあと HTML 用 JSON を更新）。  
+- 本番 Supabase への同 migration 適用（3-6）。  
+- CI（0-4）。

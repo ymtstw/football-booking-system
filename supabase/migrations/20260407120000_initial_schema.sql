@@ -1,5 +1,5 @@
 -- MVP 初期スキーマ（design-mvp.md §7 準拠）
--- Supabase SQL Editor に貼り付け実行可。RLS は別 migration で付与予定。
+-- RLS は 20260407120100_enable_rls.sql で有効化（このファイルの直後に実行される想定）。
 
 -- ---------------------------------------------------------------------------
 -- ENUM 相当（PostgreSQL native ENUM）
@@ -37,6 +37,7 @@ CREATE TYPE public.assignment_type AS ENUM (
 CREATE OR REPLACE FUNCTION public.set_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
   NEW.updated_at = now();
