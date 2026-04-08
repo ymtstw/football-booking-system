@@ -1,0 +1,1764 @@
+{
+  "generatedAt": "2026-04-08T03:22:19.459Z",
+  "sourceFile": "docs/progress.md",
+  "taskCount": 251,
+  "tasks": [
+    {
+      "id": "f513140dcb3b453f",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "Supabase プロジェクトを作成する（PostgreSQL）",
+      "defaultDone": false,
+      "sourceLine": 42
+    },
+    {
+      "id": "40e66dcac3d3e99f",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "Vercel プロジェクトを作成し Git と連携する",
+      "defaultDone": false,
+      "sourceLine": 43
+    },
+    {
+      "id": "c28d4761398cafe0",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "メール送信サービス（Resend 等）のアカウント・送信ドメイン／From 方針を決める",
+      "defaultDone": false,
+      "sourceLine": 44
+    },
+    {
+      "id": "9bf53b6d434b695b",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "本番とステージングで Supabase を分けるか同一か方針を決める",
+      "defaultDone": false,
+      "sourceLine": 45
+    },
+    {
+      "id": "0a9b756428ec0424",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "ルートに `.env.local` を置き、必要なキーを定義する",
+      "defaultDone": false,
+      "sourceLine": 49
+    },
+    {
+      "id": "8de8fa788c771f43",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "環境変数 `NEXT_PUBLIC_SUPABASE_URL` を定義する",
+      "defaultDone": false,
+      "sourceLine": 50
+    },
+    {
+      "id": "4697f9abecea691a",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "環境変数 `NEXT_PUBLIC_SUPABASE_ANON_KEY` を定義する",
+      "defaultDone": false,
+      "sourceLine": 51
+    },
+    {
+      "id": "75523821d5c7ce0c",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "環境変数 `SUPABASE_SERVICE_ROLE_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）",
+      "defaultDone": false,
+      "sourceLine": 52
+    },
+    {
+      "id": "582c9d35f6634861",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "メール送信用の API キー等のシークレットを定義する",
+      "defaultDone": false,
+      "sourceLine": 53
+    },
+    {
+      "id": "d0c7f714a6e071f6",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "Vercel Cron や管理用 API の認可に使うシークレットを定義する（採用する場合）",
+      "defaultDone": false,
+      "sourceLine": 54
+    },
+    {
+      "id": "557fbe561f307f2c",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`.env.example` をコミットし、キー名のみ列挙する（値は書かない）",
+      "defaultDone": false,
+      "sourceLine": 55
+    },
+    {
+      "id": "f7651f549296a68e",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "Vercel ダッシュボードに本番・プレビュー用の Environment Variables を登録する",
+      "defaultDone": false,
+      "sourceLine": 56
+    },
+    {
+      "id": "ffacb593e4798c50",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`app/(public)/` を用意する（公開 UI）",
+      "defaultDone": false,
+      "sourceLine": 60
+    },
+    {
+      "id": "04794d42ae016480",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`app/(admin)/` を用意する（管理 UI・認証ガード）",
+      "defaultDone": false,
+      "sourceLine": 61
+    },
+    {
+      "id": "24383f9697fb3f7c",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`app/api/` に Route Handlers を置く",
+      "defaultDone": false,
+      "sourceLine": 62
+    },
+    {
+      "id": "6c1191bb403729f1",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`domains/reservations/` `domains/matching/` `domains/notifications/` `domains/weather/` を段階的に用意する",
+      "defaultDone": false,
+      "sourceLine": 63
+    },
+    {
+      "id": "eacbfb50b07eaf3b",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`lib/db/` `lib/auth/` `lib/validators/` を用意する",
+      "defaultDone": false,
+      "sourceLine": 64
+    },
+    {
+      "id": "e6f73d93e22df453",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`supabase/migrations/` に SQL migration を置く",
+      "defaultDone": false,
+      "sourceLine": 65
+    },
+    {
+      "id": "c183a1a043bb8fd2",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "Supabase 型生成方針を決める（CLI `gen types` 等）し、必要なら npm script を追加する",
+      "defaultDone": false,
+      "sourceLine": 69
+    },
+    {
+      "id": "c7d88a0eee3578f7",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`npm run lint` が通るようにする",
+      "defaultDone": false,
+      "sourceLine": 70
+    },
+    {
+      "id": "2686bdefb8f155ff",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "`npm run build` が通るようにする",
+      "defaultDone": false,
+      "sourceLine": 71
+    },
+    {
+      "id": "80cfbe52890fb224",
+      "section": "0. 準備・プロジェクト基盤",
+      "text": "（任意）プルリク時に lint / build を回す CI を用意する",
+      "defaultDone": false,
+      "sourceLine": 72
+    },
+    {
+      "id": "39e1e8b071f13593",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_days.status` に draft / open / locked / confirmed / cancelled_weather / cancelled_minimum を表現する",
+      "defaultDone": false,
+      "sourceLine": 84
+    },
+    {
+      "id": "248050212f75617c",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "天候用の内部状態（`weather_status` 等）と `event_days.status` を分離する",
+      "defaultDone": false,
+      "sourceLine": 85
+    },
+    {
+      "id": "a587b0e5f0c88fe8",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`reservations.status` に active / cancelled を表現する",
+      "defaultDone": false,
+      "sourceLine": 86
+    },
+    {
+      "id": "d2329e30693ac808",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`matching_runs.status` に success / failed を表現する",
+      "defaultDone": false,
+      "sourceLine": 87
+    },
+    {
+      "id": "90d532ec292bf6ed",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`match_assignments.status` に scheduled / cancelled を表現する",
+      "defaultDone": false,
+      "sourceLine": 88
+    },
+    {
+      "id": "0acd6463fe916957",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`teams.strength_category`（または同等）を strong / potential のみに制限する",
+      "defaultDone": false,
+      "sourceLine": 89
+    },
+    {
+      "id": "07c99e65ec72393a",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_day_slots.phase` を morning / afternoon に制限する",
+      "defaultDone": false,
+      "sourceLine": 90
+    },
+    {
+      "id": "40a9ce3ff4ddb386",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`match_assignments.assignment_type` に morning_fixed / morning_fill / afternoon_auto を表現する",
+      "defaultDone": false,
+      "sourceLine": 91
+    },
+    {
+      "id": "2c1755d08fa6c148",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`teams` テーブルを作成する（`normalized_team_name` は NULL 可・将来用）",
+      "defaultDone": false,
+      "sourceLine": 95
+    },
+    {
+      "id": "09309368ee3c1639",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_days` テーブルを作成する（`UNIQUE(event_date)`）",
+      "defaultDone": false,
+      "sourceLine": 96
+    },
+    {
+      "id": "b4f62ebdd0e0d731",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_day_slots` テーブルを作成する（一意制約・時間 CHECK・容量・is_active・is_time_changed・is_locked）",
+      "defaultDone": false,
+      "sourceLine": 97
+    },
+    {
+      "id": "4ff4fc219cfb0dbe",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`reservations` テーブルを作成する（token ハッシュ・participant_count CHECK）",
+      "defaultDone": false,
+      "sourceLine": 98
+    },
+    {
+      "id": "8a29b474fe396e5b",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`meal_orders` テーブルを作成する（reservation 1:1・meal_count CHECK）",
+      "defaultDone": false,
+      "sourceLine": 99
+    },
+    {
+      "id": "1fda2a0849b9c781",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`matching_runs` テーブルを作成する（is_current・部分一意で current 一意）",
+      "defaultDone": false,
+      "sourceLine": 100
+    },
+    {
+      "id": "bee7afce06bc3ada",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`match_assignments` テーブルを作成する（reservation_a ≠ reservation_b・referee_reservation_id・warning_json・manual 系）",
+      "defaultDone": false,
+      "sourceLine": 101
+    },
+    {
+      "id": "01d654108f7f30a5",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`weather_decisions` テーブルを作成する",
+      "defaultDone": false,
+      "sourceLine": 102
+    },
+    {
+      "id": "7667b328872ea330",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`notifications` テーブルを作成する",
+      "defaultDone": false,
+      "sourceLine": 103
+    },
+    {
+      "id": "e6b3aca8f618e537",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`reservation_events` テーブルを作成する",
+      "defaultDone": false,
+      "sourceLine": 104
+    },
+    {
+      "id": "d0ae687df1405e80",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`settings` テーブルを作成する（meal_count 0 許容など）",
+      "defaultDone": false,
+      "sourceLine": 105
+    },
+    {
+      "id": "3fc05c52e2030bc6",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`slot_change_logs` テーブルを作成する",
+      "defaultDone": false,
+      "sourceLine": 106
+    },
+    {
+      "id": "d487ff808c38a7e3",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`match_adjustment_logs` テーブルを作成する",
+      "defaultDone": false,
+      "sourceLine": 107
+    },
+    {
+      "id": "a7ff2fb0185ae225",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`teams` に INDEX (team_name, contact_email) を付ける",
+      "defaultDone": false,
+      "sourceLine": 111
+    },
+    {
+      "id": "7f6bc4c5bed344c5",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_day_slots` に INDEX (event_day_id, phase, is_active) を付ける",
+      "defaultDone": false,
+      "sourceLine": 112
+    },
+    {
+      "id": "72ad751d02a04b7b",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_day_slots` に INDEX (event_day_id, phase, is_time_changed) を付ける",
+      "defaultDone": false,
+      "sourceLine": 113
+    },
+    {
+      "id": "3059c1be260fe73a",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`reservations` に INDEX (event_day_id, team_id) を付ける",
+      "defaultDone": false,
+      "sourceLine": 114
+    },
+    {
+      "id": "71e0fd650d6b16c6",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`reservations` に INDEX (selected_morning_slot_id, status) を付ける",
+      "defaultDone": false,
+      "sourceLine": 115
+    },
+    {
+      "id": "ccdf812a952e7f7a",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`match_adjustment_logs` に INDEX (match_assignment_id, changed_at DESC) を付ける",
+      "defaultDone": false,
+      "sourceLine": 116
+    },
+    {
+      "id": "db14db9e15941bda",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "Supabase Auth と admin 判定の方針を決める（`auth.users` のみ / `profiles` 等）",
+      "defaultDone": false,
+      "sourceLine": 120
+    },
+    {
+      "id": "ccb1e934bd7daa46",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "管理 API・管理画面ルートに admin ガードを適用する",
+      "defaultDone": false,
+      "sourceLine": 121
+    },
+    {
+      "id": "57badbf8cfb87c73",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "方針: クライアントから anon でテーブルを直接更新しない",
+      "defaultDone": false,
+      "sourceLine": 125
+    },
+    {
+      "id": "11eb3317c155fa8c",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "公開予約・管理更新はサーバー（Route Handler 等）と service role または RPC で行う",
+      "defaultDone": false,
+      "sourceLine": 126
+    },
+    {
+      "id": "8c8964e90ffeb83e",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "各テーブルで RLS を有効化し、ポリシーを最小限に設定する",
+      "defaultDone": false,
+      "sourceLine": 127
+    },
+    {
+      "id": "a89f6f0e8d1c587b",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "service role キーがフロントのバンドルに含まれないことを確認する",
+      "defaultDone": false,
+      "sourceLine": 128
+    },
+    {
+      "id": "0e52fe489e2f801f",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "開催日作成時に午前3枠・午後3枠の `event_day_slots` を自動生成する（時刻は設計書どおり）",
+      "defaultDone": false,
+      "sourceLine": 132
+    },
+    {
+      "id": "c1c63e77c94466fa",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`slot_code`（MORNING_1〜3、AFTERNOON_1〜3）の一意性を担保する",
+      "defaultDone": false,
+      "sourceLine": 133
+    },
+    {
+      "id": "93ee015b03eeb598",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "開催日に `grade_band`（1-2 / 3-4 / 5-6 等）を保持し、管理画面で登録できるようにする",
+      "defaultDone": false,
+      "sourceLine": 134
+    },
+    {
+      "id": "ee0e4bcc7b2777a6",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`reservation_deadline_at`（前日13:00 相当）を保持し、API で参照する",
+      "defaultDone": false,
+      "sourceLine": 135
+    },
+    {
+      "id": "aa604eb8c0f0aa91",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`POST /api/admin/event-days` で開催日の作成・更新と初期6枠生成ができる",
+      "defaultDone": false,
+      "sourceLine": 139
+    },
+    {
+      "id": "5e6df6e1507980d5",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`draft` / `open` など状態を管理画面から切り替えられる",
+      "defaultDone": false,
+      "sourceLine": 140
+    },
+    {
+      "id": "53798f4d9ea63e2f",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "SCR-13 開催日管理の最小 UI を実装する",
+      "defaultDone": false,
+      "sourceLine": 141
+    },
+    {
+      "id": "2c1abcb832c35976",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "SCR-14 は Phase 3 で本実装する前提で、Phase 1 では枠一覧表示のみでもよい（方針をメモ欄に残す）",
+      "defaultDone": false,
+      "sourceLine": 142
+    },
+    {
+      "id": "a4b03063efc8c86b",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`GET /api/event-days` で `open` の開催日のみ返す",
+      "defaultDone": false,
+      "sourceLine": 146
+    },
+    {
+      "id": "23f0e9c4e97443bf",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "レスポンスに個人情報（メール・電話）を含めない",
+      "defaultDone": false,
+      "sourceLine": 147
+    },
+    {
+      "id": "59febf3687a77f03",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`GET /api/event-days/{date}/availability` で各午前枠の件数・カテゴリ内訳を返す",
+      "defaultDone": false,
+      "sourceLine": 148
+    },
+    {
+      "id": "b6a975db96d575c6",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`POST /api/reservations` の入力バリデーション（participantCount、mealCount、カテゴリ、枠 ID）を行う",
+      "defaultDone": false,
+      "sourceLine": 152
+    },
+    {
+      "id": "e011adb7ef0ca899",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`event_day` が open かつ締切前であることを検証する",
+      "defaultDone": false,
+      "sourceLine": 153
+    },
+    {
+      "id": "f0b7f0a54d41d63e",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "選択枠が morning かつ is_active であることを検証する",
+      "defaultDone": false,
+      "sourceLine": 154
+    },
+    {
+      "id": "0070f1fcb105a093",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "同日 active 予約が 6 未満であることを検証する",
+      "defaultDone": false,
+      "sourceLine": 155
+    },
+    {
+      "id": "ae7a694cc668db97",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "対象 `event_day_slots` 行を `SELECT ... FOR UPDATE` でロックする",
+      "defaultDone": false,
+      "sourceLine": 156
+    },
+    {
+      "id": "3673af3d32cb9f49",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "トランザクション内で枠あたり active が 2 未満であることを再検証し、満杯なら 409 を返す",
+      "defaultDone": false,
+      "sourceLine": 157
+    },
+    {
+      "id": "46ed2dffb4dd4e9a",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "team_name + contact_email で再利用候補を検索し、なければ新規 teams を作る（一意制約にしない）",
+      "defaultDone": false,
+      "sourceLine": 158
+    },
+    {
+      "id": "068961732b988b86",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "既存 team の contact / strength_category を更新し、team_name は原則上書きしない",
+      "defaultDone": false,
+      "sourceLine": 159
+    },
+    {
+      "id": "264d3d9fba7c370c",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "is_active = false の team は予約不可にする",
+      "defaultDone": false,
+      "sourceLine": 160
+    },
+    {
+      "id": "e165282b585bb269",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "reservations と meal_orders を同一トランザクションで insert する",
+      "defaultDone": false,
+      "sourceLine": 161
+    },
+    {
+      "id": "fd33ec2beb3dfe3d",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "枠に 2 件目の active が入ったら同一トランザクション内で `morning_fixed` の match_assignments を作成する",
+      "defaultDone": false,
+      "sourceLine": 162
+    },
+    {
+      "id": "2d9da2d284798771",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`morning_fixed` 即時作成時の `matching_run` の扱いを決め実装する（メモ欄に短文で記録）",
+      "defaultDone": false,
+      "sourceLine": 163
+    },
+    {
+      "id": "c12e73baab3b3eb9",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "reservation_token を生成し、DB にはハッシュのみ保存し、レスポンスで平文を返す",
+      "defaultDone": false,
+      "sourceLine": 164
+    },
+    {
+      "id": "f6f769885feed09c",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "reservation_events に作成を記録する",
+      "defaultDone": false,
+      "sourceLine": 165
+    },
+    {
+      "id": "9bd1a5cf40e40432",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "予約完了メールを送る（失敗時は notifications を failed にする）",
+      "defaultDone": false,
+      "sourceLine": 166
+    },
+    {
+      "id": "ed356bd561371aa1",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "HTTP 400 / 404 / 409 / 422 を設計書 8-4 に沿って返す",
+      "defaultDone": false,
+      "sourceLine": 167
+    },
+    {
+      "id": "e957f7a5f7bac77a",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`GET /api/reservations/{token}` でハッシュ照合する",
+      "defaultDone": false,
+      "sourceLine": 171
+    },
+    {
+      "id": "8d1a5a39fe1cdf7c",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "開催日から 30 日超えた token 照会は 404 にする",
+      "defaultDone": false,
+      "sourceLine": 172
+    },
+    {
+      "id": "cc2e33623dea16f6",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "`POST /api/reservations/{token}/cancel` で締切前のみ cancelled にする",
+      "defaultDone": false,
+      "sourceLine": 173
+    },
+    {
+      "id": "5e909db676dfc4e1",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "取消時に関連する morning_fixed を cancelled にする（設計書 5-1）",
+      "defaultDone": false,
+      "sourceLine": 174
+    },
+    {
+      "id": "2d03e2e03418400e",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "照会・取消 API に強いレート制限を付ける",
+      "defaultDone": false,
+      "sourceLine": 175
+    },
+    {
+      "id": "53fe83d076ea9d9b",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "ログに token 平文・個人情報全文を残さない",
+      "defaultDone": false,
+      "sourceLine": 176
+    },
+    {
+      "id": "f0fce8340094d0ed",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "SCR-01 開催日一覧・予約（午前枠 0/2・1/2・2/2、満席は不可）",
+      "defaultDone": false,
+      "sourceLine": 180
+    },
+    {
+      "id": "62b746abfa2db8fe",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "文言で「午前は予約で確定」「午後は前日自動」を明示する",
+      "defaultDone": false,
+      "sourceLine": 181
+    },
+    {
+      "id": "8f13f85ff1eb28e3",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "SCR-02 予約完了（token 表示・入力確認）",
+      "defaultDone": false,
+      "sourceLine": 182
+    },
+    {
+      "id": "1c381c772878eb1f",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "SCR-03 予約照会・取消",
+      "defaultDone": false,
+      "sourceLine": 183
+    },
+    {
+      "id": "b26e34a3403c15a9",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "（設計書付録）合宿は「合宿プランについてはこちら」から外部へ遷移のみ。データは持たない",
+      "defaultDone": false,
+      "sourceLine": 184
+    },
+    {
+      "id": "1f84146de66d293b",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "編成ロジック実装時に使うため、「同メールはなるべくマッチさせない」をコードレベルで解釈しメモする",
+      "defaultDone": false,
+      "sourceLine": 188
+    },
+    {
+      "id": "c9f79f91238f9a1c",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "同一午前枠に 3 件目が入らない（409）",
+      "defaultDone": false,
+      "sourceLine": 192
+    },
+    {
+      "id": "5967ee727383b347",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "同日 7 件目が入らない（409）",
+      "defaultDone": false,
+      "sourceLine": 193
+    },
+    {
+      "id": "7445ad8600c937fa",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "2 件目で morning_fixed が存在する",
+      "defaultDone": false,
+      "sourceLine": 194
+    },
+    {
+      "id": "5090519dac36c8b1",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "取消後も照会でき、状態は cancelled と表示される",
+      "defaultDone": false,
+      "sourceLine": 195
+    },
+    {
+      "id": "e9418fa1a55230c5",
+      "section": "1. Phase 1 — 予約の核",
+      "text": "同一 team の同日複数 reservation が許容される",
+      "defaultDone": false,
+      "sourceLine": 196
+    },
+    {
+      "id": "ea8cb56095d6f299",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "前日 13:00（タイムゾーン方針を決め、JST 等を文書化）で `locked` にする処理を実装する",
+      "defaultDone": false,
+      "sourceLine": 206
+    },
+    {
+      "id": "f542bf467e69a797",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "ロック後は予約・取消・昼食変更を API で拒否する",
+      "defaultDone": false,
+      "sourceLine": 207
+    },
+    {
+      "id": "c759e48a49c0c022",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "管理画面から同じロック処理を手動実行できるようにする",
+      "defaultDone": false,
+      "sourceLine": 208
+    },
+    {
+      "id": "e3e7478c13701da1",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "Vercel Cron からも同じ処理を呼べるようにする",
+      "defaultDone": false,
+      "sourceLine": 209
+    },
+    {
+      "id": "c895e54fe17ec640",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "締切時点の active reservation 全集計を行う",
+      "defaultDone": false,
+      "sourceLine": 213
+    },
+    {
+      "id": "1e76d185391b011e",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "既存 morning_fixed 枠を確定済みとして扱う",
+      "defaultDone": false,
+      "sourceLine": 214
+    },
+    {
+      "id": "0363f3c731e233d7",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "1 チームのみの午前枠を優先して埋める",
+      "defaultDone": false,
+      "sourceLine": 215
+    },
+    {
+      "id": "4f9e15d98f9ef32c",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "候補順（カテゴリ一致 → 枠未割当 → 対戦被り回避 → 割当回数）を実装する",
+      "defaultDone": false,
+      "sourceLine": 216
+    },
+    {
+      "id": "021d692c92b57c26",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "カテゴリ跨ぎを許容し、必要なら warning を付ける",
+      "defaultDone": false,
+      "sourceLine": 217
+    },
+    {
+      "id": "d52077d12070b8d7",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "0 チーム枠は最後に扱い、3〜6 チームの範囲で成立可能な場合のみ埋める",
+      "defaultDone": false,
+      "sourceLine": 218
+    },
+    {
+      "id": "d3544189e9e1d561",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "全員に午後 1 試合を優先して割り当てる",
+      "defaultDone": false,
+      "sourceLine": 222
+    },
+    {
+      "id": "e90030a46581e456",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "候補順（カテゴリ一致 → 午前対戦と被らない → 同日重複が少ない相手）を実装する",
+      "defaultDone": false,
+      "sourceLine": 223
+    },
+    {
+      "id": "b62901e8cfb4b7a0",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "6 チーム未満で枠が余るときのみ 2 試合目を割り当てる",
+      "defaultDone": false,
+      "sourceLine": 224
+    },
+    {
+      "id": "4d4d14cde8f7239b",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "カテゴリ跨ぎを許容する",
+      "defaultDone": false,
+      "sourceLine": 225
+    },
+    {
+      "id": "374f7df617277f80",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "重複回避できない場合は warning を付け成立優先で確定する",
+      "defaultDone": false,
+      "sourceLine": 226
+    },
+    {
+      "id": "46dfe666454cf506",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "午後各試合で当事者以外から審判候補 reservation を 1 件選ぶ",
+      "defaultDone": false,
+      "sourceLine": 230
+    },
+    {
+      "id": "e59a6a328d29cb10",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "DB 上は `referee_reservation_id` に統一する（設計書の referee_team_id 表記との差を吸収）",
+      "defaultDone": false,
+      "sourceLine": 231
+    },
+    {
+      "id": "1816780d3723a4a5",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "候補がいなければ NULL とし referee_unassigned を warning に入れる",
+      "defaultDone": false,
+      "sourceLine": 232
+    },
+    {
+      "id": "0dd607dfb46e0b41",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "cross_category_match を記録できる",
+      "defaultDone": false,
+      "sourceLine": 236
+    },
+    {
+      "id": "aeaa01475a809aaf",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "duplicate_opponent を記録できる",
+      "defaultDone": false,
+      "sourceLine": 237
+    },
+    {
+      "id": "bfcb332d480002f4",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "double_assigned_reservation を記録できる",
+      "defaultDone": false,
+      "sourceLine": 238
+    },
+    {
+      "id": "c10ec1033b08fb38",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "referee_unassigned を記録できる",
+      "defaultDone": false,
+      "sourceLine": 239
+    },
+    {
+      "id": "8ae6dbacc41dc067",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "unfilled_slot を記録できる",
+      "defaultDone": false,
+      "sourceLine": 240
+    },
+    {
+      "id": "edbc81937f7c6879",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "新規 run が success のとき、同一 event_day の旧 is_current を false にする",
+      "defaultDone": false,
+      "sourceLine": 244
+    },
+    {
+      "id": "b83ba7339c630d22",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "新 run のみ is_current = true にする",
+      "defaultDone": false,
+      "sourceLine": 245
+    },
+    {
+      "id": "6b82c4bd2d81cf43",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "部分一意制約で current が二重にならないことを確認する",
+      "defaultDone": false,
+      "sourceLine": 246
+    },
+    {
+      "id": "a05c611fa6f0cbd1",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "編成成功後に `event_days.status` を `confirmed` に更新する",
+      "defaultDone": false,
+      "sourceLine": 247
+    },
+    {
+      "id": "af5a7e0efaf0a0a3",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "`POST /api/admin/matching/run` を実装する（admin または Cron シークレット）",
+      "defaultDone": false,
+      "sourceLine": 251
+    },
+    {
+      "id": "e3d14edb44c181e0",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "`GET /api/admin/matches?date=...` で current run の assignments のみ返す",
+      "defaultDone": false,
+      "sourceLine": 252
+    },
+    {
+      "id": "c2aaad8c3daf67dc",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "SCR-11 前日確定結果一覧（午前・午後・審判・warning）",
+      "defaultDone": false,
+      "sourceLine": 253
+    },
+    {
+      "id": "014b793e13cd5f25",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "SCR-10 ダッシュボードに予約数・確定状況などを表示する",
+      "defaultDone": false,
+      "sourceLine": 254
+    },
+    {
+      "id": "1af29c8a6169b158",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "前日確定通知の本文に枠・対戦・注意事項を含める",
+      "defaultDone": false,
+      "sourceLine": 258
+    },
+    {
+      "id": "beac39b82538361b",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "送信失敗を notifications に failed で残す",
+      "defaultDone": false,
+      "sourceLine": 259
+    },
+    {
+      "id": "9d3079fd13225a7c",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "vercel.json 等で JOB01〜03 のスケジュールを登録する（タイムゾーンを確認）",
+      "defaultDone": false,
+      "sourceLine": 263
+    },
+    {
+      "id": "d6c312eef0ac4ca6",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "Cron 用エンドポイントをシークレットヘッダ等で保護する",
+      "defaultDone": false,
+      "sourceLine": 264
+    },
+    {
+      "id": "5498e65074b68c8e",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "締切時点で active が 3 未満のときの扱い（cancelled_minimum 等）を実装し、運用手順に書く",
+      "defaultDone": false,
+      "sourceLine": 268
+    },
+    {
+      "id": "3167072551af01cb",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "ステージングで予約→ロック→編成→confirmed→通知まで通す",
+      "defaultDone": false,
+      "sourceLine": 272
+    },
+    {
+      "id": "26829f28c233d29c",
+      "section": "2. Phase 2 — 締切・編成・前日確定",
+      "text": "編成再実行で履歴 run が残り、画面は current のみを見せる",
+      "defaultDone": false,
+      "sourceLine": 273
+    },
+    {
+      "id": "81c6e0e28650451c",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "`GET /api/admin/event-days/{id}/slots` を実装する",
+      "defaultDone": false,
+      "sourceLine": 283
+    },
+    {
+      "id": "0932998f163403c8",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "`PATCH /api/admin/event-days/{id}/slots` で時刻変更・枠追加・枠無効化を行う",
+      "defaultDone": false,
+      "sourceLine": 284
+    },
+    {
+      "id": "fbedba2a639ac6cf",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "開始＜終了、同一 phase で時間重複なしを検証する",
+      "defaultDone": false,
+      "sourceLine": 285
+    },
+    {
+      "id": "33814217540db416",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "枠無効化は締切前かつ active 予約なしのみ許可する",
+      "defaultDone": false,
+      "sourceLine": 286
+    },
+    {
+      "id": "c11480beff41f9d0",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "予約あり枠の時刻変更で is_time_changed = true にする",
+      "defaultDone": false,
+      "sourceLine": 287
+    },
+    {
+      "id": "f8362064ffc7c54e",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "slot_change_logs に監査を残す",
+      "defaultDone": false,
+      "sourceLine": 288
+    },
+    {
+      "id": "7ccd092472dba325",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "SCR-14 枠管理 UI を実装する",
+      "defaultDone": false,
+      "sourceLine": 289
+    },
+    {
+      "id": "36c9b6e35ce544a2",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "`POST /api/admin/weather-decisions` で go / cancel を保存する",
+      "defaultDone": false,
+      "sourceLine": 293
+    },
+    {
+      "id": "5eddb5543e502450",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "cancel 時に weather と event_days.status の整合（cancelled_weather）を取る",
+      "defaultDone": false,
+      "sourceLine": 294
+    },
+    {
+      "id": "9895d7bb80228649",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "go は主状態（open/locked/confirmed）を壊さない",
+      "defaultDone": false,
+      "sourceLine": 295
+    },
+    {
+      "id": "4602cd2f31a0014f",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "矛盾する組み合わせの更新を API で拒否する",
+      "defaultDone": false,
+      "sourceLine": 296
+    },
+    {
+      "id": "e85657ec8437eb0a",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "雨天 cancel でもデータを削除しない",
+      "defaultDone": false,
+      "sourceLine": 297
+    },
+    {
+      "id": "1360b38679a45db7",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "雨天判断時に通知を送る",
+      "defaultDone": false,
+      "sourceLine": 298
+    },
+    {
+      "id": "94925ec1831ab453",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "SCR-13 に雨天判断 UI を組み込む",
+      "defaultDone": false,
+      "sourceLine": 299
+    },
+    {
+      "id": "9a2eee846c9c0495",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "`PATCH /api/admin/matches/{id}` でチーム差し替え（reservation 単位）と枠変更を行う",
+      "defaultDone": false,
+      "sourceLine": 303
+    },
+    {
+      "id": "9b3fecadd5a10b1c",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "manual_override と override_reason を必須にする",
+      "defaultDone": false,
+      "sourceLine": 304
+    },
+    {
+      "id": "3db0ba19ebfc0a26",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "match_adjustment_logs に before/after を残す",
+      "defaultDone": false,
+      "sourceLine": 305
+    },
+    {
+      "id": "9e09e5ba212e87d3",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "同一試合で同一 team 不可・同一時刻に同一 team 重複不可・芝1面で同一時刻に複数試合不可を維持する",
+      "defaultDone": false,
+      "sourceLine": 306
+    },
+    {
+      "id": "06622446f1b175eb",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "SCR-12 補正 UI を実装する",
+      "defaultDone": false,
+      "sourceLine": 307
+    },
+    {
+      "id": "1df900ce7c4aca30",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "reservation_events で作成・取消を追えるようにする",
+      "defaultDone": false,
+      "sourceLine": 311
+    },
+    {
+      "id": "b1025631019fa0ce",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "notifications で channel / status / 関連 ID を追えるようにする",
+      "defaultDone": false,
+      "sourceLine": 312
+    },
+    {
+      "id": "91455a26b4f05733",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "error_logs を DB 化するか、サーバーログ＋最小 DB で足りるか決めて実装する",
+      "defaultDone": false,
+      "sourceLine": 313
+    },
+    {
+      "id": "162ac6cef2db6a03",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "公開 API 全体にレート制限を付ける（照会・取消は特に強く）",
+      "defaultDone": false,
+      "sourceLine": 314
+    },
+    {
+      "id": "fa4991cb7133a677",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: 予約（6 上限・2 枠・reuse・複数 reservation・morning_fixed）",
+      "defaultDone": false,
+      "sourceLine": 318
+    },
+    {
+      "id": "f77fba3dff2ddfb6",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: 締切前後の予約・取消",
+      "defaultDone": false,
+      "sourceLine": 319
+    },
+    {
+      "id": "e157e165d71c64d3",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: 午前補完",
+      "defaultDone": false,
+      "sourceLine": 320
+    },
+    {
+      "id": "7957e3a1b9c00338",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: 午後編成",
+      "defaultDone": false,
+      "sourceLine": 321
+    },
+    {
+      "id": "c3e82a0c3f74ff90",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: 審判候補",
+      "defaultDone": false,
+      "sourceLine": 322
+    },
+    {
+      "id": "2fb50e37ebc9fcdf",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: weather_status と event_days.status の矛盾防止",
+      "defaultDone": false,
+      "sourceLine": 323
+    },
+    {
+      "id": "100af257c42cf28d",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: matching_runs の current 管理",
+      "defaultDone": false,
+      "sourceLine": 324
+    },
+    {
+      "id": "30d9004e6791f031",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Integration: 予約→締切→補完→編成→current 切替",
+      "defaultDone": false,
+      "sourceLine": 325
+    },
+    {
+      "id": "de9c561264269291",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Integration: 雨天 cancel と通知",
+      "defaultDone": false,
+      "sourceLine": 326
+    },
+    {
+      "id": "a231ef983b795f35",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: is_time_changed（予約後の枠時刻変更）",
+      "defaultDone": false,
+      "sourceLine": 327
+    },
+    {
+      "id": "f07cfd59c9ef30e6",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Unit: 枠無効化（予約なしのみ・公開・編成から除外）",
+      "defaultDone": false,
+      "sourceLine": 328
+    },
+    {
+      "id": "14ac8cf2f78f62ac",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Integration: 強制編集と監査ログ",
+      "defaultDone": false,
+      "sourceLine": 329
+    },
+    {
+      "id": "5925795ca111e1c5",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "E2E: 公開予約（作成・照会・取消）— 工数不足なら手動テストシートを `docs/` に置く",
+      "defaultDone": false,
+      "sourceLine": 330
+    },
+    {
+      "id": "b8f65c2eddb458e3",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "E2E: 管理 UI（開催日・枠・編成・結果表示）— 同上",
+      "defaultDone": false,
+      "sourceLine": 331
+    },
+    {
+      "id": "730e1d9e23cb1b66",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "本番 Supabase に migration を適用する",
+      "defaultDone": false,
+      "sourceLine": 335
+    },
+    {
+      "id": "b1981e6d677563ec",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Vercel 本番の環境変数を設定する",
+      "defaultDone": false,
+      "sourceLine": 336
+    },
+    {
+      "id": "d930ae9acf5e0522",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "Cron を本番で有効化し、時刻を最終確認する",
+      "defaultDone": false,
+      "sourceLine": 337
+    },
+    {
+      "id": "bba1707f8f3f4e42",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "管理者ユーザの作り方を手順書に書く",
+      "defaultDone": false,
+      "sourceLine": 338
+    },
+    {
+      "id": "20ad520167a0e230",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "現場向けオペレーション1枚（ロック→編成→結果確認→通知失敗時→雨天）を書く",
+      "defaultDone": false,
+      "sourceLine": 339
+    },
+    {
+      "id": "1cf7a85a844ce972",
+      "section": "3. Phase 3 — 運用補正・本番",
+      "text": "ログに個人情報・token が出ていないか確認する",
+      "defaultDone": false,
+      "sourceLine": 340
+    },
+    {
+      "id": "617a5bd7f2922ef2",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）決済 payment_status / payment_id",
+      "defaultDone": false,
+      "sourceLine": 346
+    },
+    {
+      "id": "eda00bb5db8e765e",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）対戦相手の直接組み替え",
+      "defaultDone": false,
+      "sourceLine": 347
+    },
+    {
+      "id": "bbc2f8b0be478e47",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）通知の再送・督促自動化",
+      "defaultDone": false,
+      "sourceLine": 348
+    },
+    {
+      "id": "7704ec9d33604e58",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）team 統合 UI と監査ログ",
+      "defaultDone": false,
+      "sourceLine": 349
+    },
+    {
+      "id": "6377bfc881eb0486",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）lane による1面2分割",
+      "defaultDone": false,
+      "sourceLine": 350
+    },
+    {
+      "id": "1a3a8ba9782bf40b",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）token 再送 API（設計書 8-3-1）",
+      "defaultDone": false,
+      "sourceLine": 351
+    },
+    {
+      "id": "9e0d6ff0bf4d65c3",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）event_days.status に completed 等",
+      "defaultDone": false,
+      "sourceLine": 352
+    },
+    {
+      "id": "f121603097250ed5",
+      "section": "4. Phase 4 — MVP外・将来（参照）",
+      "text": "（将来）api_logs の本格化",
+      "defaultDone": false,
+      "sourceLine": 353
+    },
+    {
+      "id": "82cb73a11a4179fc",
+      "section": "横断 — 非機能・セキュリティ（設計書 4-2・8-4・10-1）",
+      "text": "管理系の更新はすべてサーバー経由である",
+      "defaultDone": false,
+      "sourceLine": 359
+    },
+    {
+      "id": "c850fba7e850a4f6",
+      "section": "横断 — 非機能・セキュリティ（設計書 4-2・8-4・10-1）",
+      "text": "予約・締切・編成・雨天はトランザクションで整合を取る",
+      "defaultDone": false,
+      "sourceLine": 360
+    },
+    {
+      "id": "c1422e4804c652e8",
+      "section": "横断 — 非機能・セキュリティ（設計書 4-2・8-4・10-1）",
+      "text": "公開 API はサーバー側バリデーション必須である",
+      "defaultDone": false,
+      "sourceLine": 361
+    },
+    {
+      "id": "66fd89ae39c33452",
+      "section": "横断 — 非機能・セキュリティ（設計書 4-2・8-4・10-1）",
+      "text": "個人情報は管理画面以外に表示しない",
+      "defaultDone": false,
+      "sourceLine": 362
+    },
+    {
+      "id": "e8bb049caebae596",
+      "section": "横断 — 非機能・セキュリティ（設計書 4-2・8-4・10-1）",
+      "text": "ログにメール・電話・token 平文を残さない",
+      "defaultDone": false,
+      "sourceLine": 363
+    },
+    {
+      "id": "d4e7aacfde7ca1ef",
+      "section": "横断 — 非機能・セキュリティ（設計書 4-2・8-4・10-1）",
+      "text": "HTTP ステータス（400/401/403/404/409/422/500）の方針を API で統一する",
+      "defaultDone": false,
+      "sourceLine": 364
+    },
+    {
+      "id": "5d112b337ab6eb78",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 予約作成",
+      "defaultDone": false,
+      "sourceLine": 372
+    },
+    {
+      "id": "2d400a6d054c4c2f",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 締切判定",
+      "defaultDone": false,
+      "sourceLine": 373
+    },
+    {
+      "id": "050315c46505e2fb",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 午前補完",
+      "defaultDone": false,
+      "sourceLine": 374
+    },
+    {
+      "id": "9f1c51eae3755b2e",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 午後編成",
+      "defaultDone": false,
+      "sourceLine": 375
+    },
+    {
+      "id": "2d672ba6e2c76bf7",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 審判候補",
+      "defaultDone": false,
+      "sourceLine": 376
+    },
+    {
+      "id": "cbf12b21a2aac379",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 状態整合",
+      "defaultDone": false,
+      "sourceLine": 377
+    },
+    {
+      "id": "c11932ca1929f5c8",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Integration: 予約→締切→補完→編成",
+      "defaultDone": false,
+      "sourceLine": 378
+    },
+    {
+      "id": "b71698e6d80f2670",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Integration: 雨天判断",
+      "defaultDone": false,
+      "sourceLine": 379
+    },
+    {
+      "id": "9fdfb2b272ec1bbc",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "E2E: 公開予約 UI",
+      "defaultDone": false,
+      "sourceLine": 380
+    },
+    {
+      "id": "50ca34c056cbf725",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "E2E: 管理 UI",
+      "defaultDone": false,
+      "sourceLine": 381
+    },
+    {
+      "id": "22fa25ff8bd88c6a",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 枠変更フラグ",
+      "defaultDone": false,
+      "sourceLine": 382
+    },
+    {
+      "id": "7213e0baf4c4d90b",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Unit: 枠無効化",
+      "defaultDone": false,
+      "sourceLine": 383
+    },
+    {
+      "id": "178f5f3e1cc31dd6",
+      "section": "横断 — テスト一覧の再掲（設計書12章）",
+      "text": "Integration: 強制編集",
+      "defaultDone": false,
+      "sourceLine": 384
+    },
+    {
+      "id": "f4af2520be2d370d",
+      "section": "MVP完了の最終確認",
+      "text": "公開画面で午前枠の埋まり状況が直感的に分かる",
+      "defaultDone": false,
+      "sourceLine": 392
+    },
+    {
+      "id": "311b4f89718611bc",
+      "section": "MVP完了の最終確認",
+      "text": "締切後に午前補完・午後編成・前日確定通知が一連の処理で完結する",
+      "defaultDone": false,
+      "sourceLine": 393
+    },
+    {
+      "id": "5820e29c7a56c99b",
+      "section": "MVP完了の最終確認",
+      "text": "管理画面で午前・午後・審判候補・warning を確認できる",
+      "defaultDone": false,
+      "sourceLine": 394
+    },
+    {
+      "id": "eca5e5ca8389680f",
+      "section": "MVP完了の最終確認",
+      "text": "管理画面で枠追加・枠無効化・時刻変更・チーム差し替え・枠変更ができる",
+      "defaultDone": false,
+      "sourceLine": 395
+    },
+    {
+      "id": "f341f3b1d07f82e0",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-01 開催日一覧・予約",
+      "defaultDone": false,
+      "sourceLine": 399
+    },
+    {
+      "id": "00ca6a68f29d192f",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-02 予約完了",
+      "defaultDone": false,
+      "sourceLine": 400
+    },
+    {
+      "id": "e4c1fe62a7a9e73c",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-03 予約照会・取消",
+      "defaultDone": false,
+      "sourceLine": 401
+    },
+    {
+      "id": "f24c7fa0f6e815b2",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-10 管理ダッシュボード",
+      "defaultDone": false,
+      "sourceLine": 402
+    },
+    {
+      "id": "7054868a26d40231",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-11 前日確定結果一覧",
+      "defaultDone": false,
+      "sourceLine": 403
+    },
+    {
+      "id": "68f97e1053dff262",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-12 前日確定補正",
+      "defaultDone": false,
+      "sourceLine": 404
+    },
+    {
+      "id": "011983ebcdb12b63",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-13 開催日管理",
+      "defaultDone": false,
+      "sourceLine": 405
+    },
+    {
+      "id": "c81049fb905148ae",
+      "section": "MVP完了の最終確認",
+      "text": "SCR-14 開催日枠管理",
+      "defaultDone": false,
+      "sourceLine": 406
+    },
+    {
+      "id": "3600af0f5f913133",
+      "section": "MVP完了の最終確認",
+      "text": "GET /api/event-days",
+      "defaultDone": false,
+      "sourceLine": 410
+    },
+    {
+      "id": "92e2885c558dfce4",
+      "section": "MVP完了の最終確認",
+      "text": "GET /api/event-days/{date}/availability",
+      "defaultDone": false,
+      "sourceLine": 411
+    },
+    {
+      "id": "4a775985c31c23f4",
+      "section": "MVP完了の最終確認",
+      "text": "POST /api/reservations",
+      "defaultDone": false,
+      "sourceLine": 412
+    },
+    {
+      "id": "e4074acb96659fff",
+      "section": "MVP完了の最終確認",
+      "text": "GET /api/reservations/{token}",
+      "defaultDone": false,
+      "sourceLine": 413
+    },
+    {
+      "id": "686a6af077e23baa",
+      "section": "MVP完了の最終確認",
+      "text": "POST /api/reservations/{token}/cancel",
+      "defaultDone": false,
+      "sourceLine": 414
+    },
+    {
+      "id": "d9266919c8adc762",
+      "section": "MVP完了の最終確認",
+      "text": "POST /api/admin/event-days",
+      "defaultDone": false,
+      "sourceLine": 415
+    },
+    {
+      "id": "c8b8e03007079724",
+      "section": "MVP完了の最終確認",
+      "text": "GET /api/admin/event-days/{id}/slots",
+      "defaultDone": false,
+      "sourceLine": 416
+    },
+    {
+      "id": "c2d6eb69a1650c09",
+      "section": "MVP完了の最終確認",
+      "text": "PATCH /api/admin/event-days/{id}/slots",
+      "defaultDone": false,
+      "sourceLine": 417
+    },
+    {
+      "id": "a7c1fe6167e77e7b",
+      "section": "MVP完了の最終確認",
+      "text": "POST /api/admin/matching/run",
+      "defaultDone": false,
+      "sourceLine": 418
+    },
+    {
+      "id": "e4466850330bf464",
+      "section": "MVP完了の最終確認",
+      "text": "GET /api/admin/matches?date=...",
+      "defaultDone": false,
+      "sourceLine": 419
+    },
+    {
+      "id": "1aa1a68bd65c0198",
+      "section": "MVP完了の最終確認",
+      "text": "POST /api/admin/weather-decisions",
+      "defaultDone": false,
+      "sourceLine": 420
+    },
+    {
+      "id": "f5e4b61edef0f9ad",
+      "section": "MVP完了の最終確認",
+      "text": "PATCH /api/admin/matches/{id}",
+      "defaultDone": false,
+      "sourceLine": 421
+    },
+    {
+      "id": "a312598d6ab74904",
+      "section": "MVP完了の最終確認",
+      "text": "JOB01 締切ロック（前日 13:00）",
+      "defaultDone": false,
+      "sourceLine": 425
+    },
+    {
+      "id": "44ce15f2f90e990e",
+      "section": "MVP完了の最終確認",
+      "text": "JOB02 午前補完・午後一括編成（13:01）",
+      "defaultDone": false,
+      "sourceLine": 426
+    },
+    {
+      "id": "729bb919f53b7c42",
+      "section": "MVP完了の最終確認",
+      "text": "JOB03 前日確定通知（13:10）",
+      "defaultDone": false,
+      "sourceLine": 427
+    },
+    {
+      "id": "aaa1f0a9d149e494",
+      "section": "MVP完了の最終確認",
+      "text": "JOB04 雨天判断登録時の通知",
+      "defaultDone": false,
+      "sourceLine": 428
+    },
+    {
+      "id": "8a37361b9f0184e2",
+      "section": "MVP完了の最終確認",
+      "text": "初期 slot 時刻が設計どおりである",
+      "defaultDone": false,
+      "sourceLine": 432
+    },
+    {
+      "id": "a95aa625567bbbb9",
+      "section": "MVP完了の最終確認",
+      "text": "午前・午後の初期枠数と管理者による枠増減方針が実装と一致する",
+      "defaultDone": false,
+      "sourceLine": 433
+    },
+    {
+      "id": "2008e2638ccfe6d4",
+      "section": "MVP完了の最終確認",
+      "text": "カテゴリが strong / potential のみである",
+      "defaultDone": false,
+      "sourceLine": 434
+    },
+    {
+      "id": "17c440681ce9c01a",
+      "section": "MVP完了の最終確認",
+      "text": "team は予約時に自動作成・再利用される",
+      "defaultDone": false,
+      "sourceLine": 435
+    },
+    {
+      "id": "40c28617aee5ce44",
+      "section": "MVP完了の最終確認",
+      "text": "team 再利用キーが team_name + contact_email（候補用・非一意）である",
+      "defaultDone": false,
+      "sourceLine": 436
+    },
+    {
+      "id": "0f49340adef5cae9",
+      "section": "MVP完了の最終確認",
+      "text": "reservation.status が active / cancelled である",
+      "defaultDone": false,
+      "sourceLine": 437
+    },
+    {
+      "id": "e6b4c49b07865cb4",
+      "section": "MVP完了の最終確認",
+      "text": "event_days.status が設計の一覧を満たす",
+      "defaultDone": false,
+      "sourceLine": 438
+    },
+    {
+      "id": "bdcc0c4250949d15",
+      "section": "MVP完了の最終確認",
+      "text": "午前確定が 2 件で即 morning_fixed である",
+      "defaultDone": false,
+      "sourceLine": 439
+    },
+    {
+      "id": "ccdf12925f37409b",
+      "section": "MVP完了の最終確認",
+      "text": "通知が予約完了・前日確定・雨天のみである",
+      "defaultDone": false,
+      "sourceLine": 440
+    },
+    {
+      "id": "3e0643b5fe51a477",
+      "section": "MVP完了の最終確認",
+      "text": "matching_runs.is_current で有効版を一意に保つ",
+      "defaultDone": false,
+      "sourceLine": 441
+    },
+    {
+      "id": "a3913f1a4f117348",
+      "section": "MVP完了の最終確認",
+      "text": "warning が設計のコード体系である",
+      "defaultDone": false,
+      "sourceLine": 442
+    },
+    {
+      "id": "6b8aa0927c969bd9",
+      "section": "MVP完了の最終確認",
+      "text": "meal_count は初期 1 以上、settings でのみ 0 許容",
+      "defaultDone": false,
+      "sourceLine": 443
+    },
+    {
+      "id": "260f7b0c5fe2c439",
+      "section": "MVP完了の最終確認",
+      "text": "枠無効化は予約なし・締切前のみ",
+      "defaultDone": false,
+      "sourceLine": 444
+    },
+    {
+      "id": "d62764d97553ec8a",
+      "section": "MVP完了の最終確認",
+      "text": "予約後の枠時刻変更で is_time_changed が付く",
+      "defaultDone": false,
+      "sourceLine": 445
+    },
+    {
+      "id": "01526ac956a8c5e4",
+      "section": "MVP完了の最終確認",
+      "text": "強制編集は admin のみ",
+      "defaultDone": false,
+      "sourceLine": 446
+    },
+    {
+      "id": "73202d653efb1589",
+      "section": "MVP完了の最終確認",
+      "text": "同一 team の同日複数 reservation が許容され、編成は reservation 単位である",
+      "defaultDone": false,
+      "sourceLine": 447
+    }
+  ]
+}

@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "progress:sync": "node scripts/generate-progress-json.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.9.0",
+    "@supabase/supabase-js": "^2.99.1",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"

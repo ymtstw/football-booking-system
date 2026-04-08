@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MVP 進捗トラッカー</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --card: #1a2332;
+        --text: #e7e9ea;
+        --muted: #8b98a5;
+        --accent: #1d9bf0;
+        --done: #00ba7c;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 1rem 1.25rem 3rem;
+        line-height: 1.5;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+      }
+      .note {
+        color: var(--muted);
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        max-width: 42rem;
+      }
+      .bar-wrap {
+        background: var(--card);
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .bar {
+        height: 8px;
+        background: #38444d;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        background: var(--done);
+        transition: width 0.2s ease;
+      }
+      .stats {
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      button {
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid #38444d;
+        padding: 0.4rem 0.75rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      button.danger {
+        border-color: #f4212e;
+        color: #f4212e;
+      }
+      section {
+        margin-bottom: 1.5rem;
+      }
+      section h2 {
+        font-size: 1rem;
+        color: var(--accent);
+        margin: 0 0 0.5rem;
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid #38444d;
+      }
+      label.row {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        padding: 0.35rem 0;
+        cursor: pointer;
+        border-radius: 4px;
+      }
+      label.row:hover {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      input[type="checkbox"] {
+        margin-top: 0.25rem;
+        width: 1.1rem;
+        height: 1.1rem;
+        accent-color: var(--done);
+        cursor: pointer;
+      }
+      .text {
+        flex: 1;
+        font-size: 0.9rem;
+      }
+      .err {
+        color: #f4212e;
+        padding: 1rem;
+        background: var(--card);
+        border-radius: 8px;
+      }
+      code {
+        background: #38444d;
+        padding: 0.1em 0.35em;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>MVP 進捗トラッカー（クリックで保存）</h1>
+    <p class="note">
+      チェック状態はこのブラウザの <strong>localStorage</strong> にだけ保存されます。別の PC・別ブラウザとは共有されません。Git の
+      <code>docs/progress.md</code> とは自動同期しません。一覧を更新したときはターミナルで
+      <code>npm run progress:sync</code> を実行してからページを再読み込みしてください。
+    </p>
+    <div class="bar-wrap" id="summary" hidden>
+      <div class="bar"><div class="bar-fill" id="barFill" style="width: 0%"></div></div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="actions">
+      <button type="button" id="btnExport">完了IDをJSONでコピー（バックアップ用）</button>
+      <button type="button" id="btnImport">JSONから復元</button>
+      <button type="button" class="danger" id="btnClear">このブラウザの進捗を消去</button>
+    </div>
+    <div id="root"></div>
+
+    <script>
+      const STORAGE_KEY = "football-booking-mvp-progress-v1";
+      const root = document.getElementById("root");
+      const summary = document.getElementById("summary");
+      const barFill = document.getElementById("barFill");
+      const stats = document.getElementById("stats");
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          return raw ? JSON.parse(raw) : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function saveState(state) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      }
+
+      function isDone(task, state) {
+        if (Object.prototype.hasOwnProperty.call(state, task.id)) return !!state[task.id];
+        return !!task.defaultDone;
+      }
+
+      function render(tasksBySection, tasks, state) {
+        root.innerHTML = "";
+        let done = 0;
+        const total = tasks.length;
+        for (const t of tasks) {
+          if (isDone(t, state)) done++;
+        }
+
+        summary.hidden = false;
+        const pct = total ? Math.round((done / total) * 100) : 0;
+        barFill.style.width = pct + "%";
+        stats.textContent = `完了 ${done} / ${total}（${pct}%）`;
+
+        for (const [section, items] of Object.entries(tasksBySection)) {
+          const sec = document.createElement("section");
+          const h2 = document.createElement("h2");
+          h2.textContent = section;
+          sec.appendChild(h2);
+          for (const task of items) {
+            const label = document.createElement("label");
+            label.className = "row";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = isDone(task, state);
+            cb.dataset.id = task.id;
+            const span = document.createElement("span");
+            span.className = "text";
+            span.textContent = task.text;
+            label.appendChild(cb);
+            label.appendChild(span);
+            cb.addEventListener("change", () => {
+              const s = loadState();
+              s[task.id] = cb.checked;
+              saveState(s);
+              render(tasksBySection, tasks, s);
+            });
+            sec.appendChild(label);
+          }
+          root.appendChild(sec);
+        }
+      }
+
+      async function main() {
+        let data;
+        try {
+          const res = await fetch("/dev/progress-tasks.json", { cache: "no-store" });
+          if (!res.ok) throw new Error(res.status + " " + res.statusText);
+          data = await res.json();
+        } catch (e) {
+          root.innerHTML =
+            '<p class="err">progress-tasks.json を読めませんでした。<br />プロジェクトルートで <code>npm run dev</code> を起動し、<code>http://localhost:3000/dev/progress-tracker.html</code> を開いてください。<br />初回は <code>npm run progress:sync</code> も実行してください。<br /><small>' +
+            String(e.message) +
+            "</small></p>";
+          return;
+        }
+
+        const tasks = data.tasks || [];
+        const tasksBySection = {};
+        for (const t of tasks) {
+          if (!tasksBySection[t.section]) tasksBySection[t.section] = [];
+          tasksBySection[t.section].push(t);
+        }
+
+        const state = loadState();
+        render(tasksBySection, tasks, state);
+
+        document.getElementById("btnExport").addEventListener("click", () => {
+          const s = loadState();
+          const doneIds = Object.entries(s)
+            .filter(([, v]) => v)
+            .map(([k]) => k);
+          const blob = JSON.stringify({ savedAt: new Date().toISOString(), doneIds }, null, 2);
+          navigator.clipboard.writeText(blob).then(
+            () => alert("クリップボードにコピーしました。"),
+            () => prompt("コピーできませんでした。以下を手動コピー:", blob)
+          );
+        });
+
+        document.getElementById("btnImport").addEventListener("click", () => {
+          const raw = prompt("バックアップした JSON を貼り付け（doneIds 配列を含むオブジェクト）");
+          if (!raw) return;
+          try {
+            const o = JSON.parse(raw);
+            const ids = o.doneIds || [];
+            const s = {};
+            for (const id of ids) s[id] = true;
+            saveState(s);
+            render(tasksBySection, tasks, s);
+            alert("復元しました。");
+          } catch {
+            alert("JSON の形式が正しくありません。");
+          }
+        });
+
+        document.getElementById("btnClear").addEventListener("click", () => {
+          if (!confirm("このブラウザに保存したチェックをすべて消します。よいですか？")) return;
+          localStorage.removeItem(STORAGE_KEY);
+          render(tasksBySection, tasks, {});
+        });
+      }
+
+      main();
+    </script>
+  </body>
+</html>
