@@ -9,6 +9,7 @@
 
 ## このファイルの使い方
 
+- **Vercel 本番の動作確認:** ダッシュボードの **Deployments** に表示される本番 URL（例: `https://xxxx.vercel.app`）をブラウザで開き、トップが表示されればよい。環境変数を変えたあとは **Redeploy** が必要（`NEXT_PUBLIC_*` はビルド時に埋め込まれる）。
 - 完了した作業は、該当行の `[ ]` を **`[x]`** に書き換えて保存する（Git で差分が進捗になる）。
 - **プレビュー画面のクリックでは `.md` は自動保存されません。** エディタの**ソース表示**で編集してください。拡張機能「Markdown All in One」を入れている場合、行にカーソルを置いて **Alt+C**（タスクのトグル）が使えます。
 - **クリックだけで進捗を残したい場合:** `npm run dev` のあとブラウザで `http://localhost:3000/dev/progress-tracker.html` を開く（`public/dev/progress-tracker.html`）。一覧は `npm run progress:sync` で本ファイルから再生成。チェックはブラウザの localStorage のみ（`docs/progress.md` とは別管理）。
@@ -39,36 +40,36 @@
 
 ### 0-1. アカウント・外部サービス
 
-- [ ] Supabase プロジェクトを作成する（PostgreSQL）
-- [ ] Vercel プロジェクトを作成し Git と連携する
+- [x] Supabase プロジェクトを作成する（PostgreSQL）
+- [x] Vercel プロジェクトを作成し Git と連携する
 - [ ] メール送信サービス（Resend 等）のアカウント・送信ドメイン／From 方針を決める
 - [ ] 本番とステージングで Supabase を分けるか同一か方針を決める
 
 ### 0-2. リポジトリ・環境変数
 
-- [ ] ルートに `.env.local` を置き、必要なキーを定義する
-- [ ] 環境変数 `NEXT_PUBLIC_SUPABASE_URL` を定義する
-- [ ] 環境変数 `NEXT_PUBLIC_SUPABASE_ANON_KEY` を定義する
-- [ ] 環境変数 `SUPABASE_SERVICE_ROLE_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）
+- [x] ルートに `.env.local` を置き、必要なキーを定義する
+- [x] 環境変数 `NEXT_PUBLIC_SUPABASE_URL` を定義する
+- [x] 環境変数 `NEXT_PUBLIC_SUPABASE_ANON_KEY` を定義する
+- [x] 環境変数 `SUPABASE_SERVICE_ROLE_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）
 - [ ] メール送信用の API キー等のシークレットを定義する
 - [ ] Vercel Cron や管理用 API の認可に使うシークレットを定義する（採用する場合）
-- [ ] `.env.example` をコミットし、キー名のみ列挙する（値は書かない）
-- [ ] Vercel ダッシュボードに本番・プレビュー用の Environment Variables を登録する
+- [x] `.env.example` をコミットし、キー名のみ列挙する（値は書かない）
+- [x] Vercel ダッシュボードに本番・プレビュー用の Environment Variables を登録する
 
 ### 0-3. ディレクトリ・コード方針（設計書 4-1）
 
-- [ ] `app/(public)/` を用意する（公開 UI）
-- [ ] `app/(admin)/` を用意する（管理 UI・認証ガード）
-- [ ] `app/api/` に Route Handlers を置く
-- [ ] `domains/reservations/` `domains/matching/` `domains/notifications/` `domains/weather/` を段階的に用意する
-- [ ] `lib/db/` `lib/auth/` `lib/validators/` を用意する
-- [ ] `supabase/migrations/` に SQL migration を置く
+- [x] `app/(public)/` を用意する（公開 UI）※実体は `src/app/(public)/`
+- [x] `app/(admin)/` を用意する（管理 UI・認証ガード）※実体は `src/app/(admin)/`
+- [x] `app/api/` に Route Handlers を置く※実体は `src/app/api/`
+- [x] `domains/reservations/` `domains/matching/` `domains/notifications/` `domains/weather/` を段階的に用意する※実体は `src/domains/...`
+- [x] `lib/db/` `lib/auth/` `lib/validators/` を用意する※実体は `src/lib/...`
+- [x] `supabase/migrations/` に SQL migration を置く（初回: `20260407120000_initial_schema.sql`）
 
 ### 0-4. 型・品質・CI
 
 - [ ] Supabase 型生成方針を決める（CLI `gen types` 等）し、必要なら npm script を追加する
-- [ ] `npm run lint` が通るようにする
-- [ ] `npm run build` が通るようにする
+- [x] `npm run lint` が通るようにする
+- [x] `npm run build` が通るようにする
 - [ ] （任意）プルリク時に lint / build を回す CI を用意する
 
 ---
@@ -78,6 +79,8 @@
 **完了条件:** 午前枠の予約・照会・取消が通り、2件目で `morning_fixed` が DB に作られる。
 
 ### 1-1. データベース migration（設計書 7章）
+
+**メモ:** 初回スキーマは `supabase/migrations/20260407120000_initial_schema.sql` にある。**Supabase の SQL Editor で実行し、Table Editor にテーブルが出たあと**、下の細目チェックを `[x]` にしていく（未実行のまま付けないこと）。
 
 **ENUM・区分値**
 

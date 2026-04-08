@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
+export async function proxy(request: NextRequest) {
+  const supabaseResponse = NextResponse.next({
     request,
   });
 
@@ -19,11 +19,10 @@ export async function middleware(request: NextRequest) {
             supabaseResponse.cookies.set(name, value, options)
           );
         },
-      },
+      }
     }
   );
 
-  // セッションを更新（認証を使う場合）
   await supabase.auth.getUser();
 
   return supabaseResponse;
