@@ -153,7 +153,6 @@ CREATE TABLE public.meal_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   reservation_id uuid NOT NULL UNIQUE REFERENCES public.reservations (id) ON DELETE CASCADE,
   meal_count integer NOT NULL,
-  parking_count integer NOT NULL DEFAULT 0,
   notes text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),

@@ -1,13 +1,10 @@
+/** ログイン済みかつ app_admins にいるユーザーだけ返す。管理 API・保護レイアウトで使用。 */
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
 
-/**
- * Cookie セッションでログイン済みかつ public.app_admins に登録されているユーザのみ返す。
- * 管理系 Route Handler の入口で使う。
- */
 export async function getAdminUser(): Promise<User | null> {
   const supabase = await createClient();
   const {

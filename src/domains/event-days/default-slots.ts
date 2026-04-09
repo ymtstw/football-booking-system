@@ -1,7 +1,4 @@
-/**
- * 開催日作成時に付与する初期6枠（design-mvp.md §3-1 の表どおり）。
- * DB の event_day_slots へ insert する際は event_day_id を別途付与する。
- */
+/** 開催日1件あたりの既定6枠定義。POST 開催日時に event_day_slots へコピーする元データ。 */
 
 /** public.slot_phase ENUM と一致 */
 export type DefaultSlotPhase = "morning" | "afternoon";

@@ -63,13 +63,14 @@
 - [x] `app/api/` に Route Handlers を置く※実体は `src/app/api/`（置き場所の用意まで。`route.ts` の実装は 1-4〜1-7 および末尾の API チェックリスト）
 - [x] `domains/reservations/` `domains/matching/` `domains/notifications/` `domains/weather/` を段階的に用意する※実体は `src/domains/...`
 - [x] `lib/db/` `lib/auth/` `lib/validators/` を用意する※実体は `src/lib/...`
-- [x] `supabase/migrations/` に SQL migration を置く（`20260407120000_initial_schema.sql`・`20260407120100_enable_rls.sql`）
+- [x] `supabase/migrations/` に SQL migration を置く（`20260407120000_initial_schema.sql`・`20260407120100_enable_rls.sql`・`20260408140000_create_public_reservation_rpc.sql`・`20260409120000_remove_meal_orders_parking.sql`）※`supabase/config.toml` は `supabase init` 済み
 
 ### 0-4. 型・品質・CI
 
 - [ ] Supabase 型生成方針を決める（CLI `gen types` 等）し、必要なら npm script を追加する
 - [x] `npm run lint` が通るようにする
 - [x] `npm run build` が通るようにする
+- [x] Supabase CLI（`supabase`）を devDependency で入れ、`db:push` / `supabase` 用 npm script を定義する（PowerShell は実行ポリシーにより `npm.cmd run …` を使用）
 - [ ] （任意）プルリク時に lint / build を回す CI を用意する
 
 ---
@@ -80,7 +81,7 @@
 
 ### 1-1. データベース migration（設計書 7章）
 
-**メモ:** Supabase SQL Editor で `20260407120000_initial_schema.sql` → `20260407120100_enable_rls.sql` を適用済み。`set_updated_at` に `SET search_path = public` を付与し Security Advisor の Function Search Path 警告を解消済み。**同じ初期 SQL を二重実行しない**（ENUM already exists 回避）。本番 DB には未適用なら 3-6 のタイミングで同手順を踏む。
+**メモ:** ローカルリポジトリの migration は上記 4 本。リモート（リンク済みプロジェクト）へ **`npm.cmd run supabase -- login` → `link --project-ref …` → `db:push`** で適用済み（2026-04-09）。既に SQL Editor 等で入っていたオブジェクトと履歴がずれていた場合は **`migration repair <version> --status applied`** で履歴を整合してから push。`set_updated_at` に `SET search_path = public` を付与し Security Advisor の Function Search Path 警告を解消済み。**同じ初期 SQL を二重実行しない**（ENUM / table already exists 回避）。
 
 **ENUM・区分値**
 
@@ -121,7 +122,7 @@
 **管理者と users**
 
 - [x] Supabase Auth と admin 判定の方針を決める（`auth.users` のみ / `profiles` 等）
-- [ ] 管理 API・管理画面ルートに admin ガードを適用する（※`POST /api/admin/event-days` に `getAdminUser` は適用済み。管理画面ルート・他 API は未）
+- [x] 管理 API・管理画面ルートに admin ガードを適用する（※`/admin/*` の `(protected)` で `getAdminUser`、管理 API は `POST/PATCH event-days` に適用済み）
 
 ### 1-2. RLS・データ更新経路（設計書 4-2・10章）
 
@@ -139,35 +140,37 @@
 
 ### 1-4. 管理 API / UI（Phase 1 最小）
 
-- [x] `POST /api/admin/event-days` で開催日の作成・更新と初期6枠生成ができる（※**作成**＋初期6枠まで。**更新 PATCH** は未続行）
-- [ ] `draft` / `open` など状態を管理画面から切り替えられる
-- [ ] SCR-13 開催日管理の最小 UI を実装する
+- [x] `POST /api/admin/event-days` で開催日の作成・更新と初期6枠生成ができる（※作成＋初期6枠。状態の更新は `PATCH /api/admin/event-days/[id]` で draft/open）
+- [x] `draft` / `open` など状態を管理画面から切り替えられる（※下書き・公開ボタン）
+- [x] SCR-13 開催日管理の最小 UI を実装する（※`/admin/event-days`）
 - [ ] SCR-14 は Phase 3 で本実装する前提で、Phase 1 では枠一覧表示のみでもよい（方針をメモ欄に残す）
 
 ### 1-5. 公開 API（設計書 8章・10章）
 
-- [ ] `GET /api/event-days` で `open` の開催日のみ返す
-- [ ] レスポンスに個人情報（メール・電話）を含めない
-- [ ] `GET /api/event-days/{date}/availability` で各午前枠の件数・カテゴリ内訳を返す
+- [x] `GET /api/event-days` で `open` の開催日のみ返す
+- [x] レスポンスに個人情報（メール・電話）を含めない（※公開フィールドのみ選択）
+- [x] `GET /api/event-days/{date}/availability` で各午前枠の件数・カテゴリ内訳を返す
 
 ### 1-6. 予約作成 API（設計書 8-2・3-4）
 
-- [ ] `POST /api/reservations` の入力バリデーション（participantCount、mealCount、カテゴリ、枠 ID）を行う
-- [ ] `event_day` が open かつ締切前であることを検証する
-- [ ] 選択枠が morning かつ is_active であることを検証する
-- [ ] 同日 active 予約が 6 未満であることを検証する
-- [ ] 対象 `event_day_slots` 行を `SELECT ... FOR UPDATE` でロックする
-- [ ] トランザクション内で枠あたり active が 2 未満であることを再検証し、満杯なら 409 を返す
-- [ ] team_name + contact_email で再利用候補を検索し、なければ新規 teams を作る（一意制約にしない）
-- [ ] 既存 team の contact / strength_category を更新し、team_name は原則上書きしない
-- [ ] is_active = false の team は予約不可にする
-- [ ] reservations と meal_orders を同一トランザクションで insert する
-- [ ] 枠に 2 件目の active が入ったら同一トランザクション内で `morning_fixed` の match_assignments を作成する
-- [ ] `morning_fixed` 即時作成時の `matching_run` の扱いを決め実装する（メモ欄に短文で記録）
-- [ ] reservation_token を生成し、DB にはハッシュのみ保存し、レスポンスで平文を返す
-- [ ] reservation_events に作成を記録する
-- [ ] 予約完了メールを送る（失敗時は notifications を failed にする）
-- [ ] HTTP 400 / 404 / 409 / 422 を設計書 8-4 に沿って返す
+※実装は Route Handler（入力・UUID・HTTP マッピング）+ DB の `create_public_reservation`（1 TX・FOR UPDATE・業務検証）。
+
+- [x] `POST /api/reservations` の入力バリデーション（participantCount、mealCount、カテゴリ、枠 ID）を行う
+- [x] `event_day` が open かつ締切前であることを検証する
+- [x] 選択枠が morning かつ is_active であることを検証する
+- [x] 同日 active 予約が 6 未満であることを検証する
+- [x] 対象 `event_day_slots` 行を `SELECT ... FOR UPDATE` でロックする
+- [x] トランザクション内で枠あたり active が 2 未満であることを再検証し、満杯なら 409 を返す
+- [x] team_name + contact_email で再利用候補を検索し、なければ新規 teams を作る（一意制約にしない）
+- [x] 既存 team の contact / strength_category を更新し、team_name は原則上書きしない
+- [x] is_active = false の team は予約不可にする
+- [x] reservations と meal_orders を同一トランザクションで insert する
+- [x] 枠に 2 件目の active が入ったら同一トランザクション内で `morning_fixed` の match_assignments を作成する
+- [x] `morning_fixed` 即時作成時の `matching_run` の扱いを決め実装する（メモ欄に短文で記録）
+- [x] reservation_token を生成し、DB にはハッシュのみ保存し、レスポンスで平文を返す
+- [x] reservation_events に作成を記録する
+- [ ] 予約完了メールを送る（失敗時は notifications を failed にする）※RPC は `notifications` を `pending` で insert のみ
+- [x] HTTP 400 / 404 / 409 / 422 を設計書 8-4 に沿って返す
 
 ### 1-7. 予約照会・取消 API（設計書 8-3）
 
@@ -335,7 +338,7 @@
 
 ### 3-6. 本番リリース・引き継ぎ
 
-- [ ] 本番 Supabase に migration を適用する
+- [x] 本番 Supabase に migration を適用する（※リンク済みリモートへ `db push` 完了。別環境があれば同手順で未適用分のみ）
 - [ ] Vercel 本番の環境変数を設定する
 - [ ] Cron を本番で有効化し、時刻を最終確認する
 - [ ] 管理者ユーザの作り方を手順書に書く
@@ -410,9 +413,9 @@
 
 ### API（設計書 8章）— すべてチェックリスト
 
-- [ ] GET /api/event-days
-- [ ] GET /api/event-days/{date}/availability
-- [ ] POST /api/reservations
+- [x] GET /api/event-days
+- [x] GET /api/event-days/{date}/availability
+- [x] POST /api/reservations
 - [ ] GET /api/reservations/{token}
 - [ ] POST /api/reservations/{token}/cancel
 - [ ] POST /api/admin/event-days
@@ -468,10 +471,10 @@
 
 ### 作業再開メモ（次セッション）
 
-- **完了済み:** `server-only` 導入、`src/lib/supabase/service.ts`（service role）、`src/domains/event-days/default-slots.ts`（初期6枠）、`src/lib/auth/require-admin.ts`（`getAdminUser`）、`POST /api/admin/event-days`（管理者のみ・開催日作成＋6枠 insert・409 重複日）、`supabase/migrations` の `set_updated_at` に `SET search_path = public`、`20260407120100_enable_rls.sql` をリポジトリに追加。
-- **次にやる:** 管理ログイン画面（例 `/admin/login`）、`(admin)` レイアウトのガード、SCR-13 最小 UI、`draft`/`open` 切替用の更新 API、Cookie 付きで `POST /api/admin/event-days` を叩ける動線、`GET /api/event-days` 以降（progress 1-4 残・1-5）。
+- **完了済み:** 上記に加え `/admin/login`（メール・パスワード）、`/admin` リダイレクト、`(protected)` レイアウトで `getAdminUser` ガード・ログアウト、SCR-13 最小の開催日一覧＋作成フォーム＋下書き/公開トグル、`PATCH /api/admin/event-days/[id]`（draft/open のみ）、`GET /api/event-days`（open のみ・公開用フィールド）、`GET /api/event-days/[date]/availability`、`POST /api/reservations`（Route + `create_public_reservation` RPC・駐車なし）。**2026-04-09:** Supabase CLI を devDependency 化、`supabase init`、`link`、`db push` でリモートに migration 4 本を適用（必要箇所は `migration repair` で履歴整合）。
+- **次にやる（明日の続き）:** `POST /api/reservations` を実データで通し確認（同一枠 2 件目で `morning_fixed`）。続けて `GET /api/reservations/{token}`・`POST …/cancel`、公開 UI（SCR-01〜03）、レート制限、メール（`notifications` の送信）。必要なら開催日 `PATCH` の拡張（締切・学年帯の編集）。
 
-- morning_fixed 即時作成時の matching_run の扱い:
+- morning_fixed 即時作成時の matching_run の扱い: **同一枠 2 件目**のとき、当該 `event_day_id` に `is_current = true` の行が無ければ `create_public_reservation` 内で `matching_runs` に `success`・`is_current=true` を INSERT してから `match_assignments` を挿入。
 - タイムゾーン（JST 固定か、event に TZ を持つか）:
 - admin ロールの付与方法: **`public.app_admins`** に Supabase Auth の `user_id`（`auth.users.id`）を 1 行 INSERT。`is_app_admin()` は `SECURITY DEFINER` + `SET search_path = public`。管理用の DB 直参照は `app_admins` 登録ユーザのみ（authenticated ポリシー）。業務更新の主経路は Route Handler + **service_role** 推奨。
 - その他:

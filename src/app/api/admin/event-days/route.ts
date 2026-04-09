@@ -1,3 +1,4 @@
+/** 管理者のみ POST: 開催日 insert ＋ 既定6枠（event_day_slots）insert。 */
 import { NextResponse } from "next/server";
 
 import { toEventDaySlotRows } from "@/domains/event-days/default-slots";
@@ -22,9 +23,16 @@ type CreateBody = {
 function parseCreateBody(body: unknown): CreateBody | null {
   if (body === null || typeof body !== "object") return null;
   const o = body as Record<string, unknown>;
+  const gradeRaw = o.gradeBand ?? o.grade_band;
+  const gradeBand =
+    typeof gradeRaw === "string"
+      ? gradeRaw
+      : typeof gradeRaw === "number"
+        ? String(gradeRaw)
+        : undefined;
   return {
     eventDate: typeof o.eventDate === "string" ? o.eventDate : undefined,
-    gradeBand: typeof o.gradeBand === "string" ? o.gradeBand : undefined,
+    gradeBand,
     reservationDeadlineAt:
       typeof o.reservationDeadlineAt === "string"
         ? o.reservationDeadlineAt
