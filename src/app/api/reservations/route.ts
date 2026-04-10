@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 
 import { NextResponse } from "next/server";
 
+import { sendReservationCreatedEmailAndUpdateNotification } from "@/lib/email/reservation-created-mail";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
@@ -217,6 +218,23 @@ export async function POST(request: Request) {
     }
 
     if (result.success === true && result.reservationId) {
+      const { data: eventDayRow } = await supabase
+        .from("event_days")
+        .select("event_date, grade_band")
+        .eq("id", eventDayId)
+        .maybeSingle();
+
+      await sendReservationCreatedEmailAndUpdateNotification({
+        supabase,
+        reservationId: result.reservationId,
+        to: team.contactEmail!.trim(),
+        contactName: team.contactName!.trim(),
+        teamName: team.teamName!.trim(),
+        eventDateIso: eventDayRow?.event_date ?? null,
+        gradeBand: eventDayRow?.grade_band ?? null,
+        reservationTokenPlain: tokenPlain,
+      });
+
       return NextResponse.json(
         {
           reservationId: result.reservationId,
