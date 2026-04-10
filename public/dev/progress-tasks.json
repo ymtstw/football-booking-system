@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-10T07:37:28.033Z",
+  "generatedAt": "2026-04-10T12:38:29.445Z",
   "sourceFile": "docs/progress.md",
   "taskCount": 256,
   "tasks": [
@@ -18,10 +18,10 @@
       "sourceLine": 44
     },
     {
-      "id": "c28d4761398cafe0",
+      "id": "93f857852198dafa",
       "section": "0. 準備・プロジェクト基盤",
-      "text": "メール送信サービス（Resend 等）のアカウント・送信ドメイン／From 方針を決める",
-      "defaultDone": false,
+      "text": "メール送信サービス（Resend 等）のアカウント・送信ドメイン／From 方針を決める（**Resend 採用**。テストは `onboarding@resend.dev`、本番前に独自ドメイン検証で受信トレイ改善予定）",
+      "defaultDone": true,
       "sourceLine": 45
     },
     {
@@ -60,10 +60,10 @@
       "sourceLine": 53
     },
     {
-      "id": "582c9d35f6634861",
+      "id": "13a37cfb93bc1e86",
       "section": "0. 準備・プロジェクト基盤",
-      "text": "メール送信用の API キー等のシークレットを定義する",
-      "defaultDone": false,
+      "text": "メール送信用の API キー等のシークレットを定義する（`.env.example`・ローカル `.env.local`・Vercel Preview/Production の `RESEND_API_KEY` / `RESEND_FROM`）",
+      "defaultDone": true,
       "sourceLine": 54
     },
     {
@@ -578,10 +578,10 @@
       "sourceLine": 172
     },
     {
-      "id": "2f517c2514136ff8",
+      "id": "dc8cca084582804d",
       "section": "1. Phase 1 — 予約の核",
-      "text": "予約完了メールを送る（失敗時は notifications を failed にする）※RPC は `notifications` を `pending` で insert のみ",
-      "defaultDone": false,
+      "text": "予約完了メールを送る（失敗時は notifications を failed にする）※RPC は `notifications` を `pending` で insert のみ（**Resend 送信は Route Handler**。Staging で `sent` 確認済み）",
+      "defaultDone": true,
       "sourceLine": 173
     },
     {
