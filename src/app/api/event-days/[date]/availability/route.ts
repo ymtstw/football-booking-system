@@ -70,7 +70,9 @@ export async function GET(
 
   const { data: resRows, error: resErr } = await supabase
     .from("reservations")
-    .select("selected_morning_slot_id, teams ( strength_category )")
+    .select(
+      "id, selected_morning_slot_id, created_at, teams ( team_name, strength_category )"
+    )
     .eq("event_day_id", day.id)
     .eq("status", "active")
     .not("selected_morning_slot_id", "is", null);
@@ -83,19 +85,30 @@ export async function GET(
   }
 
   const aggBySlot = new Map<string, SlotAgg>();
+  const bookedBySlot = new Map<
+    string,
+    Array<{ reservationId: string; teamName: string; strengthCategory: string }>
+  >();
   for (const s of slots ?? []) {
     aggBySlot.set(s.id, { strong: 0, potential: 0, unknown: 0, total: 0 });
+    bookedBySlot.set(s.id, []);
   }
 
-  for (const row of resRows ?? []) {
+  const sortedRows = [...(resRows ?? [])].sort(
+    (a, b) =>
+      new Date(String(a.created_at)).getTime() -
+      new Date(String(b.created_at)).getTime()
+  );
+
+  for (const row of sortedRows) {
     const sid = row.selected_morning_slot_id as string | null;
     if (!sid) continue;
     const bucket = aggBySlot.get(sid);
     if (!bucket) continue;
 
     const rawTeams = row.teams as
-      | { strength_category: StrengthCategory }
-      | { strength_category: StrengthCategory }[]
+      | { team_name: string; strength_category: StrengthCategory }
+      | { team_name: string; strength_category: StrengthCategory }[]
       | null;
     const team = Array.isArray(rawTeams) ? rawTeams[0] : rawTeams;
     const cat = team?.strength_category;
@@ -103,6 +116,20 @@ export async function GET(
     if (cat === "strong") bucket.strong += 1;
     else if (cat === "potential") bucket.potential += 1;
     else bucket.unknown += 1;
+
+    const name = team?.team_name?.trim();
+    const resId = row.id as string;
+    if (name && resId) {
+      const list = bookedBySlot.get(sid);
+      if (list) {
+        list.push({
+          reservationId: resId,
+          teamName: name,
+          strengthCategory:
+            cat === "strong" || cat === "potential" ? cat : "unknown",
+        });
+      }
+    }
   }
 
   const deadline = new Date(day.reservation_deadline_at).getTime();
@@ -137,6 +164,7 @@ export async function GET(
         potential: a.potential,
         unknown: a.unknown,
       },
+      bookedTeams: bookedBySlot.get(s.id) ?? [],
     };
   });
 

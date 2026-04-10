@@ -43,7 +43,7 @@
 - [x] Supabase プロジェクトを作成する（PostgreSQL）
 - [x] Vercel プロジェクトを作成し Git と連携する
 - [ ] メール送信サービス（Resend 等）のアカウント・送信ドメイン／From 方針を決める
-- [ ] 本番とステージングで Supabase を分けるか同一か方針を決める
+- [x] 本番とステージングで Supabase を分けるか同一か方針を決める（**別プロジェクトで Staging** とし、手順は `docs/setup-staging-supabase.md`）
 
 ### 0-2. リポジトリ・環境変数
 

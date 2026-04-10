@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-09T10:18:18.999Z",
+  "generatedAt": "2026-04-10T03:52:07.593Z",
   "sourceFile": "docs/progress.md",
   "taskCount": 252,
   "tasks": [
@@ -25,10 +25,10 @@
       "sourceLine": 45
     },
     {
-      "id": "9bf53b6d434b695b",
+      "id": "da20c8b6b0b017d4",
       "section": "0. 準備・プロジェクト基盤",
-      "text": "本番とステージングで Supabase を分けるか同一か方針を決める",
-      "defaultDone": false,
+      "text": "本番とステージングで Supabase を分けるか同一か方針を決める（**別プロジェクトで Staging** とし、手順は `docs/setup-staging-supabase.md`）",
+      "defaultDone": true,
       "sourceLine": 46
     },
     {

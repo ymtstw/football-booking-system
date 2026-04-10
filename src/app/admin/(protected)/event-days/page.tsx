@@ -1,4 +1,8 @@
 /** 開催日管理: 一覧（サーバー取得）・追加フォーム・行ごとの公開／下書き。 */
+import {
+  formatDateTimeTokyoWithWeekday,
+  formatIsoDateWithWeekdayJa,
+} from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
 import { CreateEventDayForm } from "./create-event-day-form";
@@ -54,13 +58,13 @@ export default async function AdminEventDaysPage() {
               ) : (
                 (rows ?? []).map((row) => (
                   <tr key={row.id} className="border-b border-zinc-100">
-                    <td className="px-3 py-2 font-mono text-zinc-900">
-                      {row.event_date}
+                    <td className="px-3 py-2 text-zinc-900">
+                      {formatIsoDateWithWeekdayJa(row.event_date)}
                     </td>
                     <td className="px-3 py-2 text-zinc-800">{row.grade_band}</td>
                     <td className="px-3 py-2 text-zinc-800">{row.status}</td>
-                    <td className="px-3 py-2 font-mono text-xs text-zinc-600">
-                      {row.reservation_deadline_at}
+                    <td className="px-3 py-2 text-xs text-zinc-600">
+                      {formatDateTimeTokyoWithWeekday(row.reservation_deadline_at)}
                     </td>
                     <td className="px-3 py-2">
                       <EventDayRowActions id={row.id} status={row.status} />

@@ -1,9 +1,14 @@
 /** 公開 POST: 予約作成（認証不要）。RPC で TX＋行ロック。token 平文はレスポンスのみ。 */
-import { createHash, randomBytes } from "crypto";
+import { randomBytes } from "crypto";
 
 import { NextResponse } from "next/server";
 
+import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import {
+  isContactPhoneDigitsValid,
+  normalizeContactPhoneDigits,
+} from "@/lib/validators/contact-phone";
 
 type RpcResult = {
   success?: boolean;
@@ -93,7 +98,7 @@ function mapRpcError(error: string): { status: number; body: Record<string, stri
     case "invalid_strength":
       return {
         status: 422,
-        body: { error: "strengthCategory は strong または potential です" },
+        body: { error: "チームカテゴリはハイレベルまたはポテンシャルを選んでください" },
       };
     case "invalid_input":
       return { status: 400, body: { error: "入力内容を確認してください" } };
@@ -146,14 +151,14 @@ export async function POST(request: Request) {
     !team.contactPhone?.trim()
   ) {
     return NextResponse.json(
-      { error: "チーム名・担当者名・メール・電話は必須です" },
+      { error: "チーム名・チーム代表者名・メール・電話は必須です" },
       { status: 400 }
     );
   }
 
   if (!team.strengthCategory || !["strong", "potential"].includes(team.strengthCategory)) {
     return NextResponse.json(
-      { error: "strengthCategory は strong または potential です" },
+      { error: "チームカテゴリはハイレベルまたはポテンシャルを選んでください" },
       { status: 422 }
     );
   }
@@ -172,11 +177,22 @@ export async function POST(request: Request) {
     );
   }
 
+  const phoneDigits = normalizeContactPhoneDigits(team.contactPhone!.trim());
+  if (!isContactPhoneDigitsValid(phoneDigits)) {
+    return NextResponse.json(
+      {
+        error:
+          "電話番号は数字のみ、10〜15桁で入力してください（ハイフンは不要です。全角数字は半角に直して保存します）",
+      },
+      { status: 422 }
+    );
+  }
+
   const supabase = createServiceRoleClient();
 
   for (let attempt = 0; attempt < 6; attempt++) {
     const tokenPlain = randomBytes(32).toString("hex");
-    const tokenHash = createHash("sha256").update(tokenPlain, "utf8").digest("hex");
+    const tokenHash = hashReservationTokenPlain(tokenPlain);
 
     const { data, error } = await supabase.rpc("create_public_reservation", {
       p_event_day_id: eventDayId,
@@ -185,7 +201,7 @@ export async function POST(request: Request) {
       p_strength_category: team.strengthCategory,
       p_contact_name: team.contactName!.trim(),
       p_contact_email: team.contactEmail!.trim(),
-      p_contact_phone: team.contactPhone!.trim(),
+      p_contact_phone: phoneDigits,
       p_participant_count: participantCount,
       p_meal_count: mealCount,
       p_remarks: remarks.trim(),
@@ -229,7 +245,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json(
-    { error: "トークン生成の競合が続きました。しばらくしてから再度お試しください" },
+    { error: "確認コードの生成が続けて競合しました。しばらくしてから再度お試しください" },
     { status: 503 }
   );
 }
