@@ -48,6 +48,9 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.RESEND_FROM?.trim();
   if (!apiKey || !from) {
+    console.warn(
+      "[reservation email] skipped: set RESEND_API_KEY and RESEND_FROM (notifications stay pending)"
+    );
     return;
   }
 
