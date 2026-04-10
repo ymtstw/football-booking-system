@@ -5,7 +5,11 @@ import { LoginForm } from "./login-form";
 
 export default function AdminLoginPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-zinc-600">読み込み中…</p>}>
+    <Suspense
+      fallback={
+        <p className="p-6 text-center text-sm text-zinc-600">読み込み中…</p>
+      }
+    >
       <LoginForm />
     </Suspense>
   );

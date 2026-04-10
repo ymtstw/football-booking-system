@@ -146,16 +146,20 @@ export function UpdatePasswordForm() {
 
   if (bootError) {
     return (
-      <div className="max-w-md space-y-3 text-sm text-zinc-700">
+      <div className="max-w-md space-y-3 text-sm leading-relaxed text-zinc-700">
         <p className="text-red-700">{bootError}</p>
         <p>
-          Gmail などでリンクを開くと <code className="rounded bg-zinc-100 px-1">?code=</code>{" "}
+          Gmail などでリンクを開くと{" "}
+          <code className="break-all rounded bg-zinc-100 px-1">?code=</code>{" "}
           が付いた URL になるはずです。アドレスバーに{" "}
           <code className="rounded bg-zinc-100 px-1">code=</code> または{" "}
           <code className="rounded bg-zinc-100 px-1">#access_token</code>{" "}
           があるか確認し、もう一度メールから「Reset Password」を開いてください。
         </p>
-        <Link href="/admin/login" className="text-zinc-600 underline">
+        <Link
+          href="/admin/login"
+          className="inline-flex min-h-9 items-center text-zinc-600 underline"
+        >
           管理ログインへ
         </Link>
       </div>
@@ -164,7 +168,7 @@ export function UpdatePasswordForm() {
 
   if (!ready) {
     return (
-      <p className="text-zinc-600">
+      <p className="text-sm leading-relaxed text-zinc-600 sm:text-base">
         {bootDone
           ? "セッションを取得できませんでした。メールのリンクをもう一度開くか、パスワード再設定を再送してください。"
           : "リンクを確認しています…"}
@@ -183,7 +187,7 @@ export function UpdatePasswordForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="min-h-11 w-full rounded-md border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
         />
       </label>
       <label className="flex flex-col gap-1 text-sm">
@@ -195,22 +199,25 @@ export function UpdatePasswordForm() {
           onChange={(e) => setConfirm(e.target.value)}
           required
           minLength={8}
-          className="rounded border border-zinc-300 px-3 py-2"
+          className="min-h-11 w-full rounded-md border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
         />
       </label>
       {message ? (
-        <p className="text-sm text-zinc-700" role="status">
+        <p className="text-sm leading-relaxed text-zinc-700" role="status">
           {message}
         </p>
       ) : null}
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+        className="min-h-11 w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
       >
         {loading ? "更新中…" : "パスワードを設定"}
       </button>
-      <Link href="/admin/login" className="text-sm text-zinc-600 underline">
+      <Link
+        href="/admin/login"
+        className="inline-flex min-h-9 items-center text-sm text-zinc-600 underline"
+      >
         管理ログインへ
       </Link>
     </form>

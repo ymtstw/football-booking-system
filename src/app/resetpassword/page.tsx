@@ -15,7 +15,7 @@ export default function ResetPasswordAliasPage() {
   }, [router]);
 
   return (
-    <main className="p-8 text-center text-zinc-600">
+    <main className="flex min-h-[40vh] items-center justify-center px-4 py-10 text-center text-sm text-zinc-600">
       <p>パスワード再設定ページへ移動しています…</p>
     </main>
   );

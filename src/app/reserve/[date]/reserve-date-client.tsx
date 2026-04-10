@@ -70,7 +70,6 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
   const [contactPhone, setContactPhone] = useState("");
   const [participantCount, setParticipantCount] = useState("18");
   const [mealCount, setMealCount] = useState("16");
-  const [remarks, setRemarks] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -162,7 +161,6 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         },
         participantCount: pc,
         mealCount: mc,
-        remarks: remarks.trim(),
       }),
     });
     const json = (await res.json().catch(() => ({}))) as {
@@ -200,26 +198,26 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div>
         <Link
           href="/reserve"
-          className="text-sm text-zinc-600 hover:text-zinc-900"
+          className="inline-flex min-h-9 items-center text-sm text-zinc-600 hover:text-zinc-900"
         >
           ← 開催日一覧
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-zinc-900">
+        <h1 className="mt-2 text-lg font-semibold text-zinc-900 sm:text-xl">
           {formatIsoDateWithWeekdayJa(eventDate)} の予約
         </h1>
         {data && (
-          <p className="mt-1 text-sm text-zinc-600">
+          <p className="mt-1 break-words text-sm text-zinc-600">
             学年帯: {data.gradeBand} ／ 締切:{" "}
             {formatDateTimeTokyoWithWeekday(data.reservationDeadlineAt)}
           </p>
         )}
       </div>
 
-      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">
         午前の対戦はこの予約で確定します。午後の試合は前日の自動編成で決まります。
       </p>
 
@@ -235,7 +233,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
 
       {data && (
         <>
-          <section>
+          <section className="min-w-0">
             <h2 className="text-base font-semibold text-zinc-900">
               午前の枠を選択してください
             </h2>
@@ -265,7 +263,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                 return (
                   <li key={s.id}>
                     <label
-                      className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${
+                      className={`flex min-h-[3.25rem] cursor-pointer items-start gap-3 rounded-lg border p-3.5 sm:p-3 ${
                         disabled
                           ? "border-zinc-200 bg-zinc-100 text-zinc-500"
                           : selectedSlotId === s.id
@@ -277,7 +275,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                         type="radio"
                         name="slot"
                         value={s.id}
-                        className="mt-1 h-4 w-4 shrink-0"
+                        className="mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 sm:mt-1 sm:h-4 sm:w-4"
                         checked={selectedSlotId === s.id}
                         disabled={disabled}
                         onChange={() => setSelectedSlotId(s.id)}
@@ -314,18 +312,18 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <h2 className="text-sm font-semibold text-zinc-800">チーム・連絡先</h2>
-            <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-4">
+            <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3.5 sm:p-4">
               <label className="block text-sm">
                 <span className="text-zinc-700">チーム名</span>
                 <input
                   required
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   autoComplete="organization"
                 />
               </label>
-              <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+              <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm leading-relaxed text-sky-950">
                 <p className="font-medium">カテゴリ</p>
                 <ul className="mt-1 space-y-0.5 text-xs leading-snug">
                   <li>
@@ -341,7 +339,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
               <label className="block text-sm">
                 <span className="text-zinc-700">カテゴリを選択</span>
                 <select
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:text-sm"
                   value={strengthCategory}
                   onChange={(e) => setStrengthCategory(e.target.value)}
                 >
@@ -356,7 +354,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                 <span className="text-zinc-700">チーム代表者名</span>
                 <input
                   required
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   autoComplete="name"
@@ -370,7 +368,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                 <input
                   required
                   type="email"
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   autoComplete="email"
@@ -385,7 +383,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                   pattern="[0-9]*"
                   maxLength={15}
                   placeholder="09012345678"
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                   value={contactPhone}
                   onChange={(e) =>
                     setContactPhone(normalizeContactPhoneDigits(e.target.value))
@@ -404,7 +402,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                   pattern="[0-9]*"
                   maxLength={4}
                   placeholder="18"
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                   value={participantCount}
                   onChange={(e) =>
                     setParticipantCount(inputAsciiDigitsOnly(e.target.value))
@@ -422,7 +420,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                   pattern="[0-9]*"
                   maxLength={4}
                   placeholder="16"
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                   value={mealCount}
                   onChange={(e) =>
                     setMealCount(inputAsciiDigitsOnly(e.target.value))
@@ -431,15 +429,6 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                 <span className="mt-1 block text-xs text-zinc-500">
                   半角・全角の数字で入力できます（保存時は半角）。0 以上の整数。
                 </span>
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-700">備考（任意）</span>
-                <textarea
-                  rows={2}
-                  className="mt-1 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                />
               </label>
             </div>
 
@@ -454,7 +443,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                 !data.acceptingReservations ||
                 data.morningSlots.every((s) => !s.bookable)
               }
-              className="w-full rounded-lg bg-zinc-900 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
+              className="w-full min-h-12 rounded-lg bg-zinc-900 px-4 py-3 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-400 sm:text-sm"
             >
               {submitting ? "送信中…" : "予約を確定する"}
             </button>

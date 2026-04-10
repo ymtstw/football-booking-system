@@ -40,9 +40,11 @@ export default function ReserveEventDaysPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900">開催日一覧</h1>
+        <h1 className="text-lg font-semibold text-zinc-900 sm:text-xl">
+          開催日一覧
+        </h1>
         <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-600">
           <p>
             本画面からは午前の1枠（1時間）のみご予約いただけます。
@@ -56,7 +58,7 @@ export default function ReserveEventDaysPage() {
         </div>
       </div>
 
-      <p className="text-sm text-zinc-600">
+      <p className="text-sm leading-relaxed text-zinc-600">
         合宿プランなどは
         <span className="text-zinc-500">（別途お知らせの外部サイト）</span>
         をご確認ください。
@@ -77,20 +79,20 @@ export default function ReserveEventDaysPage() {
       )}
 
       {days && days.length > 0 && (
-        <ul className="divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white">
+        <ul className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white">
           {days.map((d) => (
             <li key={d.id}>
               <Link
                 href={`/reserve/${d.event_date}`}
-                className="flex flex-col gap-1 px-4 py-4 transition-colors hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between"
+                className="flex min-h-[3.25rem] flex-col gap-1 px-4 py-3.5 transition-colors active:bg-zinc-100 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between sm:py-4"
               >
-                <span className="font-medium text-zinc-900">
+                <span className="min-w-0 font-medium text-zinc-900">
                   {formatIsoDateWithWeekdayJa(d.event_date)}
                 </span>
                 <span className="text-sm text-zinc-600">
                   学年帯: {d.grade_band}
                 </span>
-                <span className="text-sm font-medium text-emerald-700">
+                <span className="text-sm font-medium text-emerald-700 sm:shrink-0">
                   予約する →
                 </span>
               </Link>

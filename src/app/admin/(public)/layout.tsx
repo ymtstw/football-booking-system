@@ -11,5 +11,9 @@ export default async function AdminPublicLayout({
   if (await getAdminUser()) {
     redirect("/admin/event-days");
   }
-  return <>{children}</>;
+  return (
+    <div className="min-h-dvh min-h-screen bg-zinc-50 text-zinc-900">
+      {children}
+    </div>
+  );
 }

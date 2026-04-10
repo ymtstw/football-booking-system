@@ -1,6 +1,6 @@
 "use client";
 
-/** 開催日・学年帯・締切を入力し下書き作成。POST /api/admin/event-days（6枠付与は API 側）。 */
+/** 開催日・学年帯・締切を入力し公開前（draft）で作成。POST /api/admin/event-days（6枠付与は API 側）。 */
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -83,10 +83,15 @@ export function CreateEventDayForm() {
   }
 
   return (
-    <section className="mb-10 rounded border border-zinc-200 bg-white p-4 shadow-sm">
-      <h2 className="mb-3 text-lg font-medium text-zinc-900">開催日を追加</h2>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-        <label className="flex flex-col gap-1 text-sm">
+    <section className="mb-8 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-sm sm:mb-10 sm:p-4">
+      <h2 className="mb-3 text-base font-medium text-zinc-900 sm:text-lg">
+        開催日を追加
+      </h2>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+      >
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[9rem] sm:flex-none">
           <span className="text-zinc-600">開催日</span>
           <input
             name="eventDate"
@@ -94,17 +99,17 @@ export function CreateEventDayForm() {
             value={eventDate}
             onChange={(e) => onEventDateChange(e.target.value)}
             required
-            className="rounded border border-zinc-300 px-2 py-1.5"
+            className="min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[8.5rem] sm:flex-none">
           <span className="text-zinc-600">学年帯</span>
           <select
             name="gradeBand"
             value={gradeBand}
             onChange={(e) => setGradeBand(e.target.value)}
             required
-            className="min-w-34 rounded border border-zinc-300 bg-white px-2 py-1.5 text-zinc-900"
+            className="min-h-11 w-full min-w-0 rounded border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
           >
             {GRADE_BAND_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
@@ -113,7 +118,7 @@ export function CreateEventDayForm() {
             ))}
           </select>
         </label>
-        <label className="flex min-w-[200px] flex-col gap-1 text-sm">
+        <label className="flex min-w-0 w-full flex-col gap-1 text-sm sm:min-w-[min(100%,14rem)] sm:w-auto sm:flex-1">
           <span className="text-zinc-600">予約締切（ローカル時刻）</span>
           <input
             name="deadlineLocal"
@@ -121,15 +126,15 @@ export function CreateEventDayForm() {
             value={deadlineLocal}
             onChange={(e) => setDeadlineLocal(e.target.value)}
             required
-            className="rounded border border-zinc-300 px-2 py-1.5"
+            className="min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
           />
         </label>
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm font-medium leading-snug text-white whitespace-normal disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
         >
-          {loading ? "作成中…" : "下書きで作成（6枠付与）"}
+          {loading ? "作成中…" : "公開前で作成（6枠付与）"}
         </button>
       </form>
       {message ? (

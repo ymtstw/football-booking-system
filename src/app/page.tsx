@@ -7,8 +7,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <AuthHashRedirect />
-      <main className="mx-auto flex max-w-lg flex-col gap-8 px-4 py-16">
-        <h1 className="text-2xl font-semibold tracking-tight">
+      <main className="mx-auto flex max-w-lg flex-col gap-6 px-4 py-10 pb-12 sm:gap-8 sm:px-5 sm:py-16">
+        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
           和歌山サッカー交流試合（予約）
         </h1>
         <p className="text-sm leading-relaxed text-zinc-600">
@@ -17,19 +17,19 @@ export default function Home() {
         <div className="flex flex-col gap-3">
           <Link
             href="/reserve"
-            className="rounded-lg bg-zinc-900 px-4 py-3 text-center text-sm font-medium text-white"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg bg-zinc-900 px-4 py-3 text-center text-sm font-medium text-white"
           >
             開催日一覧・予約
           </Link>
           <Link
             href="/reserve/manage"
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-3 text-center text-sm font-medium"
+            className="inline-flex min-h-11 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-3 text-center text-sm font-medium"
           >
             予約の確認・キャンセル
           </Link>
           <Link
             href="/admin/login"
-            className="text-center text-sm text-zinc-500 underline"
+            className="inline-flex min-h-11 items-center justify-center text-center text-sm text-zinc-500 underline"
           >
             管理者ログイン
           </Link>

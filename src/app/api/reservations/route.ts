@@ -32,7 +32,6 @@ function parseBody(raw: unknown): {
   team: TeamInput;
   participantCount: number;
   mealCount: number;
-  remarks: string;
 } | null {
   if (raw === null || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -54,7 +53,6 @@ function parseBody(raw: unknown): {
     typeof o.mealCount === "number" && Number.isFinite(o.mealCount)
       ? o.mealCount
       : NaN;
-  const remarks = typeof o.remarks === "string" ? o.remarks : "";
 
   return {
     eventDayId,
@@ -74,7 +72,6 @@ function parseBody(raw: unknown): {
     },
     participantCount,
     mealCount,
-    remarks,
   };
 }
 
@@ -128,7 +125,6 @@ export async function POST(request: Request) {
     team,
     participantCount,
     mealCount,
-    remarks,
   } = parsed;
 
   if (!eventDayId || !selectedMorningSlotId) {
@@ -204,7 +200,7 @@ export async function POST(request: Request) {
       p_contact_phone: phoneDigits,
       p_participant_count: participantCount,
       p_meal_count: mealCount,
-      p_remarks: remarks.trim(),
+      p_remarks: "",
       p_token_hash: tokenHash,
     });
 

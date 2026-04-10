@@ -1,6 +1,7 @@
 "use client";
 
 /** メール／パスワードで signInWithPassword。成功後は ?next または開催日管理へ。 */
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -35,8 +36,13 @@ export function LoginForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center px-4">
-      <h1 className="mb-6 text-xl font-semibold text-zinc-900">
+    <main className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-md flex-col justify-center px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top,0px))] sm:min-h-[60vh] sm:py-10">
+      <p className="mb-4 text-center text-sm text-zinc-500">
+        <Link href="/" className="underline decoration-zinc-400 underline-offset-2">
+          サイトトップへ
+        </Link>
+      </p>
+      <h1 className="mb-5 text-lg font-semibold text-zinc-900 sm:mb-6 sm:text-xl">
         管理画面ログイン
       </h1>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -48,7 +54,7 @@ export function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="rounded border border-zinc-300 px-3 py-2 text-zinc-900"
+            className="min-h-11 w-full rounded-md border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -59,18 +65,18 @@ export function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="rounded border border-zinc-300 px-3 py-2 text-zinc-900"
+            className="min-h-11 w-full rounded-md border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
           />
         </label>
         {error ? (
-          <p className="text-sm text-red-600" role="alert">
+          <p className="text-sm leading-relaxed text-red-600" role="alert">
             {error}
           </p>
         ) : null}
         <button
           type="submit"
           disabled={loading}
-          className="rounded bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+          className="min-h-11 w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
         >
           {loading ? "ログイン中…" : "ログイン"}
         </button>

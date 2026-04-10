@@ -17,26 +17,37 @@ export default async function AdminProtectedLayout({
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      <header className="border-b border-zinc-200 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/admin/event-days" className="font-medium text-zinc-900">
+    <div className="min-h-dvh min-h-screen bg-zinc-50">
+      <header className="border-b border-zinc-200 bg-white pt-[env(safe-area-inset-top,0px)]">
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <Link
+              href="/admin/event-days"
+              className="min-h-9 inline-flex items-center font-medium text-zinc-900"
+            >
               開催日
             </Link>
-            <Link href="/admin/dashboard" className="text-zinc-600 hover:text-zinc-900">
+            <Link
+              href="/admin/dashboard"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
               ダッシュボード
             </Link>
           </nav>
-          <div className="flex items-center gap-3 text-sm text-zinc-600">
-            <span className="truncate max-w-[200px]" title={user.email ?? ""}>
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
+            <span
+              className="max-w-full truncate text-xs text-zinc-600 sm:max-w-[min(100%,220px)] sm:text-sm"
+              title={user.email ?? ""}
+            >
               {user.email}
             </span>
             <AdminSignOutButton />
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-4xl px-4 py-8">{children}</div>
+      <div className="mx-auto max-w-4xl px-4 py-6 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-5 sm:py-8">
+        {children}
+      </div>
     </div>
   );
 }

@@ -19,7 +19,7 @@ export function AdminSignOutButton() {
     <button
       type="button"
       onClick={() => void signOut()}
-      className="text-zinc-600 underline hover:text-zinc-900"
+      className="min-h-9 min-w-[4.5rem] shrink-0 rounded-md px-2 py-1.5 text-sm text-zinc-600 underline decoration-zinc-400 underline-offset-2 hover:bg-zinc-100 hover:text-zinc-900"
     >
       ログアウト
     </button>
