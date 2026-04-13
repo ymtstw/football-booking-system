@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 
 import { sendReservationCreatedEmailAndUpdateNotification } from "@/lib/email/reservation-created-mail";
+import { rateLimitReservationCreate } from "@/lib/rate-limit/reservation-public";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
@@ -108,6 +109,9 @@ function mapRpcError(error: string): { status: number; body: Record<string, stri
 }
 
 export async function POST(request: Request) {
+  const limited = rateLimitReservationCreate(request);
+  if (limited) return limited;
+
   let json: unknown;
   try {
     json = await request.json();

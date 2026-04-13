@@ -2,6 +2,10 @@
 import { NextResponse } from "next/server";
 
 import {
+  rateLimitReservationTokenGet,
+  rateLimitReservationTokenPatch,
+} from "@/lib/rate-limit/reservation-public";
+import {
   hashReservationTokenPlain,
   isReservationLookupExpired,
   isValidReservationTokenFormat,
@@ -165,9 +169,12 @@ function parsePatchBody(raw: unknown): {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ token: string }> }
 ) {
+  const limited = rateLimitReservationTokenGet(request);
+  if (limited) return limited;
+
   const { token: rawToken } = await context.params;
   const token = normalizeReservationTokenPlain(rawToken ?? "");
 
@@ -212,6 +219,9 @@ export async function PATCH(
   request: Request,
   context: { params: Promise<{ token: string }> }
 ) {
+  const limited = rateLimitReservationTokenPatch(request);
+  if (limited) return limited;
+
   const { token: rawToken } = await context.params;
   const token = normalizeReservationTokenPlain(rawToken ?? "");
 

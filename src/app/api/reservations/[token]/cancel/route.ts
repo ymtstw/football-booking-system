@@ -1,6 +1,7 @@
 /** 公開 POST: 締切前の予約取消（token）。morning_fixed を cancelled に。 */
 import { NextResponse } from "next/server";
 
+import { rateLimitReservationTokenCancel } from "@/lib/rate-limit/reservation-public";
 import {
   hashReservationTokenPlain,
   isValidReservationTokenFormat,
@@ -16,9 +17,12 @@ type RpcResult = {
 };
 
 export async function POST(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ token: string }> }
 ) {
+  const limited = rateLimitReservationTokenCancel(request);
+  if (limited) return limited;
+
   const { token: rawToken } = await context.params;
   const token = normalizeReservationTokenPlain(rawToken ?? "");
 
