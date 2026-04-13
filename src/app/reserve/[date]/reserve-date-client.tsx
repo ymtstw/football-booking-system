@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
@@ -443,8 +444,9 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                 !data.acceptingReservations ||
                 data.morningSlots.every((s) => !s.bookable)
               }
-              className="w-full min-h-12 rounded-lg bg-zinc-900 px-4 py-3 text-base font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-400 sm:text-sm"
+              className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-3 text-base font-medium text-white disabled:cursor-wait disabled:bg-zinc-400 sm:text-sm"
             >
+              {submitting ? <InlineSpinner variant="onDark" /> : null}
               {submitting ? "送信中…" : "予約を確定する"}
             </button>
           </form>

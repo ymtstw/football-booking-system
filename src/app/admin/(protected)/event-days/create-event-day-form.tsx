@@ -1,6 +1,7 @@
 "use client";
 
 /** 開催日・学年帯・締切を入力し公開前（draft）で作成。POST /api/admin/event-days（6枠付与は API 側）。 */
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -132,8 +133,9 @@ export function CreateEventDayForm() {
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm font-medium leading-snug text-white whitespace-normal disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm font-medium leading-snug text-white whitespace-normal disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
         >
+          {loading ? <InlineSpinner variant="onDark" /> : null}
           {loading ? "作成中…" : "公開前で作成（6枠付与）"}
         </button>
       </form>

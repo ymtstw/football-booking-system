@@ -82,7 +82,7 @@ export default function ReserveCompletePage() {
           href="/reserve"
           className="inline-flex min-h-11 items-center text-sm font-medium text-zinc-900 underline"
         >
-          開催日一覧へ
+          予約カレンダーへ
         </Link>
       </div>
     );
@@ -141,7 +141,7 @@ export default function ReserveCompletePage() {
           href="/reserve"
           className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-center text-sm font-medium sm:flex-none sm:min-w-[10rem]"
         >
-          開催日一覧へ
+          予約カレンダーへ
         </Link>
         <button
           type="button"

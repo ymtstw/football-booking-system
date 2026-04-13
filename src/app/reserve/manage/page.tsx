@@ -3,6 +3,7 @@
 /** SCR-03: 確認コードで照会・締切前なら変更・取消。 */
 import { useRef, useState } from "react";
 
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 import {
@@ -304,8 +305,9 @@ export default function ReserveManagePage() {
           type="button"
           onClick={() => void lookup()}
           disabled={loading}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:bg-zinc-400 sm:w-auto"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:cursor-wait disabled:bg-zinc-400 sm:w-auto"
         >
+          {loading ? <InlineSpinner variant="onDark" /> : null}
           {loading ? "確認中…" : "確認"}
         </button>
         {lookupError && (
@@ -431,8 +433,9 @@ export default function ReserveManagePage() {
                 type="button"
                 onClick={() => void saveEdits()}
                 disabled={saving}
-                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:bg-zinc-400 sm:w-auto"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:cursor-wait disabled:bg-zinc-400 sm:w-auto"
               >
+                {saving ? <InlineSpinner variant="onDark" /> : null}
                 {saving ? "保存中…" : "変更を保存"}
               </button>
             </div>
@@ -453,8 +456,9 @@ export default function ReserveManagePage() {
               type="button"
               onClick={() => void cancel()}
               disabled={cancelling}
-              className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-900 disabled:opacity-50 sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-red-300 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-900 disabled:cursor-wait disabled:opacity-50 sm:w-auto"
             >
+              {cancelling ? <InlineSpinner variant="onLight" /> : null}
               {cancelling ? "処理中…" : "予約をキャンセルする"}
             </button>
           )}

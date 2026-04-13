@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { createClient } from "@/lib/supabase/client";
 
 export function UpdatePasswordForm() {
@@ -210,8 +211,9 @@ export function UpdatePasswordForm() {
       <button
         type="submit"
         disabled={loading}
-        className="min-h-11 w-full rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:cursor-wait disabled:opacity-50"
       >
+        {loading ? <InlineSpinner variant="onDark" /> : null}
         {loading ? "更新中…" : "パスワードを設定"}
       </button>
       <Link

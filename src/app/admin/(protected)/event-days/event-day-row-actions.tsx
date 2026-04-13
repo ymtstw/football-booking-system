@@ -1,6 +1,7 @@
 "use client";
 
 /** 公開前は「公開」「削除」を横並び。公開済みは「公開前に戻す」のみ。 */
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -12,6 +13,8 @@ export type EventDayAdminStatus =
   | "confirmed"
   | "cancelled_weather"
   | "cancelled_minimum";
+
+type PendingAction = "idle" | "toOpen" | "toDraft" | "lock" | "delete";
 
 export function EventDayRowActions({
   id,
@@ -27,29 +30,32 @@ export function EventDayRowActions({
   layout?: "inline" | "stacked";
 }) {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [pending, setPending] = useState<PendingAction>("idle");
   const [error, setError] = useState<string | null>(null);
+  const busy = pending !== "idle";
 
   /** draft / open のときだけ操作ボタンを出す（locked 以降は一覧のみ）。 */
   const showPublicActions = status === "draft" || status === "open";
 
   async function setStatus(next: "draft" | "open") {
     setError(null);
-    setLoading(true);
-    const res = await fetch(`/api/admin/event-days/${id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: next }),
-    });
-    setLoading(false);
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(json.error ?? `エラー（${res.status}）`);
-      return;
+    setPending(next === "open" ? "toOpen" : "toDraft");
+    try {
+      const res = await fetch(`/api/admin/event-days/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(json.error ?? `エラー（${res.status}）`);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setPending("idle");
     }
-    router.refresh();
   }
 
   async function lockEventDay() {
@@ -59,20 +65,23 @@ export function EventDayRowActions({
     if (!ok) return;
 
     setError(null);
-    setLoading(true);
-    const res = await fetch(`/api/admin/event-days/${id}`, {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "locked" }),
-    });
-    setLoading(false);
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(json.error ?? `エラー（${res.status}）`);
-      return;
+    setPending("lock");
+    try {
+      const res = await fetch(`/api/admin/event-days/${id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "locked" }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(json.error ?? `エラー（${res.status}）`);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setPending("idle");
     }
-    router.refresh();
   }
 
   async function deleteDraft() {
@@ -85,18 +94,21 @@ export function EventDayRowActions({
     if (!ok) return;
 
     setError(null);
-    setDeleting(true);
-    const res = await fetch(`/api/admin/event-days/${id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    setDeleting(false);
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(json.error ?? `エラー（${res.status}）`);
-      return;
+    setPending("delete");
+    try {
+      const res = await fetch(`/api/admin/event-days/${id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(json.error ?? `エラー（${res.status}）`);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setPending("idle");
     }
-    router.refresh();
   }
 
   if (!showPublicActions) {
@@ -109,8 +121,8 @@ export function EventDayRowActions({
       : "flex flex-wrap items-center justify-end gap-2";
   const btnBase =
     layout === "stacked"
-      ? "min-h-10 w-full rounded-md px-3 py-2.5 text-sm font-medium disabled:opacity-50"
-      : "min-h-9 min-w-[3.25rem] rounded-md px-3 py-2 text-xs font-medium disabled:opacity-50 sm:text-sm";
+      ? "min-h-10 w-full rounded-md px-3 py-2.5 text-sm font-medium disabled:cursor-wait disabled:opacity-50"
+      : "min-h-9 min-w-[3.25rem] rounded-md px-3 py-2 text-xs font-medium disabled:cursor-wait disabled:opacity-50 sm:text-sm";
 
   return (
     <div
@@ -125,42 +137,46 @@ export function EventDayRowActions({
           <>
             <button
               type="button"
-              disabled={loading || deleting}
+              disabled={busy}
               onClick={() => void setStatus("open")}
               title="一般向けの開催日一覧（GET /api/event-days）に載せます"
-              className={`${btnBase} bg-emerald-700 text-white`}
+              className={`${btnBase} inline-flex items-center justify-center gap-2 bg-emerald-700 text-white`}
             >
-              公開
+              {pending === "toOpen" ? <InlineSpinner variant="onDark" /> : null}
+              {pending === "toOpen" ? "処理中…" : "公開"}
             </button>
             <button
               type="button"
-              disabled={loading || deleting}
+              disabled={busy}
               onClick={() => void deleteDraft()}
               title="公開前の開催日を削除（確認ダイアログのあと実行）"
-              className={`${btnBase} bg-red-600 text-white hover:bg-red-700`}
+              className={`${btnBase} inline-flex items-center justify-center gap-2 bg-red-600 text-white hover:bg-red-700`}
             >
-              {deleting ? "削除中…" : "削除"}
+              {pending === "delete" ? <InlineSpinner variant="onDark" /> : null}
+              {pending === "delete" ? "削除中…" : "削除"}
             </button>
           </>
         ) : (
           <>
             <button
               type="button"
-              disabled={loading || deleting}
+              disabled={busy}
               onClick={() => void setStatus("draft")}
               title="一般公開をやめ、公開前（非公開）に戻します"
-              className={`${btnBase} border border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-50`}
+              className={`${btnBase} inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-50`}
             >
-              公開前に戻す
+              {pending === "toDraft" ? <InlineSpinner variant="onLight" /> : null}
+              {pending === "toDraft" ? "処理中…" : "公開前に戻す"}
             </button>
             <button
               type="button"
-              disabled={loading || deleting}
+              disabled={busy}
               onClick={() => void lockEventDay()}
               title="締切ロック（新規予約・Web の変更・取消を停止）"
-              className={`${btnBase} bg-amber-700 text-white hover:bg-amber-800`}
+              className={`${btnBase} inline-flex items-center justify-center gap-2 bg-amber-700 text-white hover:bg-amber-800`}
             >
-              締切ロック
+              {pending === "lock" ? <InlineSpinner variant="onDark" /> : null}
+              {pending === "lock" ? "処理中…" : "締切ロック"}
             </button>
           </>
         )}
