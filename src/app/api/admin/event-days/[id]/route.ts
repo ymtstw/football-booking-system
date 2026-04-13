@@ -1,10 +1,11 @@
-/** 管理者のみ PATCH: 開催日 status を draft/open に（現在が draft/open のときだけ）。 */
+/** 管理者のみ PATCH: draft↔open、または open→locked（締切ロック）。 */
 import { NextResponse } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
-type ToggleStatus = "draft" | "open";
+const EVENT_DAY_SELECT =
+  "id, event_date, grade_band, status, reservation_deadline_at" as const;
 
 export async function PATCH(
   request: Request,
@@ -28,9 +29,9 @@ export async function PATCH(
 
   const body = json as { status?: string };
   const nextStatus = body.status;
-  if (nextStatus !== "draft" && nextStatus !== "open") {
+  if (nextStatus !== "draft" && nextStatus !== "open" && nextStatus !== "locked") {
     return NextResponse.json(
-      { error: "status は draft または open のみです" },
+      { error: "status は draft / open / locked のいずれかです" },
       { status: 422 }
     );
   }
@@ -54,24 +55,75 @@ export async function PATCH(
   }
 
   const current = row.status as string;
+
+  if (nextStatus === "locked") {
+    if (current !== "open") {
+      return NextResponse.json(
+        { error: "締切ロックは公開中（open）の開催日にのみ行えます" },
+        { status: 409 }
+      );
+    }
+    const { data: updated, error: updateErr } = await supabase
+      .from("event_days")
+      .update({ status: "locked" })
+      .eq("id", id)
+      .eq("status", "open")
+      .select(EVENT_DAY_SELECT)
+      .maybeSingle();
+
+    if (updateErr) {
+      return NextResponse.json(
+        { error: updateErr.message, code: updateErr.code },
+        { status: 500 }
+      );
+    }
+    if (!updated) {
+      return NextResponse.json(
+        { error: "状態が更新されませんでした。一覧を更新して再度お試しください。" },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ eventDay: updated });
+  }
+
   if (current !== "draft" && current !== "open") {
     return NextResponse.json(
-      { error: "この状態からは draft/open へ切り替えできません" },
+      { error: "この状態からは公開・非公開の切り替えはできません" },
       { status: 409 }
+    );
+  }
+
+  if (nextStatus === "open" && current !== "draft") {
+    return NextResponse.json(
+      { error: "公開できるのは公開前（draft）のときだけです" },
+      { status: 422 }
+    );
+  }
+  if (nextStatus === "draft" && current !== "open") {
+    return NextResponse.json(
+      { error: "公開前に戻せるのは公開中（open）のときだけです" },
+      { status: 422 }
     );
   }
 
   const { data: updated, error: updateErr } = await supabase
     .from("event_days")
-    .update({ status: nextStatus as ToggleStatus })
+    .update({ status: nextStatus })
     .eq("id", id)
-    .select("id, event_date, grade_band, status, reservation_deadline_at")
-    .single();
+    .eq("status", current)
+    .select(EVENT_DAY_SELECT)
+    .maybeSingle();
 
   if (updateErr) {
     return NextResponse.json(
       { error: updateErr.message, code: updateErr.code },
       { status: 500 }
+    );
+  }
+  if (!updated) {
+    return NextResponse.json(
+      { error: "状態が更新されませんでした。一覧を更新して再度お試しください。" },
+      { status: 409 }
     );
   }
 

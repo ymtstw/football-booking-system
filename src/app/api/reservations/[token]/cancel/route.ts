@@ -72,6 +72,11 @@ export async function POST(
         { error: "締切を過ぎているためキャンセルできません" },
         { status: 409 }
       );
+    case "event_not_open":
+      return NextResponse.json(
+        { error: "受付を終了したため、キャンセルできません" },
+        { status: 409 }
+      );
     case "invalid_input":
       return NextResponse.json({ error: "入力内容を確認してください" }, { status: 400 });
     default:

@@ -277,6 +277,13 @@ export async function PATCH(
     return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
   }
 
+  if (ed.status !== "open") {
+    return NextResponse.json(
+      { error: "受付を終了したため、ここからは変更できません" },
+      { status: 409 }
+    );
+  }
+
   if (row.status !== "active") {
     return NextResponse.json(
       { error: "有効な予約のみ変更できます" },

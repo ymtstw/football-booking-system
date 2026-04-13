@@ -31,7 +31,8 @@ export function EventDayRowActions({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canToggle = status === "draft" || status === "open";
+  /** draft / open のときだけ操作ボタンを出す（locked 以降は一覧のみ）。 */
+  const showPublicActions = status === "draft" || status === "open";
 
   async function setStatus(next: "draft" | "open") {
     setError(null);
@@ -41,6 +42,29 @@ export function EventDayRowActions({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
+    });
+    setLoading(false);
+    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) {
+      setError(json.error ?? `エラー（${res.status}）`);
+      return;
+    }
+    router.refresh();
+  }
+
+  async function lockEventDay() {
+    const ok = window.confirm(
+      "締切ロックにすると、この開催日は新規予約・Web からの内容変更・キャンセルができなくなります（確認コードでの照会は可能です）。\n\n実行しますか？"
+    );
+    if (!ok) return;
+
+    setError(null);
+    setLoading(true);
+    const res = await fetch(`/api/admin/event-days/${id}`, {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "locked" }),
     });
     setLoading(false);
     const json = (await res.json().catch(() => ({}))) as { error?: string };
@@ -75,7 +99,7 @@ export function EventDayRowActions({
     router.refresh();
   }
 
-  if (!canToggle) {
+  if (!showPublicActions) {
     return <span className="text-xs text-zinc-500">—</span>;
   }
 
@@ -119,15 +143,26 @@ export function EventDayRowActions({
             </button>
           </>
         ) : (
-          <button
-            type="button"
-            disabled={loading || deleting}
-            onClick={() => void setStatus("draft")}
-            title="一般公開をやめ、公開前（非公開）に戻します"
-            className={`${btnBase} border border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-50`}
-          >
-            公開前に戻す
-          </button>
+          <>
+            <button
+              type="button"
+              disabled={loading || deleting}
+              onClick={() => void setStatus("draft")}
+              title="一般公開をやめ、公開前（非公開）に戻します"
+              className={`${btnBase} border border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-50`}
+            >
+              公開前に戻す
+            </button>
+            <button
+              type="button"
+              disabled={loading || deleting}
+              onClick={() => void lockEventDay()}
+              title="締切ロック（新規予約・Web の変更・取消を停止）"
+              className={`${btnBase} bg-amber-700 text-white hover:bg-amber-800`}
+            >
+              締切ロック
+            </button>
+          </>
         )}
       </div>
       {error ? (

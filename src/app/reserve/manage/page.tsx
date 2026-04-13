@@ -1,7 +1,7 @@
 "use client";
 
 /** SCR-03: 確認コードで照会・締切前なら変更・取消。 */
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
@@ -57,6 +57,8 @@ function isBeforeDeadline(deadlineIso: string): boolean {
   return Number.isFinite(t) && Date.now() < t;
 }
 
+type ReservationRow = NonNullable<ReservationJson["reservation"]>;
+
 export default function ReserveManagePage() {
   const [tokenInput, setTokenInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,19 +83,19 @@ export default function ReserveManagePage() {
     setSaveError(null);
   }
 
-  useEffect(() => {
-    if (!reservation) {
-      setEditParticipant("");
-      setEditMeal("");
-      setEditContactName("");
-      setEditContactPhone("");
-      return;
-    }
-    setEditParticipant(String(reservation.participantCount));
-    setEditMeal(String(reservation.mealCount));
-    setEditContactName(reservation.team.contactName);
-    setEditContactPhone(reservation.team.contactPhone);
-  }, [reservation]);
+  function clearEditFields() {
+    setEditParticipant("");
+    setEditMeal("");
+    setEditContactName("");
+    setEditContactPhone("");
+  }
+
+  function fillEditFieldsFromReservation(resv: ReservationRow) {
+    setEditParticipant(String(resv.participantCount));
+    setEditMeal(String(resv.mealCount));
+    setEditContactName(resv.team.contactName);
+    setEditContactPhone(resv.team.contactPhone);
+  }
 
   async function lookup() {
     setLookupError(null);
@@ -104,6 +106,7 @@ export default function ReserveManagePage() {
     if (!isValidReservationTokenFormat(token)) {
       setLookupError("64 文字の英数字（確認コード）をそのまま貼り付けてください");
       setReservation(null);
+      clearEditFields();
       return;
     }
     setLoading(true);
@@ -112,10 +115,14 @@ export default function ReserveManagePage() {
     setLoading(false);
     if (!res.ok) {
       setReservation(null);
+      clearEditFields();
       setLookupError(json.error ?? "確認できませんでした");
       return;
     }
-    setReservation(json.reservation ?? null);
+    const resv = json.reservation ?? null;
+    setReservation(resv);
+    if (!resv) clearEditFields();
+    else fillEditFieldsFromReservation(resv);
   }
 
   async function saveEdits() {
@@ -128,6 +135,10 @@ export default function ReserveManagePage() {
     }
     if (!reservation || reservation.status !== "active") {
       setSaveError("変更できる予約がありません");
+      return;
+    }
+    if (reservation.eventDay.status !== "open") {
+      setSaveError("受付を終了したため、ここからは変更できません");
       return;
     }
     if (!isBeforeDeadline(reservation.eventDay.reservationDeadlineAt)) {
@@ -180,6 +191,7 @@ export default function ReserveManagePage() {
     }
     if (json.reservation) {
       setReservation(json.reservation);
+      fillEditFieldsFromReservation(json.reservation);
     } else {
       await lookup();
     }
@@ -201,6 +213,10 @@ export default function ReserveManagePage() {
     }
     if (!reservation || reservation.status !== "active") {
       setCancelMessage("キャンセルできる予約がありません");
+      return;
+    }
+    if (reservation.eventDay.status !== "open") {
+      setCancelMessage("受付を終了したため、キャンセルできません");
       return;
     }
     const deadline = new Date(reservation.eventDay.reservationDeadlineAt).getTime();
@@ -235,10 +251,13 @@ export default function ReserveManagePage() {
     await lookup();
   }
 
-  const canEdit =
+  const canMutate =
     reservation &&
     reservation.status === "active" &&
+    reservation.eventDay.status === "open" &&
     isBeforeDeadline(reservation.eventDay.reservationDeadlineAt);
+
+  const canEdit = canMutate;
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -419,7 +438,9 @@ export default function ReserveManagePage() {
             </div>
           ) : reservation.status === "active" ? (
             <p className="border-t border-zinc-100 pt-4 text-sm text-zinc-600">
-              締切を過ぎたため、Web からは内容を変更できません。
+              {reservation.eventDay.status !== "open"
+                ? "受付を終了したため、Web からは内容を変更できません。"
+                : "締切を過ぎたため、Web からは内容を変更できません。"}
             </p>
           ) : null}
 
@@ -427,7 +448,7 @@ export default function ReserveManagePage() {
             <p className="text-sm text-emerald-800">{cancelMessage}</p>
           )}
 
-          {reservation.status === "active" && (
+          {reservation.status === "active" && canMutate && (
             <button
               type="button"
               onClick={() => void cancel()}
