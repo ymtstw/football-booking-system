@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { toIsoDateKey } from "@/lib/dates/iso-date-key";
 import {
   buildMonthGrid6Rows,
   tokyoYearMonthNow,
@@ -54,7 +55,8 @@ export function AdminEventDaysCompactCalendar({
   const byDate = useMemo(() => {
     const m = new Map<string, AdminCalendarDay>();
     for (const d of days) {
-      m.set(d.event_date, d);
+      const key = toIsoDateKey(d.event_date);
+      if (key) m.set(key, d);
     }
     return m;
   }, [days]);
@@ -179,7 +181,8 @@ export function AdminEventDaysCompactCalendar({
                 );
               }
 
-              const title = `${eventDayStatusLabelJa(ev!.status)} · 学年帯 ${ev!.grade_band}（一覧の基準日にする）`;
+              const sub = ev!.grade_band;
+              const title = `${eventDayStatusLabelJa(ev!.status)} · 学年帯 ${sub}（一覧の基準日にする）`;
 
               return (
                 <button
@@ -197,7 +200,7 @@ export function AdminEventDaysCompactCalendar({
                     {dom}
                   </span>
                   <span className="mt-0.5 line-clamp-1 text-[9px] font-medium leading-tight text-zinc-800 sm:text-[10px]">
-                    {ev!.grade_band}
+                    {sub}
                   </span>
                   <span className="mt-auto text-[9px] font-medium text-zinc-600 sm:text-[10px]">
                     {eventDayStatusLabelJa(ev!.status)}

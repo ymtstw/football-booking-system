@@ -5,12 +5,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
+import { toIsoDateKey } from "@/lib/dates/iso-date-key";
 import {
   buildMonthGrid6Rows,
   tokyoYearMonthNow,
   weekdayHeadersJa,
 } from "@/lib/dates/tokyo-calendar-grid";
-
 export type EventDayPublic = {
   id: string;
   event_date: string;
@@ -35,7 +35,8 @@ export function ReserveEventDaysCalendar({
   const byDate = useMemo(() => {
     const m = new Map<string, EventDayPublic>();
     for (const d of days) {
-      m.set(d.event_date, d);
+      const key = toIsoDateKey(d.event_date);
+      if (key) m.set(key, d);
     }
     return m;
   }, [days]);
@@ -121,7 +122,8 @@ export function ReserveEventDaysCalendar({
               const dom = Number(isoDate.slice(8, 10));
               const event = byDate.get(isoDate);
               const hasEvent = Boolean(event);
-              const bookable = hasEvent && event!.acceptingReservations;
+              const bookable =
+                hasEvent && event!.acceptingReservations;
 
               const baseCell =
                 "flex min-h-[4.5rem] flex-col border border-transparent p-1.5 sm:min-h-[5.5rem] sm:p-2";
@@ -161,7 +163,7 @@ export function ReserveEventDaysCalendar({
                       {dom}
                     </span>
                     <span className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-emerald-900 sm:text-xs">
-                      学年帯 {event!.grade_band}
+                      {`学年帯 ${event!.grade_band}`}
                     </span>
                     <span className="mt-auto text-[10px] font-semibold text-emerald-800 sm:text-xs">
                       予約する →
@@ -186,7 +188,7 @@ export function ReserveEventDaysCalendar({
                     {dom}
                   </span>
                   <span className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-zinc-500 sm:text-xs">
-                    学年帯 {event!.grade_band}
+                    {`学年帯 ${event!.grade_band}`}
                   </span>
                   <span className="mt-auto text-[10px] font-medium text-zinc-500 sm:text-xs">
                     受付終了

@@ -149,8 +149,7 @@ export async function GET(
     };
     const activeCount = a.total;
     const full = activeCount >= cap;
-    const bookable =
-      acceptingReservations && !s.is_locked && !full;
+    const bookable = acceptingReservations && !s.is_locked && !full;
 
     return {
       id: s.id,

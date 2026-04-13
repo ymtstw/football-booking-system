@@ -1,7 +1,6 @@
 /**
- * 管理者のみ PATCH: draft↔open、または open→locked。
- * `locked` は締切時刻と自動同期しない（業務の区切り）。バッチ実装は別途。
- * 仕様: docs/spec/reservation-deadline-and-event-status.md
+ * 管理者のみ PATCH:
+ * - draft↔open、または open→locked（仕様: docs/spec/reservation-deadline-and-event-status.md）
  */
 import { NextResponse } from "next/server";
 
@@ -33,14 +32,17 @@ export async function PATCH(
 
   const body = json as { status?: string };
   const nextStatus = body.status;
+  if (nextStatus === undefined || String(nextStatus).length === 0) {
+    return NextResponse.json({ error: "status を指定してください" }, { status: 400 });
+  }
+
+  const supabase = createServiceRoleClient();
   if (nextStatus !== "draft" && nextStatus !== "open" && nextStatus !== "locked") {
     return NextResponse.json(
       { error: "status は draft / open / locked のいずれかです" },
       { status: 422 }
     );
   }
-
-  const supabase = createServiceRoleClient();
 
   const { data: row, error: fetchErr } = await supabase
     .from("event_days")

@@ -123,6 +123,20 @@ export async function POST(request: Request) {
         { status: 409 }
       );
     }
+    // service_role なら RLS は通る。ここに来る RLS 系は多くが .env の Secret 誤り。
+    const rlsHint =
+      dayErr.code === "42501" ||
+      /row-level security/i.test(dayErr.message ?? "");
+    if (rlsHint) {
+      return NextResponse.json(
+        {
+          error:
+            "DB の行レベル制限に引っかかりました。サーバー用の SUPABASE_SERVICE_ROLE_KEY に「Publishable（anon）」を入れていないか確認し、db:status の Secret と NEXT_PUBLIC_SUPABASE_URL を揃えたうえで next dev を再起動してください。",
+          code: dayErr.code,
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: dayErr.message, code: dayErr.code },
       { status: 500 }
@@ -134,6 +148,19 @@ export async function POST(request: Request) {
 
   if (slotsErr) {
     await supabase.from("event_days").delete().eq("id", day.id);
+    const rlsHint =
+      slotsErr.code === "42501" ||
+      /row-level security/i.test(slotsErr.message ?? "");
+    if (rlsHint) {
+      return NextResponse.json(
+        {
+          error:
+            "event_day_slots の INSERT が RLS で拒否されました。SUPABASE_SERVICE_ROLE_KEY（Secret）を確認してください。",
+          code: slotsErr.code,
+        },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: slotsErr.message, code: slotsErr.code },
       { status: 500 }

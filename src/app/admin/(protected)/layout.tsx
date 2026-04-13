@@ -33,6 +33,24 @@ export default async function AdminProtectedLayout({
             >
               ダッシュボード
             </Link>
+            <Link
+              href="/admin/event-day-slots"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              枠管理
+            </Link>
+            <Link
+              href="/admin/pre-day-results"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              前日確定
+            </Link>
+            <Link
+              href="/admin/pre-day-adjust"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              確定補正
+            </Link>
           </nav>
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
             <span

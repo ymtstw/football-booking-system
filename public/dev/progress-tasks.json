@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-10T12:38:29.445Z",
+  "generatedAt": "2026-04-13T12:07:35.713Z",
   "sourceFile": "docs/progress.md",
   "taskCount": 256,
   "tasks": [
@@ -67,10 +67,10 @@
       "sourceLine": 54
     },
     {
-      "id": "d0c7f714a6e071f6",
+      "id": "ea989f9f868bc1e7",
       "section": "0. 準備・プロジェクト基盤",
-      "text": "Vercel Cron や管理用 API の認可に使うシークレットを定義する（採用する場合）",
-      "defaultDone": false,
+      "text": "Vercel Cron や管理用 API の認可に使うシークレットを定義する（採用する場合）（`CRON_SECRET`・ローカル `curl.exe` / 本番 Vercel Cron で締切ロック API 確認済み）",
+      "defaultDone": true,
       "sourceLine": 55
     },
     {
@@ -725,31 +725,31 @@
       "sourceLine": 205
     },
     {
-      "id": "ea8cb56095d6f299",
+      "id": "e9165d5d5432190c",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "前日 13:00（タイムゾーン方針を決め、JST 等を文書化）で `locked` にする処理を実装する",
-      "defaultDone": false,
+      "text": "前日 13:00（タイムゾーン方針を決め、JST 等を文書化）で `locked` にする処理を実装する（`GET /api/cron/lock-event-days`・`open` かつ `reservation_deadline_at <= now()` を一括 `locked`。Cron は UTC 04:00 = 同日 JST 13:00。仕様: `docs/spec/reservation-deadline-and-event-status.md`）",
+      "defaultDone": true,
       "sourceLine": 215
     },
     {
-      "id": "f542bf467e69a797",
+      "id": "346d502f5992d3b8",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "ロック後は予約・取消・昼食変更を API で拒否する",
-      "defaultDone": false,
+      "text": "ロック後は予約・取消・昼食変更を API で拒否する（`event_days.status` 非 `open` で RPC / Route が拒否）",
+      "defaultDone": true,
       "sourceLine": 216
     },
     {
-      "id": "c759e48a49c0c022",
+      "id": "0f2e6823d66a1691",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "管理画面から同じロック処理を手動実行できるようにする",
-      "defaultDone": false,
+      "text": "管理画面から同じロック処理を手動実行できるようにする（`PATCH /api/admin/event-days/[id]` で `open` → `locked`）",
+      "defaultDone": true,
       "sourceLine": 217
     },
     {
-      "id": "e3e7478c13701da1",
+      "id": "ab64817d31f90924",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "Vercel Cron からも同じ処理を呼べるようにする",
-      "defaultDone": false,
+      "text": "Vercel Cron からも同じ処理を呼べるようにする（`vercel.json` の `crons` → 同エンドポイント・`Authorization: Bearer`）",
+      "defaultDone": true,
       "sourceLine": 218
     },
     {
@@ -956,17 +956,17 @@
       "sourceLine": 268
     },
     {
-      "id": "9d3079fd13225a7c",
+      "id": "a57c39ae9737c86a",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "vercel.json 等で JOB01〜03 のスケジュールを登録する（タイムゾーンを確認）",
+      "text": "vercel.json 等で JOB01〜03 のスケジュールを登録する（タイムゾーンを確認）（**2026-04-13:** JOB01 締切ロックのみ登録済み。JOB02〜03 は未）",
       "defaultDone": false,
       "sourceLine": 272
     },
     {
-      "id": "d6c312eef0ac4ca6",
+      "id": "2d31c634730215b0",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "Cron 用エンドポイントをシークレットヘッダ等で保護する",
-      "defaultDone": false,
+      "text": "Cron 用エンドポイントをシークレットヘッダ等で保護する（`CRON_SECRET`・Bearer 不一致は 401）",
+      "defaultDone": true,
       "sourceLine": 273
     },
     {

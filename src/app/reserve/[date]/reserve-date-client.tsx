@@ -59,10 +59,17 @@ function formatHm(t: string): string {
   return t.length >= 5 ? t.slice(0, 5) : t;
 }
 
+type AvailabilityLoadIssue =
+  | null
+  /** 公開中の開催日が無い（404）。DB リセット直後・未公開・ブックマークの古い日付など */
+  | { kind: "no_open_day" }
+  /** 5xx や想定外の 4xx、通信失敗 */
+  | { kind: "error"; message: string };
+
 export function ReserveDateClient({ eventDate }: { eventDate: string }) {
   const router = useRouter();
   const [data, setData] = useState<AvailabilityJson | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadIssue, setLoadIssue] = useState<AvailabilityLoadIssue>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string>("");
   const [teamName, setTeamName] = useState("");
   const [strengthCategory, setStrengthCategory] = useState<string>("strong");
@@ -87,17 +94,27 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         if (cancelled) return;
         if (!res.ok) {
           setData(null);
-          setLoadError(json.error ?? "空き状況を取得できませんでした");
+          if (res.status === 404) {
+            setLoadIssue({ kind: "no_open_day" });
+            return;
+          }
+          setLoadIssue({
+            kind: "error",
+            message:
+              typeof json.error === "string" && json.error.trim()
+                ? json.error
+                : `空き状況を取得できませんでした（${res.status}）`,
+          });
           return;
         }
         setData(json);
-        setLoadError(null);
+        setLoadIssue(null);
         setSelectedSlotId("");
       })
       .catch(() => {
         if (cancelled) return;
         setData(null);
-        setLoadError("通信に失敗しました");
+        setLoadIssue({ kind: "error", message: "通信に失敗しました" });
       });
     return () => {
       cancelled = true;
@@ -218,17 +235,42 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         )}
       </div>
 
-      <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">
-        午前の対戦はこの予約で確定します。午後の試合は前日の自動編成で決まります。
-      </p>
-
-      {loadError && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {loadError}
+      {loadIssue?.kind !== "no_open_day" && (
+        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">
+          午前の対戦はこの予約で確定します。午後の試合は前日の自動編成で決まります。
         </p>
       )}
 
-      {!data && !loadError && (
+      {loadIssue?.kind === "no_open_day" && (
+        <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-relaxed text-sky-950">
+          <p className="font-medium text-sky-950">
+            この日（{formatIsoDateWithWeekdayJa(eventDate)}）は、いまのところ
+            <strong className="font-semibold"> 公開中の開催がありません</strong>
+            。
+          </p>
+          <p className="mt-2 text-sky-900">
+            開催日が未登録・まだ「公開前」のまま・DB をリセットした直後などが考えられます。予約は
+            <strong className="font-semibold"> 公開済みの日</strong>
+            からお選びください。
+          </p>
+          <p className="mt-3">
+            <Link
+              href="/reserve"
+              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-sky-900 px-4 py-2 text-sm font-medium text-white hover:bg-sky-950"
+            >
+              予約カレンダーへ戻る
+            </Link>
+          </p>
+        </div>
+      )}
+
+      {loadIssue?.kind === "error" && (
+        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+          {loadIssue.message}
+        </p>
+      )}
+
+      {!data && !loadIssue && (
         <p className="text-sm text-zinc-500">空き状況を読み込み中…</p>
       )}
 
