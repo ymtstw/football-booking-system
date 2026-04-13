@@ -21,5 +21,13 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json({ eventDays: data ?? [] });
+  const now = Date.now();
+  const rows = data ?? [];
+  const eventDays = rows.map((row) => {
+    const t = new Date(row.reservation_deadline_at).getTime();
+    const acceptingReservations = Number.isFinite(t) && t > now;
+    return { ...row, acceptingReservations };
+  });
+
+  return NextResponse.json({ eventDays });
 }

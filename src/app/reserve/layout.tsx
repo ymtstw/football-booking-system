@@ -14,7 +14,7 @@ export default function ReserveLayout({
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-2xl flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <Link
             href="/reserve"
             className="shrink-0 text-base font-semibold text-zinc-900 sm:text-[15px]"
@@ -26,7 +26,7 @@ export default function ReserveLayout({
               href="/reserve"
               className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
             >
-              開催日一覧
+              予約カレンダー
             </Link>
             <Link
               href="/reserve/manage"
@@ -49,7 +49,7 @@ export default function ReserveLayout({
           </nav>
         </div>
       </header>
-      <main className="mx-auto max-w-2xl px-4 py-6 pb-10 sm:px-5 sm:py-8">
+      <main className="mx-auto max-w-4xl px-4 py-6 pb-10 sm:px-5 sm:py-8">
         {children}
       </main>
     </div>

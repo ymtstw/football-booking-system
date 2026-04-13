@@ -1,21 +1,17 @@
 "use client";
 
-/** SCR-01 入口: 公開中の開催日一覧。 */
-import Link from "next/link";
-import { useEffect, useState } from "react";
+/** SCR-01 入口: 公開中の開催日を月カレンダーで選択。 */
+import { useEffect, useMemo, useState } from "react";
 
-import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { initialYearMonthFromEvents } from "@/lib/dates/tokyo-calendar-grid";
 
-type EventDay = {
-  id: string;
-  event_date: string;
-  grade_band: string;
-  status: string;
-  reservation_deadline_at: string;
-};
+import {
+  ReserveEventDaysCalendar,
+  type EventDayPublic,
+} from "./reserve-event-days-calendar";
 
 export default function ReserveEventDaysPage() {
-  const [days, setDays] = useState<EventDay[] | null>(null);
+  const [days, setDays] = useState<EventDayPublic[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -23,7 +19,7 @@ export default function ReserveEventDaysPage() {
     (async () => {
       const res = await fetch("/api/event-days");
       const json = (await res.json().catch(() => ({}))) as {
-        eventDays?: EventDay[];
+        eventDays?: EventDayPublic[];
         error?: string;
       };
       if (cancelled) return;
@@ -39,21 +35,28 @@ export default function ReserveEventDaysPage() {
     };
   }, []);
 
+  const calendarInitialMonth = useMemo(() => {
+    if (!days || days.length === 0) return null;
+    return initialYearMonthFromEvents(days.map((d) => d.event_date));
+  }, [days]);
+
   return (
     <div className="space-y-5 sm:space-y-6">
       <div>
         <h1 className="text-lg font-semibold text-zinc-900 sm:text-xl">
-          開催日一覧
+          予約カレンダー
         </h1>
         <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-600">
           <p>
-            本画面からは午前の1枠（1時間）のみご予約いただけます。
+            上の「前の月 / 今月 / 次の月」で表示月を変え、
+            <strong className="text-zinc-800">緑の枠</strong>
+            の日をタップすると午前枠の予約へ進みます。
           </p>
           <p>
-            午後の試合については、締切後に参加チーム数に応じて自動でマッチング・割り振りが行われます。
+            本画面からは午前の1枠（1時間）のみご予約いただけます。午後の試合は締切後に自動でマッチング・割り振りされます。
           </p>
           <p>
-            そのため、ご予約いただいたチームは最低でも午前1試合・午後1試合（各1時間）ご利用いただけます。
+            ご予約いただいたチームは最低でも午前1試合・午後1試合（各1時間）ご利用いただけます。
           </p>
         </div>
       </div>
@@ -78,27 +81,12 @@ export default function ReserveEventDaysPage() {
         <p className="text-sm text-zinc-600">現在、公開中の開催日はありません。</p>
       )}
 
-      {days && days.length > 0 && (
-        <ul className="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white">
-          {days.map((d) => (
-            <li key={d.id}>
-              <Link
-                href={`/reserve/${d.event_date}`}
-                className="flex min-h-[3.25rem] flex-col gap-1 px-4 py-3.5 transition-colors active:bg-zinc-100 hover:bg-zinc-50 sm:flex-row sm:items-center sm:justify-between sm:py-4"
-              >
-                <span className="min-w-0 font-medium text-zinc-900">
-                  {formatIsoDateWithWeekdayJa(d.event_date)}
-                </span>
-                <span className="text-sm text-zinc-600">
-                  学年帯: {d.grade_band}
-                </span>
-                <span className="text-sm font-medium text-emerald-700 sm:shrink-0">
-                  予約する →
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+      {days && days.length > 0 && calendarInitialMonth && (
+        <ReserveEventDaysCalendar
+          key={`${calendarInitialMonth.year}-${calendarInitialMonth.month}`}
+          days={days}
+          initialYearMonth={calendarInitialMonth}
+        />
       )}
     </div>
   );
