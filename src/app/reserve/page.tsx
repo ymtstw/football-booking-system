@@ -3,6 +3,7 @@
 /** SCR-01 入口: 公開中の開催日を月カレンダーで選択。 */
 import { useEffect, useMemo, useState } from "react";
 
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { initialYearMonthFromEvents } from "@/lib/dates/tokyo-calendar-grid";
 
 import {
@@ -74,7 +75,15 @@ export default function ReserveEventDaysPage() {
       )}
 
       {days === null && !error && (
-        <p className="text-sm text-zinc-500">読み込み中…</p>
+        <div
+          className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-zinc-600"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <InlineSpinner size="md" variant="onLight" />
+          <p>開催日を読み込み中…</p>
+        </div>
       )}
 
       {days && days.length === 0 && !error && (

@@ -1,4 +1,8 @@
-/** 管理者のみ PATCH: draft↔open、または open→locked（締切ロック）。 */
+/**
+ * 管理者のみ PATCH: draft↔open、または open→locked。
+ * `locked` は締切時刻と自動同期しない（業務の区切り）。バッチ実装は別途。
+ * 仕様: docs/spec/reservation-deadline-and-event-status.md
+ */
 import { NextResponse } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";

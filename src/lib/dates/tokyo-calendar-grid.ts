@@ -98,6 +98,40 @@ export function tokyoYearMonthNow(): { year: number; month: number } {
   return { year: y, month: m };
 }
 
+/** 東京の「いま」の暦日 `YYYY-MM-DD` */
+export function tokyoIsoDateToday(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const d = parts.find((p) => p.type === "day")?.value;
+  if (y && m && d) return `${y}-${m}-${d}`;
+  const fallback = new Date();
+  return `${fallback.getFullYear()}-${pad2(fallback.getMonth() + 1)}-${pad2(fallback.getDate())}`;
+}
+
+/** カレンダー日（東京正午基準）に日数を加算した `YYYY-MM-DD` */
+export function addDaysIsoDate(isoDate: string, deltaDays: number): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate;
+  const ms = Date.parse(`${isoDate}T12:00:00+09:00`) + deltaDays * 86400000;
+  if (Number.isNaN(ms)) return isoDate;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(ms));
+  const y = parts.find((p) => p.type === "year")?.value;
+  const m = parts.find((p) => p.type === "month")?.value;
+  const d = parts.find((p) => p.type === "day")?.value;
+  if (y && m && d) return `${y}-${m}-${d}`;
+  return isoDate;
+}
+
 /** 開催日の最も早い日がある月を表示用の初期値に */
 export function initialYearMonthFromEvents(
   eventDatesIso: readonly string[]

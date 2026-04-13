@@ -1,6 +1,9 @@
 "use client";
 
-/** SCR-03: 確認コードで照会・締切前なら変更・取消。 */
+/**
+ * SCR-03: 確認コードで照会・変更・取消。API 側で open かつ締切前を検証。
+ * 仕様: docs/spec/reservation-deadline-and-event-status.md
+ */
 import { useRef, useState } from "react";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";

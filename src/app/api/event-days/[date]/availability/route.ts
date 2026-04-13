@@ -1,4 +1,7 @@
-/** 公開 GET: 指定日の open 開催日について、午前各枠の active 予約数と強さカテゴリ内訳。認証不要。 */
+/**
+ * 公開 GET: 指定日の open 開催日について、午前各枠の集計。認証不要。
+ * 枠の予約可否は締切・定員等で判定（仕様: docs/spec/reservation-deadline-and-event-status.md）。
+ */
 import { NextResponse } from "next/server";
 
 import { createServiceRoleClient } from "@/lib/supabase/service";

@@ -1,6 +1,6 @@
 "use client";
 
-/** 公開前は「公開」「削除」を横並び。公開済みは「公開前に戻す」のみ。 */
+/** 公開前は「公開」「削除」。公開済みは「公開前に戻す」のみ（締切ロックは Cron 等で実施する想定のため手動ボタンは出さない）。 */
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,7 @@ export type EventDayAdminStatus =
   | "cancelled_weather"
   | "cancelled_minimum";
 
-type PendingAction = "idle" | "toOpen" | "toDraft" | "lock" | "delete";
+type PendingAction = "idle" | "toOpen" | "toDraft" | "delete";
 
 export function EventDayRowActions({
   id,
@@ -46,32 +46,6 @@ export function EventDayRowActions({
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next }),
-      });
-      const json = (await res.json().catch(() => ({}))) as { error?: string };
-      if (!res.ok) {
-        setError(json.error ?? `エラー（${res.status}）`);
-        return;
-      }
-      router.refresh();
-    } finally {
-      setPending("idle");
-    }
-  }
-
-  async function lockEventDay() {
-    const ok = window.confirm(
-      "締切ロックにすると、この開催日は新規予約・Web からの内容変更・キャンセルができなくなります（確認コードでの照会は可能です）。\n\n実行しますか？"
-    );
-    if (!ok) return;
-
-    setError(null);
-    setPending("lock");
-    try {
-      const res = await fetch(`/api/admin/event-days/${id}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "locked" }),
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -157,28 +131,16 @@ export function EventDayRowActions({
             </button>
           </>
         ) : (
-          <>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void setStatus("draft")}
-              title="一般公開をやめ、公開前（非公開）に戻します"
-              className={`${btnBase} inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-50`}
-            >
-              {pending === "toDraft" ? <InlineSpinner variant="onLight" /> : null}
-              {pending === "toDraft" ? "処理中…" : "公開前に戻す"}
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => void lockEventDay()}
-              title="締切ロック（新規予約・Web の変更・取消を停止）"
-              className={`${btnBase} inline-flex items-center justify-center gap-2 bg-amber-700 text-white hover:bg-amber-800`}
-            >
-              {pending === "lock" ? <InlineSpinner variant="onDark" /> : null}
-              {pending === "lock" ? "処理中…" : "締切ロック"}
-            </button>
-          </>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void setStatus("draft")}
+            title="一般公開をやめ、公開前（非公開）に戻します"
+            className={`${btnBase} inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white text-zinc-800 hover:bg-zinc-50`}
+          >
+            {pending === "toDraft" ? <InlineSpinner variant="onLight" /> : null}
+            {pending === "toDraft" ? "処理中…" : "公開前に戻す"}
+          </button>
         )}
       </div>
       {error ? (

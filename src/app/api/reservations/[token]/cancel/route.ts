@@ -1,4 +1,7 @@
-/** 公開 POST: 締切前の予約取消（token）。morning_fixed を cancelled に。 */
+/**
+ * 公開 POST: 予約取消（token）。morning_fixed を cancelled に。
+ * RPC が `event_days.status = open` かつ締切前を検証（締切と locked は別概念。仕様は docs/spec を参照）。
+ */
 import { NextResponse } from "next/server";
 
 import { rateLimitReservationTokenCancel } from "@/lib/rate-limit/reservation-public";

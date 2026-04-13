@@ -21,7 +21,8 @@ export type EventDayListRow = {
 export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
   return (
     <article
-      className={`rounded-lg border border-zinc-200 p-4 ${
+      id={`admin-event-day-mobile-${row.id}`}
+      className={`scroll-mt-20 rounded-lg border border-zinc-200 p-4 ${
         row.status === "open"
           ? "bg-emerald-50/80"
           : row.status === "draft"

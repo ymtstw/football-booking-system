@@ -1,4 +1,8 @@
-/** 公開 POST: 予約作成（認証不要）。RPC で TX＋行ロック。token 平文はレスポンスのみ。 */
+/**
+ * 公開 POST: 予約作成（認証不要）。RPC で TX＋行ロック。token 平文はレスポンスのみ。
+ * 受付可否: `create_public_reservation` が `event_days.status = open` かつ締切前を検証する。
+ * 仕様の正本: `docs/spec/reservation-deadline-and-event-status.md`
+ */
 import { randomBytes } from "crypto";
 
 import { NextResponse } from "next/server";
