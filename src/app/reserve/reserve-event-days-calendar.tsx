@@ -1,6 +1,6 @@
 "use client";
 
-/** SCR-01: 開催日を月カレンダーで選択。受付中は強調、締切済・他月はグレー。 */
+/** SCR-01: 開催日を月カレンダーで選択。受付中は強調、締切後・確定済はグレー表示（他月は薄色）。 */
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -172,13 +172,30 @@ export function ReserveEventDaysCalendar({
                 );
               }
 
+              const closedLabel =
+                event!.status === "cancelled_weather"
+                  ? "雨天中止"
+                  : event!.status === "cancelled_minimum"
+                    ? "最少未達中止"
+                    : event!.status === "confirmed"
+                      ? "確定済"
+                      : event!.status === "locked"
+                        ? "締切後"
+                        : "受付終了";
+
+              const isCancelled =
+                event!.status === "cancelled_weather" ||
+                event!.status === "cancelled_minimum";
+
               return (
                 <div
                   key={isoDate + idx}
                   title={title}
-                  className={`${baseCell} cursor-not-allowed bg-zinc-100 ${
-                    inCurrentMonth ? "" : "opacity-80"
-                  }`}
+                  className={`${baseCell} cursor-not-allowed ${
+                    isCancelled
+                      ? "bg-rose-50/90 ring-1 ring-rose-200"
+                      : "bg-zinc-100"
+                  } ${inCurrentMonth ? "" : "opacity-80"}`}
                 >
                   <span
                     className={`text-sm font-semibold tabular-nums sm:text-base ${
@@ -187,11 +204,19 @@ export function ReserveEventDaysCalendar({
                   >
                     {dom}
                   </span>
-                  <span className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-zinc-500 sm:text-xs">
+                  <span
+                    className={`mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight sm:text-xs ${
+                      isCancelled ? "text-rose-900" : "text-zinc-500"
+                    }`}
+                  >
                     {`学年帯 ${event!.grade_band}`}
                   </span>
-                  <span className="mt-auto text-[10px] font-medium text-zinc-500 sm:text-xs">
-                    受付終了
+                  <span
+                    className={`mt-auto text-[10px] font-medium sm:text-xs ${
+                      isCancelled ? "text-rose-800" : "text-zinc-500"
+                    }`}
+                  >
+                    {closedLabel}
                   </span>
                 </div>
               );
@@ -207,7 +232,11 @@ export function ReserveEventDaysCalendar({
         </li>
         <li className="flex items-center gap-2">
           <span className="h-4 w-4 shrink-0 rounded border border-zinc-200 bg-zinc-100" />
-          開催はあるが締切済み
+          開催はあるが受付不可（締切済・締切後・確定済）
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="h-4 w-4 shrink-0 rounded border border-rose-200 bg-rose-50" />
+          開催中止（雨天／最少催行）
         </li>
         <li className="flex items-center gap-2">
           <span className="h-4 w-4 shrink-0 rounded bg-white ring-1 ring-zinc-200" />

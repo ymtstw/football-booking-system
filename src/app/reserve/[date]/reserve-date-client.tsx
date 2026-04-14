@@ -48,6 +48,8 @@ type AvailabilityJson = {
   eventDate: string;
   eventDayId: string;
   gradeBand: string;
+  /** open / locked / confirmed（一覧と同じ） */
+  eventDayStatus?: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
   morningSlots: MorningSlot[];
@@ -235,7 +237,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         )}
       </div>
 
-      {loadIssue?.kind !== "no_open_day" && (
+      {data?.acceptingReservations && (
         <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">
           午前の対戦はこの予約で確定します。午後の試合は前日の自動編成で決まります。
         </p>
@@ -292,7 +294,15 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
             </ul>
             {!data.acceptingReservations && (
               <p className="mt-3 text-sm text-red-700">
-                予約締切を過ぎているため、新規の予約はできません。
+                {data.eventDayStatus === "cancelled_weather"
+                  ? "雨天のため開催中止です。新規の予約はできません。"
+                  : data.eventDayStatus === "cancelled_minimum"
+                    ? "最少催行に満たないため開催中止です。新規の予約はできません。"
+                    : data.eventDayStatus === "confirmed"
+                      ? "編成が確定済みのため、新規の予約はできません。"
+                      : data.eventDayStatus === "locked"
+                        ? "締切後のため、新規の予約はできません。"
+                        : "予約締切を過ぎているため、新規の予約はできません。"}
               </p>
             )}
             <ul className="mt-4 space-y-3">
@@ -353,7 +363,11 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
             </ul>
           </section>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className={`space-y-4 ${!data.acceptingReservations ? "hidden" : ""}`}
+            aria-hidden={!data.acceptingReservations}
+          >
             <h2 className="text-sm font-semibold text-zinc-800">チーム・連絡先</h2>
             <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3.5 sm:p-4">
               <label className="block text-sm">

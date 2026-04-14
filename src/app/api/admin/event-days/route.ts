@@ -1,4 +1,4 @@
-/** 管理者のみ POST: 開催日 insert ＋ 既定6枠（event_day_slots）insert。 */
+/** 管理者のみ POST: 開催日 insert ＋ 既定枠（`default-slots` の件数ぶん `event_day_slots`）insert。 */
 import { NextResponse } from "next/server";
 
 import { toEventDaySlotRows } from "@/domains/event-days/default-slots";

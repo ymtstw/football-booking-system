@@ -2,6 +2,7 @@
 
 /** 公開前は「公開」「削除」。公開済みは「公開前に戻す」のみ（締切ロックは Cron 等で実施する想定のため手動ボタンは出さない）。 */
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { DEFAULT_EVENT_DAY_SLOT_COUNT } from "@/domains/event-days/default-slots";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -62,7 +63,7 @@ export function EventDayRowActions({
     const label = formatIsoDateWithWeekdayJa(eventDate);
     const ok = window.confirm(
       `公開前の開催日「${label}」を削除します。\n` +
-        `この開催日に紐づく枠（6枠）などもまとめて削除されます。元に戻せません。\n\n` +
+        `この開催日に紐づく枠（既定は${DEFAULT_EVENT_DAY_SLOT_COUNT}枠・手動追加分を含む）などもまとめて削除されます。元に戻せません。\n\n` +
         `本当に削除しますか？`
     );
     if (!ok) return;
@@ -113,7 +114,7 @@ export function EventDayRowActions({
               type="button"
               disabled={busy}
               onClick={() => void setStatus("open")}
-              title="一般向けの開催日一覧（GET /api/event-days）に載せます"
+              title="一般向けカレンダー（GET /api/event-days）に載せます。締切後も枠は残ります"
               className={`${btnBase} inline-flex items-center justify-center gap-2 bg-emerald-700 text-white`}
             >
               {pending === "toOpen" ? <InlineSpinner variant="onDark" /> : null}

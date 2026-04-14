@@ -1,4 +1,8 @@
-/** 開催日1件あたりの既定6枠定義。POST 開催日時に event_day_slots へコピーする元データ。 */
+/**
+ * 開催日1件あたりの既定枠定義（午前4・午後4）。
+ * POST 開催日時に `event_day_slots` へコピーする元データ。
+ * 本数は可変でもよく、編成は `event_day_slots` の有効行に追従する（`buildMatchingAssignments`）。
+ */
 
 /** public.slot_phase ENUM と一致 */
 export type DefaultSlotPhase = "morning" | "afternoon";
@@ -19,6 +23,7 @@ export type DefaultSlotDefinition = {
 /**
  * 芝1面・1時間1枠・各枠最大2チーム（capacity=2）。
  * 午前: 予約で確定。午後: 締切後の自動編成対象。
+ * 枠コード順が表示・編成の時間順になる（MORNING_4 / AFTERNOON_4 まで想定）。
  */
 export const DEFAULT_EVENT_DAY_SLOT_DEFINITIONS: readonly DefaultSlotDefinition[] =
   [
@@ -44,6 +49,13 @@ export const DEFAULT_EVENT_DAY_SLOT_DEFINITIONS: readonly DefaultSlotDefinition[
       capacity: 2,
     },
     {
+      slotCode: "MORNING_4",
+      phase: "morning",
+      startTime: "12:00:00",
+      endTime: "13:00:00",
+      capacity: 2,
+    },
+    {
       slotCode: "AFTERNOON_1",
       phase: "afternoon",
       startTime: "13:00:00",
@@ -64,9 +76,18 @@ export const DEFAULT_EVENT_DAY_SLOT_DEFINITIONS: readonly DefaultSlotDefinition[
       endTime: "16:00:00",
       capacity: 2,
     },
+    {
+      slotCode: "AFTERNOON_4",
+      phase: "afternoon",
+      startTime: "16:00:00",
+      endTime: "17:00:00",
+      capacity: 2,
+    },
   ] as const;
 
-/** 常に6件。順序は表示・編成ループでそのまま使える。 */
+/** 既定テンプレの枠数（UI 文言など）。順序は表示・編成ループでそのまま使える。 */
+export const DEFAULT_EVENT_DAY_SLOT_COUNT = DEFAULT_EVENT_DAY_SLOT_DEFINITIONS.length;
+
 export function getDefaultEventDaySlotDefinitions(): DefaultSlotDefinition[] {
   return [...DEFAULT_EVENT_DAY_SLOT_DEFINITIONS];
 }

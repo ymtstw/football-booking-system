@@ -1,6 +1,6 @@
 /**
- * 公開 GET: 指定日の open 開催日について、午前各枠の集計。認証不要。
- * 枠の予約可否は締切・定員等で判定（仕様: docs/spec/reservation-deadline-and-event-status.md）。
+ * 公開 GET: 指定日の開催日（open / locked / confirmed / 中止系）について、午前各枠の集計。認証不要。
+ * 新規予約は status=open かつ締切前のみ（仕様: docs/spec/reservation-deadline-and-event-status.md）。
  */
 import { NextResponse } from "next/server";
 
@@ -39,7 +39,13 @@ export async function GET(
     .from("event_days")
     .select("id, event_date, grade_band, status, reservation_deadline_at")
     .eq("event_date", eventDate)
-    .eq("status", "open")
+    .in("status", [
+      "open",
+      "locked",
+      "confirmed",
+      "cancelled_weather",
+      "cancelled_minimum",
+    ])
     .maybeSingle();
 
   if (dayErr) {
@@ -51,7 +57,7 @@ export async function GET(
 
   if (!day) {
     return NextResponse.json(
-      { error: "開催日が見つからないか、公開されていません" },
+      { error: "開催日が見つからないか、予約画面では表示していません" },
       { status: 404 }
     );
   }
@@ -136,8 +142,9 @@ export async function GET(
   }
 
   const deadline = new Date(day.reservation_deadline_at).getTime();
+  const status = String(day.status ?? "");
   const acceptingReservations =
-    Number.isFinite(deadline) && Date.now() < deadline;
+    status === "open" && Number.isFinite(deadline) && Date.now() < deadline;
 
   const morningSlots = (slots ?? []).map((s) => {
     const cap = s.capacity ?? 2;
@@ -149,7 +156,8 @@ export async function GET(
     };
     const activeCount = a.total;
     const full = activeCount >= cap;
-    const bookable = acceptingReservations && !s.is_locked && !full;
+    const bookable =
+      status === "open" && acceptingReservations && !s.is_locked && !full;
 
     return {
       id: s.id,
@@ -174,6 +182,7 @@ export async function GET(
     eventDate: day.event_date,
     eventDayId: day.id,
     gradeBand: day.grade_band,
+    eventDayStatus: status,
     reservationDeadlineAt: day.reservation_deadline_at,
     acceptingReservations,
     morningSlots,

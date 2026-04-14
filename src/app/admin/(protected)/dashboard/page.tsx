@@ -4,7 +4,7 @@ import Link from "next/link";
 const placeholderLinks = [
   { href: "/admin/event-days", label: "開催日管理", note: "実装済み" },
   { href: "/admin/event-day-slots", label: "開催日枠の管理", note: "SCR-14・枠のみ" },
-  { href: "/admin/pre-day-results", label: "前日確定結果一覧", note: "SCR-11・枠のみ" },
+  { href: "/admin/pre-day-results", label: "前日確定・試合一覧", note: "SCR-11・編成・取り消し" },
   { href: "/admin/pre-day-adjust", label: "前日確定の補正", note: "SCR-12・枠のみ" },
 ] as const;
 

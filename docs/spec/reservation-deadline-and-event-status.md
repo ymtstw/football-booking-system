@@ -10,14 +10,24 @@
 
 **締切前であっても** `event_days.status` が **`open` でない**場合は、新規予約・変更・取消を受け付けない（例: 下書き、締切前の早期ロック、確定後など）。
 
+## 開催中止ステータス（掲示）
+
+| 値 | 意味（MVP） |
+|----|-------------|
+| `cancelled_weather` | **雨天・天候**などで開催中止にした日。 |
+| `cancelled_minimum` | **最少催行（参加チーム数や人数の下限）を満たさず**開催できないと判断した日。雨天中止と理由を分けて記録・表示する。 |
+
+一般向けカレンダーでは上記も **日付・学年帯付きで表示**し、予約は受け付けない。
+
 ## 実装上の対応箇所（参照用）
 
 | 操作 | 主な実装 |
 |------|-----------|
+| 対象日の空き状況（閲覧） | `GET /api/event-days/{date}/availability`: 上記に加え **中止系**も 200。集計は閲覧可。枠の `bookable` は **`open` かつ締切前**のときのみ true |
 | 新規予約 | `create_public_reservation` RPC: `status = open` かつ締切前。`POST /api/reservations` |
 | 変更 | `PATCH /api/reservations/[token]`: `ed.status === 'open'` かつ締切前 |
 | 取消 | `cancel_public_reservation` RPC: `status = open` かつ締切前。`POST /api/reservations/[token]/cancel` |
-| 公開の開催日一覧 | `GET /api/event-days`: `status = open` の行のみ。各行に `acceptingReservations`（締切が未来か） |
+| 公開の開催日一覧 | `GET /api/event-days`: **`open` / `locked` / `confirmed` / `cancelled_weather` / `cancelled_minimum`** を返す（一般カレンダーで表示。中止日も掲示）。`acceptingReservations` は **`open` かつ締切が未来**のときだけ true（新規予約は従来どおり open のみ） |
 | `locked` への遷移 | 管理 `PATCH /api/admin/event-days/[id]`（`open` → `locked`）。**Cron:** `GET /api/cron/lock-event-days`（`vercel.json`・`CRON_SECRET` 必須） |
 
 ## Cron（Vercel）
