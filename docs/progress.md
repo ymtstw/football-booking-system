@@ -190,7 +190,7 @@
 - [x] SCR-02 予約完了（token 表示・入力確認）
 - [x] SCR-03 予約照会・取消・締切前の内容変更（保存完了の視覚的フィードバック含む）
 - [x] `/reserve/contact` お問い合わせ（メール送信は未接続のプレースホルダー UI）
-- [ ] （設計書付録）合宿は外部サイトへのリンクから遷移のみ（※現状は案内文のみ・URL 未設定）
+- [x] 合宿は案内＋日程相談（受付〜事前案内まで。当日運用・対戦表は非対象）（`/reserve/camp`・`/reserve/camp/inquiry`・`camp-lodging-plans.ts`・`POST /api/camp-inquiries`・`camp_inquiries`・schema v3・`/admin/camp-inquiries`・任意 `CAMP_INQUIRY_NOTIFY_EMAIL`）
 
 ### 1-9. マッチング関連の設計メモ（午前即時）
 
@@ -616,7 +616,7 @@
 3. **SCR-02** 完了画面で token 表示。  
 4. **SCR-03** 照会・取消・締切前の PATCH 変更。保存完了は画面上で明示。  
 5. **お問い合わせ** `/reserve/contact` はプレースホルダー（メール API 未接続）。  
-6. 合宿導線は外部リンクのみ（設計付録・現状は案内文のみ URL 未設定）。
+6. 合宿導線は案内＋相談フォーム（受付〜事前案内まで。`design-mvp` 合宿節参照）。
 
 ---
 

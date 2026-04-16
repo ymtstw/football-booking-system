@@ -2,6 +2,8 @@
 
 リポジトリにデプロイしたあと、**本番 URL で最低限動く状態**にするための確認表です。値の入力は **Vercel Dashboard → Project → Settings → Environment Variables** で行います（値はチャットやスクリーンショットに載せない）。
 
+**ホスト構成（本番 Web / ステージング Web / メール送信用サブドメイン）** の方針は、開発設計書 **`docs/spec/design-mvp.md` §1-5** を正とする。`NEXT_PUBLIC_SITE_URL` は **Production と Preview（または Staging 割当）で、それぞれ実際にブラウザで開く Web ホスト**に一致させる（本番とステージングで値が違って当然）。
+
 ## 1. 環境変数（必須）
 
 | 変数名 | 用途 | メモ |
@@ -11,8 +13,8 @@
 | `SUPABASE_SERVICE_ROLE_KEY` | サーバー専用（Route Handler） | **絶対に** `NEXT_PUBLIC_*` にしない |
 | `CRON_SECRET` | Cron・`POST /api/admin/matching/run` の Bearer | **16 文字以上**のランダム文字列。Preview/Production それぞれ入れるか、方針を決める |
 | `RESEND_API_KEY` | 予約完了・前日・即時雨天メール | 未設定だとメールは飛ばず `notifications` は `pending` のまま |
-| `RESEND_FROM` | Resend の From | 例: `交流試合 <onboarding@resend.dev>` または検証済みドメイン |
-| `NEXT_PUBLIC_SITE_URL` | メール内の予約管理リンクのベース | **末尾スラッシュなし**（例: `https://xxxx.vercel.app`） |
+| `RESEND_FROM` | Resend の From | 例: `交流試合 <onboarding@resend.dev>` または **検証済み送信用サブドメイン**（設計例: `updates.<apex>`。Web 本番ホストとは別子ドメインを推奨） |
+| `NEXT_PUBLIC_SITE_URL` | メール内の予約管理リンクのベース | **末尾スラッシュなし**。カスタムドメイン運用なら本番・ステージングそれぞれの Web ホスト（§1-5）。暫定なら `https://xxxx.vercel.app` も可 |
 
 **変更後:** Environment Variables を変えたら **Redeploy**（`NEXT_PUBLIC_*` はビルド時埋め込みのため特に重要）。
 

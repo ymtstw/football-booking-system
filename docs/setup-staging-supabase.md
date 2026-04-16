@@ -41,10 +41,12 @@ npm.cmd run db:push
 
 本番で設定している内容を **Staging プロジェクトの Authentication → URL Configuration** にも同じ**パターン**で入れます（ホスト名だけ Staging / Preview 用に変える）。
 
+**MVP 設計（正本: `docs/spec/design-mvp.md` §1-5）** では、本番・ステージングを **固定のカスタムサブドメイン**で分ける想定とする（例: 本番 `https://football-booking.greenplanet-project.com`、ステージング `https://staging-football-booking.greenplanet-project.com`）。この場合、**Redirect URLs に上記ステージング URL を明示登録**すれば、Preview の可変 `*.vercel.app` だけに依存しなくてよい。
+
 | 設定 | 例（本番と同じルールでホストだけ差し替え） |
 |------|--------------------------------------------|
-| **Site URL** | 本番: `https://（本番ドメイン）` / ローカル検証: `http://localhost:3000` |
-| **Redirect URLs** | `http://localhost:3000/**`、`https://（本番）/**` に加え、**Vercel Preview** なら `https://*.vercel.app/**` など（チーム方針に合わせる） |
+| **Site URL** | 本番: `https://（本番 Web ホスト）` / ステージング検証: `https://（ステージング Web ホスト）` / ローカル: `http://localhost:3000` |
+| **Redirect URLs** | `http://localhost:3000/**` と、本番・ステージングそれぞれのサイト origin に対する `/**` パターンを列挙。Preview のみ運用する場合は `https://*.vercel.app/**` を追加してもよい（固定ホストと併用可） |
 
 パスワードリカバリ・メールリンクの着地点は、本番と同じく **`/auth/callback`** や **`/reset-password`** 等を許可リストに含めます（`src/proxy.ts` のリダイレクトと一致させる）。
 

@@ -1,6 +1,7 @@
 "use client";
 
 /** SCR-01 入口: 公開中の開催日を月カレンダーで選択。 */
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
@@ -63,9 +64,14 @@ export default function ReserveEventDaysPage() {
       </div>
 
       <p className="text-sm leading-relaxed text-zinc-600">
-        合宿プランなどは
-        <span className="text-zinc-500">（別途お知らせの外部サイト）</span>
-        をご確認ください。
+        合宿・宿泊のご相談は
+        <Link
+          href="/reserve/camp"
+          className="font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950"
+        >
+          合宿のご案内
+        </Link>
+        からお送りください（相談受付〜事前案内まで。当日の進行管理は対象外。日帰り予約の確定とは別です）。
       </p>
 
       {error && (

@@ -2,6 +2,7 @@
  * 開催日1件あたりの既定枠定義（午前3・午後3＝計6枠）。
  * POST 開催日時に `event_day_slots` へコピーする元データ。
  * 枠の追加は管理 API で `event-day-slot-count-policy` に従い、午前4・午後4（計8）まで。
+ * 同日の予約上限は有効な午前枠の capacity 合計（本テンプレでは 3+3→6、4+4→8）。
  * 編成は `event_day_slots` の有効行に追従する（`buildMatchingAssignments`）。
  */
 

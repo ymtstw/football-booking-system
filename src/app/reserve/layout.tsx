@@ -35,6 +35,12 @@ export default function ReserveLayout({
               予約確認・キャンセル
             </Link>
             <Link
+              href="/reserve/camp"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              合宿のご案内
+            </Link>
+            <Link
               href="/reserve/contact"
               className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
             >

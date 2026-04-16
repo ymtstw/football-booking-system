@@ -97,6 +97,47 @@ describe.skipIf(!hasSupabaseEnv())("integration: create_public_reservation / can
     }
   });
 
+  it("open + 3+3: 6件まで成功し7件目は day_full", async () => {
+    const { eventDayId } = await insertEventDayWithSlots({
+      status: "open",
+      reservationDeadlineAtIso: futureDeadlineIso,
+    });
+    try {
+      const supabase = getIntegrationSupabase();
+      const { data: morningRows, error: mErr } = await supabase
+        .from("event_day_slots")
+        .select("id")
+        .eq("event_day_id", eventDayId)
+        .eq("phase", "morning")
+        .eq("is_active", true)
+        .order("slot_code", { ascending: true });
+      expect(mErr).toBeNull();
+      const ids = (morningRows ?? []).map((r) => r.id as string);
+      expect(ids.length).toBe(3);
+
+      const slotSequence = [ids[0], ids[0], ids[1], ids[1], ids[2], ids[2]];
+      for (let i = 0; i < 6; i++) {
+        const tokenHash = randomBytes(32).toString("hex");
+        const { data, error } = await supabase.rpc("create_public_reservation", {
+          ...baseCreateRpcParams(eventDayId, slotSequence[i]!, tokenHash),
+          p_contact_email: `cap-${i}-${eventDayId.slice(0, 8)}@example.test`,
+        });
+        expect(error).toBeNull();
+        expect(data).toMatchObject({ success: true });
+      }
+
+      const tokenHash7 = randomBytes(32).toString("hex");
+      const { data: seventh, error: e7 } = await supabase.rpc("create_public_reservation", {
+        ...baseCreateRpcParams(eventDayId, ids[0]!, tokenHash7),
+        p_contact_email: `cap-7-${eventDayId.slice(0, 8)}@example.test`,
+      });
+      expect(e7).toBeNull();
+      expect(seventh).toMatchObject({ success: false, error: "day_full" });
+    } finally {
+      await deleteEventDayById(eventDayId);
+    }
+  });
+
   it("open + 締切未来 → 成功のあと locked にすると cancel は event_not_open", async () => {
     const { eventDayId, morningSlotId } = await insertEventDayWithSlots({
       status: "open",

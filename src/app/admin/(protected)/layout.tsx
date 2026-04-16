@@ -39,6 +39,12 @@ export default async function AdminProtectedLayout({
             >
               前日確定
             </Link>
+            <Link
+              href="/admin/camp-inquiries"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              合宿相談
+            </Link>
           </nav>
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
             <span
