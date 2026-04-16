@@ -10,10 +10,34 @@ import { SlotsEditorClient } from "./slots-editor-client";
 
 export default async function AdminEventDaySlotsDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{
+    weatherRegistered?: string | string[];
+    operationalRegistered?: string | string[];
+    imSent?: string | string[];
+    imSkip?: string | string[];
+  }>;
 }) {
   const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const weatherDone =
+    typeof sp.weatherRegistered === "string" && sp.weatherRegistered === "1";
+  const operationalDone =
+    typeof sp.operationalRegistered === "string" && sp.operationalRegistered === "1";
+  const imSentRaw =
+    typeof sp.imSent === "string" ? Number.parseInt(sp.imSent, 10) : NaN;
+  const imSkipRaw =
+    typeof sp.imSkip === "string" ? Number.parseInt(sp.imSkip, 10) : NaN;
+  const imLine =
+    (weatherDone || operationalDone) &&
+    Number.isFinite(imSentRaw) &&
+    Number.isFinite(imSkipRaw) &&
+    !Number.isNaN(imSentRaw) &&
+    !Number.isNaN(imSkipRaw)
+      ? `即時通知: 送信 ${imSentRaw} 件、スキップ ${imSkipRaw} 件（メール未設定・送信済み等）。`
+      : null;
   const supabase = await createClient();
   const { data: day, error } = await supabase
     .from("event_days")
@@ -51,6 +75,50 @@ export default async function AdminEventDaySlotsDetailPage({
 
   return (
     <div className="min-w-0 space-y-6">
+      {weatherDone ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-950">
+          <p className="font-semibold">登録完了しました。</p>
+          <p className="mt-1 leading-relaxed">
+            雨天判断の登録が完了しました。原則、参加者向けの最終文面は前日 17:00
+            の一括メールに反映されます。
+          </p>
+          {imLine ? (
+            <p className="mt-2 text-xs leading-relaxed text-emerald-900/95">
+              {imLine}
+            </p>
+          ) : null}
+          <p className="mt-3">
+            <Link
+              href={`/admin/event-days/${id}/slots`}
+              className="text-sm font-medium text-emerald-900 underline underline-offset-2 hover:text-emerald-950"
+            >
+              このメッセージを閉じる（URL からパラメータを外す）
+            </Link>
+          </p>
+        </div>
+      ) : null}
+      {operationalDone ? (
+        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-950">
+          <p className="font-semibold">登録完了しました。</p>
+          <p className="mt-1 leading-relaxed">
+            運営都合による緊急中止を登録しました。原則、入力したお知らせ文は前日 17:00
+            の一括メールに反映されます。
+          </p>
+          {imLine ? (
+            <p className="mt-2 text-xs leading-relaxed text-rose-900/95">
+              {imLine}
+            </p>
+          ) : null}
+          <p className="mt-3">
+            <Link
+              href={`/admin/event-days/${id}/slots`}
+              className="text-sm font-medium text-rose-900 underline underline-offset-2 hover:text-rose-950"
+            >
+              このメッセージを閉じる（URL からパラメータを外す）
+            </Link>
+          </p>
+        </div>
+      ) : null}
       <div>
         <p className="text-xs font-medium text-zinc-500">
           <Link
@@ -58,6 +126,27 @@ export default async function AdminEventDaySlotsDetailPage({
             className="text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
           >
             開催日一覧
+          </Link>
+          {" · "}
+          <Link
+            href={`/admin/event-days/${id}/weather`}
+            className="text-sky-800 underline decoration-sky-600/60 underline-offset-2 hover:text-sky-950"
+          >
+            雨天判断
+          </Link>
+          {" · "}
+          <Link
+            href={`/admin/event-days/${id}/operational-cancel`}
+            className="text-rose-800 underline decoration-rose-600/60 underline-offset-2 hover:text-rose-950"
+          >
+            緊急中止（運営）
+          </Link>
+          {" · "}
+          <Link
+            href={`/admin/event-days/${id}/notifications`}
+            className="text-indigo-800 underline decoration-indigo-600/60 underline-offset-2 hover:text-indigo-950"
+          >
+            通知・送信状況
           </Link>
         </p>
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">

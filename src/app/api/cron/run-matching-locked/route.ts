@@ -1,7 +1,7 @@
 /**
  * Cron JOB02: `locked` な開催日に対し午前補完・午後一括編成を順に実行。
  *
- * スケジュール: `vercel.json` の `1 3 * * *`（UTC 03:01 = 前日相当の運用日 12:01 JST と整合する想定）。
+ * スケジュール: `vercel.json` の `1 6 * * *`（UTC 06:01 = 同日 15:01 JST・締切直後）。
  * 認証は `GET /api/cron/lock-event-days` と同じ（`CRON_SECRET`）。
  */
 import { type NextRequest, NextResponse } from "next/server";

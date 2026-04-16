@@ -313,6 +313,12 @@ export default async function AdminEventDaysPage({
                               >
                                 雨天判断
                               </Link>
+                              <Link
+                                href={`/admin/event-days/${row.id}/operational-cancel`}
+                                className="text-sm font-medium text-rose-800 underline decoration-rose-600/60 underline-offset-2 hover:text-rose-950"
+                              >
+                                緊急中止
+                              </Link>
                             </div>
                           </td>
                           <td className="px-3 py-2">

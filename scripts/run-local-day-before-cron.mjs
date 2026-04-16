@@ -1,6 +1,6 @@
 /**
  * ローカル（または任意のベース URL）で前日フロー相当の Cron を順に実行する。
- * 1) lock-event-days  2) run-matching-locked  3) send-day-before-final
+ * 1) lock-event-days  2) run-matching-locked  3) send-matching-proposal  4) send-day-before-final
  *
  * 前提: .env.local に CRON_SECRET（16文字以上）と Supabase / Resend 等が入っていること。
  * 別ターミナルで `npm run dev` 済みで、LOCAL_CRON_BASE_URL（既定 localhost:3000）が応答すること。
@@ -19,6 +19,7 @@ config({ path: resolve(__dirname, "..", ".env.local") });
 const STEPS = [
   { name: "JOB01 締切ロック", path: "/api/cron/lock-event-days" },
   { name: "JOB02 自動編成", path: "/api/cron/run-matching-locked" },
+  { name: "マッチング案内メール", path: "/api/cron/send-matching-proposal" },
   { name: "JOB03 前日最終メール", path: "/api/cron/send-day-before-final" },
 ];
 
@@ -48,7 +49,7 @@ if (checkOnly) {
   console.log("[check] 環境変数 OK");
   console.log(`[check] ベース URL: ${base}`);
   console.log(`[check] 実行予定: ${STEPS.map((s) => s.path).join(" → ")}`);
-  console.log("[check] メール送信には RESEND_API_KEY / RESEND_FROM も必要です（未設定なら JOB03 で送信スキップ）。");
+  console.log("[check] メール送信には RESEND_API_KEY / RESEND_FROM も必要です（未設定なら案内・JOB03 で送信スキップ）。");
   process.exit(0);
 }
 
@@ -73,7 +74,7 @@ async function callStep({ name, path }) {
 }
 
 async function main() {
-  console.log("ローカル前日 Cron 連続実行（JOB01 → JOB02 → JOB03）");
+  console.log("ローカル前日 Cron 連続実行（JOB01 → JOB02 → 案内 → JOB03）");
   console.log(`ベース URL: ${base}`);
   for (const step of STEPS) {
     await callStep(step);

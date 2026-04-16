@@ -13,6 +13,8 @@ export function eventDayStatusLabelJa(status: string): string {
       return "雨天中止";
     case "cancelled_minimum":
       return "最少未達中止";
+    case "cancelled_operational":
+      return "運営中止";
     default:
       return status;
   }

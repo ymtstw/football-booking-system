@@ -13,6 +13,7 @@ export type EventDayAdminStatus =
   | "locked"
   | "confirmed"
   | "cancelled_weather"
+  | "cancelled_operational"
   | "cancelled_minimum";
 
 type PendingAction = "idle" | "toOpen" | "toDraft" | "delete";

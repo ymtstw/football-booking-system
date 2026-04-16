@@ -2,6 +2,7 @@
 
 export function weatherSummaryJa(status: string, weatherStatus: string | null): string {
   if (status === "cancelled_weather") return "中止（天候）";
+  if (status === "cancelled_operational") return "中止（運営）";
   if (status === "cancelled_minimum") return "中止（最少催行）";
   const w = weatherStatus?.trim();
   if (w) return `雨天メモ: ${w}`;

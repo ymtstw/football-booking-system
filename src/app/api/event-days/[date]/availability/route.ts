@@ -44,6 +44,7 @@ export async function GET(
       "locked",
       "confirmed",
       "cancelled_weather",
+      "cancelled_operational",
       "cancelled_minimum",
     ])
     .maybeSingle();

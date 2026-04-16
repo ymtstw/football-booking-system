@@ -175,7 +175,9 @@ export function ReserveEventDaysCalendar({
               const closedLabel =
                 event!.status === "cancelled_weather"
                   ? "雨天中止"
-                  : event!.status === "cancelled_minimum"
+                  : event!.status === "cancelled_operational"
+                    ? "運営中止"
+                    : event!.status === "cancelled_minimum"
                     ? "最少未達中止"
                     : event!.status === "confirmed"
                       ? "確定済"
@@ -185,6 +187,7 @@ export function ReserveEventDaysCalendar({
 
               const isCancelled =
                 event!.status === "cancelled_weather" ||
+                event!.status === "cancelled_operational" ||
                 event!.status === "cancelled_minimum";
 
               return (
@@ -236,7 +239,7 @@ export function ReserveEventDaysCalendar({
         </li>
         <li className="flex items-center gap-2">
           <span className="h-4 w-4 shrink-0 rounded border border-rose-200 bg-rose-50" />
-          開催中止（雨天／最少催行）
+          開催中止（雨天／運営／最少催行）
         </li>
         <li className="flex items-center gap-2">
           <span className="h-4 w-4 shrink-0 rounded bg-white ring-1 ring-zinc-200" />

@@ -319,7 +319,9 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
               <p className="mt-3 text-sm text-red-700">
                 {data.eventDayStatus === "cancelled_weather"
                   ? "雨天のため開催中止です。新規の予約はできません。"
-                  : data.eventDayStatus === "cancelled_minimum"
+                  : data.eventDayStatus === "cancelled_operational"
+                    ? "運営の都合により開催中止です。新規の予約はできません。"
+                    : data.eventDayStatus === "cancelled_minimum"
                     ? "最少催行に満たないため開催中止です。新規の予約はできません。"
                     : data.eventDayStatus === "confirmed"
                       ? "編成が確定済みのため、新規の予約はできません。"

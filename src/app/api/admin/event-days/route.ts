@@ -11,6 +11,7 @@ type EventDayStatus =
   | "locked"
   | "confirmed"
   | "cancelled_weather"
+  | "cancelled_operational"
   | "cancelled_minimum";
 
 type CreateBody = {

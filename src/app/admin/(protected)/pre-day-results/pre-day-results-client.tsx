@@ -1,5 +1,6 @@
 "use client";
 
+import { NotificationFailedRetryTable } from "@/components/admin/notification-failed-retry-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { PreDayAdjustPanel } from "./pre-day-adjust-panel";
@@ -84,17 +85,6 @@ type MatchesResponse = {
   matchingRun: MatchingRunJson | null;
   assignments: AssignmentJson[];
   slotsOverview: SlotOverviewJson[];
-};
-
-type NotificationRowJson = {
-  id: string;
-  channel: string;
-  status: string;
-  template_key: string | null;
-  payload_summary: unknown;
-  error_message: string | null;
-  created_at: string;
-  reservation_id: string | null;
 };
 
 type BuildMeta = {
@@ -258,6 +248,7 @@ const EVENT_STATUS_JA: Record<string, string> = {
   locked: "締切後（自動編成の実行可）",
   confirmed: "編成確定済み",
   cancelled_weather: "中止（天候）",
+  cancelled_operational: "中止（運営都合）",
   cancelled_minimum: "中止（最少催行）",
 };
 
@@ -276,6 +267,7 @@ function statusBadgeClass(status: string): string {
     case "draft":
       return "border-zinc-300 bg-zinc-100 text-zinc-800";
     case "cancelled_weather":
+    case "cancelled_operational":
     case "cancelled_minimum":
       return "border-red-300 bg-red-50 text-red-950";
     default:
@@ -299,10 +291,6 @@ export function PreDayResultsClient({
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  /** null: 未取得／開催日 id なし。空配列: 取得済みで 0 件 */
-  const [failedNotifications, setFailedNotifications] = useState<NotificationRowJson[] | null>(null);
-  const [failedNotifError, setFailedNotifError] = useState<string | null>(null);
-  const [failedNotifLoading, setFailedNotifLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState<"run" | "undo" | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [lastMeta, setLastMeta] = useState<BuildMeta | null>(null);
@@ -345,51 +333,6 @@ export function PreDayResultsClient({
     if (tab !== "matches") return;
     void loadMatches();
   }, [tab, date, loadMatches]);
-
-  // ダッシュボード等から ?notifications=failed で遷移したとき、当該開催日の failed を表示
-  useEffect(() => {
-    if (tab !== "matches" || initialNotificationsFocus !== "failed") {
-      setFailedNotifications(null);
-      setFailedNotifError(null);
-      return;
-    }
-    const eventDayId = data?.eventDay?.id;
-    if (!eventDayId) {
-      setFailedNotifications(null);
-      setFailedNotifLoading(false);
-      setFailedNotifError(null);
-      return;
-    }
-    let cancelled = false;
-    setFailedNotifLoading(true);
-    setFailedNotifError(null);
-    void (async () => {
-      try {
-        const res = await fetch(
-          `/api/admin/notifications?eventDayId=${encodeURIComponent(eventDayId)}&status=failed`,
-          { credentials: "include" }
-        );
-        const json = (await res.json()) as { notifications?: NotificationRowJson[]; error?: string };
-        if (cancelled) return;
-        if (!res.ok) {
-          setFailedNotifications(null);
-          setFailedNotifError(json.error ?? `取得失敗 (${res.status})`);
-          return;
-        }
-        setFailedNotifications(json.notifications ?? []);
-      } catch {
-        if (!cancelled) {
-          setFailedNotifications(null);
-          setFailedNotifError("通信エラーが発生しました");
-        }
-      } finally {
-        if (!cancelled) setFailedNotifLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [tab, initialNotificationsFocus, data?.eventDay?.id]);
 
   // 日付を変えたら直近の meta は別日の内容になりうるため消す
   useEffect(() => {
@@ -596,56 +539,28 @@ export function PreDayResultsClient({
             この開催日の通知 failed
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/80">
-            メール送信エラー等。再送は運用で Resend / DB を確認してください。
+            宛先・エラーを確認のうえ「再送」できます。全体一覧は{" "}
+            <a
+              href="/admin/notifications/failed"
+              className="font-medium text-red-950 underline underline-offset-2"
+            >
+              メール失敗
+            </a>
+            から。
           </p>
-          {failedNotifLoading ? (
-            <p className="mt-3 text-sm text-red-900/80">読込中…</p>
-          ) : failedNotifError ? (
-            <p className="mt-3 text-sm text-red-800" role="alert">
-              {failedNotifError}
-            </p>
-          ) : failedNotifications !== null && failedNotifications.length === 0 ? (
-            <p className="mt-3 text-sm text-zinc-700">該当する failed はありません。</p>
-          ) : failedNotifications !== null && failedNotifications.length > 0 ? (
-            <div className="mt-3 overflow-x-auto rounded-md border border-red-200/60 bg-white/80">
-              <table className="min-w-full text-left text-xs text-zinc-800 sm:text-sm">
-                <thead className="border-b border-red-100 bg-red-50/90">
-                  <tr>
-                    <th className="px-3 py-2 font-medium text-red-900">時刻（UTC）</th>
-                    <th className="px-3 py-2 font-medium text-red-900">template</th>
-                    <th className="px-3 py-2 font-medium text-red-900">channel</th>
-                    <th className="px-3 py-2 font-medium text-red-900">reservation</th>
-                    <th className="px-3 py-2 font-medium text-red-900">エラー</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-red-100">
-                  {failedNotifications.map((n) => (
-                    <tr key={n.id}>
-                      <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-600">
-                        {n.created_at?.replace("T", " ").slice(0, 19) ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 font-mono text-[11px]">{n.template_key ?? "—"}</td>
-                      <td className="px-3 py-2">{n.channel}</td>
-                      <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[11px]">
-                        {n.reservation_id ? `${n.reservation_id.slice(0, 8)}…` : "—"}
-                      </td>
-                      <td className="max-w-[220px] px-3 py-2 wrap-break-word text-red-900">
-                        {n.error_message ?? "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="mt-3 text-sm text-zinc-600">
-              {loadError
-                ? "開催日を読み込めないため、通知一覧は取得できません。"
-                : loading
-                  ? "開催日の読込中です…"
-                  : "該当する failed はありません。"}
-            </p>
-          )}
+          <div className="mt-3">
+            {!data?.eventDay?.id ? (
+              <p className="text-sm text-red-900/80">
+                {loadError
+                  ? "開催日を読み込めないため、通知一覧は表示できません。"
+                  : loading
+                    ? "開催日の読込中です…"
+                    : "開催日が未取得です。"}
+              </p>
+            ) : (
+              <NotificationFailedRetryTable eventDayId={data.eventDay.id} />
+            )}
+          </div>
         </section>
       ) : null}
 

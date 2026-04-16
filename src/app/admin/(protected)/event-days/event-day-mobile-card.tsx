@@ -71,6 +71,12 @@ export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
         >
           雨天判断
         </Link>
+        <Link
+          href={`/admin/event-days/${row.id}/operational-cancel`}
+          className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-rose-700/40 bg-rose-50/80 px-3 text-sm font-medium text-rose-950 hover:bg-rose-100/90"
+        >
+          緊急中止（運営）
+        </Link>
         <EventDayRowActions
           id={row.id}
           status={row.status as EventDayAdminStatus}

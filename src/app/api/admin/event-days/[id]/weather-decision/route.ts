@@ -12,6 +12,8 @@ type DecisionBody = {
   decision?: string;
   notes?: string;
   sendImmediateCancelNotice?: boolean;
+  /** `cancel` のとき: `immediate`（即時確定・既定） / `day_before_17`（前日17:00のCronで雨天中止文面） */
+  delivery?: string;
 };
 
 export async function POST(
@@ -40,6 +42,12 @@ export async function POST(
   const notes =
     typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
   const sendImmediateCancelNotice = Boolean(body.sendImmediateCancelNotice);
+  const deliveryRaw =
+    typeof body.delivery === "string" ? body.delivery.trim().toLowerCase() : "";
+  const delivery =
+    deliveryRaw === "day_before_17" || deliveryRaw === "immediate"
+      ? deliveryRaw
+      : "immediate";
 
   if (decisionRaw !== "go" && decisionRaw !== "cancel") {
     return NextResponse.json(
@@ -55,11 +63,27 @@ export async function POST(
     );
   }
 
+  if (delivery === "day_before_17" && decisionRaw !== "cancel") {
+    return NextResponse.json(
+      { error: "delivery が day_before_17 のときは cancel と併用してください" },
+      { status: 422 }
+    );
+  }
+
+  if (delivery === "day_before_17" && sendImmediateCancelNotice) {
+    return NextResponse.json(
+      { error: "前日17:00予約と即時メールは同時に指定できません" },
+      { status: 422 }
+    );
+  }
+
   const supabase = createServiceRoleClient();
 
   const { data: ed, error: fetchErr } = await supabase
     .from("event_days")
-    .select("id, status, event_date, grade_band")
+    .select(
+      "id, status, event_date, grade_band, status_before_weather_cancel, weather_day_before_rain_scheduled, final_day_before_notice_completed_at"
+    )
     .eq("id", eventDayId)
     .maybeSingle();
 
@@ -86,6 +110,46 @@ export async function POST(
       { status: 409 }
     );
   }
+  if (st === "cancelled_operational") {
+    return NextResponse.json(
+      { error: "運営都合中止の開催日には雨天判断を登録できません" },
+      { status: 409 }
+    );
+  }
+
+  if (st === "cancelled_weather" && decisionRaw === "cancel") {
+    return NextResponse.json(
+      { error: "すでに雨天中止として登録されています" },
+      { status: 409 }
+    );
+  }
+
+  if (st === "cancelled_weather" && decisionRaw === "go") {
+    const prev = ed.status_before_weather_cancel as string | null;
+    if (prev === "confirmed") {
+      return NextResponse.json(
+        { error: "編成確定後に雨天中止したため、ここからは取り消せません" },
+        { status: 409 }
+      );
+    }
+  }
+
+  if (decisionRaw === "cancel" && delivery === "day_before_17") {
+    const fin = (ed as { final_day_before_notice_completed_at?: string | null })
+      .final_day_before_notice_completed_at;
+    if (fin) {
+      return NextResponse.json(
+        { error: "最終通知が完了しているため、前日17:00の雨天中止予約はできません" },
+        { status: 409 }
+      );
+    }
+    if (st !== "confirmed" && st !== "locked") {
+      return NextResponse.json(
+        { error: "前日17:00の雨天中止予約は、確定または締切済の開催日のみ設定できます" },
+        { status: 409 }
+      );
+    }
+  }
 
   const { error: insErr } = await supabase.from("weather_decisions").insert({
     event_day_id: eventDayId,
@@ -102,27 +166,55 @@ export async function POST(
   }
 
   if (decisionRaw === "cancel") {
-    const { error: upErr } = await supabase
-      .from("event_days")
-      .update({
-        weather_status: "cancel",
-        status: "cancelled_weather",
-      })
-      .eq("id", eventDayId);
+    if (delivery === "day_before_17") {
+      const { error: upErr } = await supabase
+        .from("event_days")
+        .update({
+          weather_day_before_rain_scheduled: true,
+          weather_status: "go",
+        })
+        .eq("id", eventDayId);
 
-    if (upErr) {
-      return NextResponse.json(
-        { error: upErr.message, code: upErr.code },
-        { status: 500 }
-      );
+      if (upErr) {
+        return NextResponse.json(
+          { error: upErr.message, code: upErr.code },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error: upErr } = await supabase
+        .from("event_days")
+        .update({
+          weather_status: "cancel",
+          status: "cancelled_weather",
+          status_before_weather_cancel: st,
+          weather_day_before_rain_scheduled: false,
+        })
+        .eq("id", eventDayId);
+
+      if (upErr) {
+        return NextResponse.json(
+          { error: upErr.message, code: upErr.code },
+          { status: 500 }
+        );
+      }
     }
   } else {
-    const nextStatus = st === "cancelled_weather" ? "confirmed" : st;
+    const prevSnapshot = ed.status_before_weather_cancel as string | null;
+    const nextStatus =
+      st === "cancelled_weather"
+        ? prevSnapshot === "open" || prevSnapshot === "locked"
+          ? prevSnapshot
+          : "confirmed"
+        : st;
+
     const { error: upErr } = await supabase
       .from("event_days")
       .update({
         weather_status: "go",
         status: nextStatus,
+        status_before_weather_cancel: null,
+        weather_day_before_rain_scheduled: false,
       })
       .eq("id", eventDayId);
 
@@ -147,7 +239,7 @@ export async function POST(
       }
     | undefined;
 
-  if (sendImmediateCancelNotice && decisionRaw === "cancel") {
+  if (sendImmediateCancelNotice && decisionRaw === "cancel" && delivery === "immediate") {
     const { data: reservations, error: resErr } = await supabase
       .from("reservations")
       .select(
@@ -275,8 +367,9 @@ export async function POST(
     ok: true,
     eventDayId,
     decision: decisionRaw,
+    delivery,
     immediateNotice:
-      sendImmediateCancelNotice && immediateNoticeDetail
+      sendImmediateCancelNotice && delivery === "immediate" && immediateNoticeDetail
         ? {
             ...immediateNoticeDetail,
             sent: immediateNoticeDetail.sent,

@@ -6,6 +6,10 @@
 
 一方、`event_days.status` の **`locked` への遷移は、締切の「瞬間」に DB が自動反転する挙動ではない**。業務用の状態として、**手動（管理 PATCH）または Cron がまとめて** `open` → `locked` に更新する。Cron は **`reservation_deadline_at` を過ぎた `open` 行**を対象とする（予約 RPC の締切判定と同様に **`<= now()`** 相当）。
 
+**運用既定の締切時刻:** 開催日の **2 日前 15:00（Asia/Tokyo）**。開催日作成時に `reservation_deadline_at` に入る ISO の算出は `src/lib/dates/reservation-deadline-default.ts` を正とする。必要に応じて開催日ごとに別の `timestamptz` を保存してよい。
+
+**締切 Cron（JOB01）の追加挙動:** 締切時点で **active 予約が表すチーム数が 3 未満**のときは `cancelled_minimum` とし、**最少催行不足の即時通知**（テンプレ `minimum_cancel_notice`）を送る。3 チーム以上のとき従来どおり `locked` とする。
+
 ## 補足（`open` でない場合）
 
 **締切前であっても** `event_days.status` が **`open` でない**場合は、新規予約・変更・取消を受け付けない（例: 下書き、締切前の早期ロック、確定後など）。
@@ -33,16 +37,18 @@
 
 ## Cron（Vercel）
 
-運用方針: **予約・変更・取消の締切は開催前日 12:00（JST）**。締切直後に自動編成、**13:30** に参加者向け最終メール（対戦予定＋雨天判断の統合）。式は **UTC**（JST は常に UTC+9）。
+**スケジュールの正本はリポジトリの `vercel.json`。** 式は **UTC**（JST は常に UTC+9）。各エンドポイントは **実行時刻のカレンダー**（主に東京日付）で対象 `event_days` を絞る。
 
 | JOB | パス | `vercel.json`（UTC） | 同日 JST（目安） |
 |-----|------|----------------------|------------------|
-| 01 締切ロック | `/api/cron/lock-event-days` | `0 3 * * *` | 12:00 |
-| 02 午前補完・午後編成 | `/api/cron/run-matching-locked` | `1 3 * * *` | 12:01 |
-| 03 前日最終メール | `/api/cron/send-day-before-final` | `30 4 * * *` | 13:30 |
+| 01 締切ロック | `/api/cron/lock-event-days` | `0 6 * * *` | **15:00** |
+| 02 午前補完・午後編成 | `/api/cron/run-matching-locked` | `1 6 * * *` | **15:01** |
+| 案内 メール | `/api/cron/send-matching-proposal` | `30 7 * * *` | **16:30** |
+| 03 前日最終メール | `/api/cron/send-day-before-final` | `0 8 * * *` | **17:00** |
 
 - **認証:** いずれも `CRON_SECRET`（16 文字以上推奨）を Vercel に登録すると、`Authorization: Bearer …` で実行できる。
-- **Staging での確認例（JOB01）:** `event_days` の 1 行を `status=open` のまま `reservation_deadline_at` を過去にし、`GET /api/cron/lock-event-days` を手動実行（Bearer 付き）→ `updatedCount` が 1 になり、その行が `locked` になること。
+- **Staging での確認例（JOB01）:** `event_days` の 1 行を `status=open` のまま `reservation_deadline_at` を過去にし、`GET /api/cron/lock-event-days` を手動実行（Bearer 付き）→ `updatedCount` が 1 になり、その行が `locked` または `cancelled_minimum` になること。
+- **雨天:** 原則は前日 **17:00** の JOB03 で開催／雨天中止を通知。荒天などは管理画面から **即時雨天メール**（`weather_cancel_immediate`）または **「前日 17:00 に雨天文面を送る」予約**（`weather_day_before_rain_scheduled`・API `delivery: day_before_17`）を利用。詳細は `design-mvp.md` §2-8・§9、`POST /api/admin/event-days/{id}/weather-decision`。
 
 ## エラー区分（API）
 

@@ -34,10 +34,22 @@ export default async function AdminProtectedLayout({
               開催日
             </Link>
             <Link
+              href="/admin/reservations"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              予約一覧
+            </Link>
+            <Link
               href="/admin/pre-day-results"
               className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
             >
               前日確定
+            </Link>
+            <Link
+              href="/admin/notifications/failed"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              メール失敗
             </Link>
             <Link
               href="/admin/camp-inquiries"

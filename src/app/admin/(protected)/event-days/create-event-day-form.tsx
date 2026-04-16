@@ -3,18 +3,17 @@
 /** 開催日・学年帯・締切を入力し公開前（draft）で作成。POST /api/admin/event-days（既定枠付与は API 側）。 */
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { DEFAULT_EVENT_DAY_SLOT_COUNT } from "@/domains/event-days/default-slots";
+import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-/** 開催日前日 12:00（JST）の締切を `datetime-local` 用に組み立て（ローカル表示）。 */
+/** 開催日の 2 日前 15:00（JST）締切を `datetime-local` 用に組み立て（ブラウザローカル表示）。 */
 function defaultDeadlineLocalForEventDate(eventDate: string): string {
-  const d = new Date(`${eventDate}T12:00:00`);
+  const iso = defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate);
+  const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const prev = new Date(d);
-  prev.setDate(prev.getDate() - 1);
-  prev.setHours(12, 0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${prev.getFullYear()}-${pad(prev.getMonth() + 1)}-${pad(prev.getDate())}T${pad(prev.getHours())}:${pad(prev.getMinutes())}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 /** DB は text だが、UI では仕様どおりの値だけ選べるようにする（MVP / design-mvp と一致）。 */
@@ -121,7 +120,9 @@ export function CreateEventDayForm() {
           </select>
         </label>
         <label className="flex min-w-0 w-full flex-col gap-1 text-sm sm:min-w-[min(100%,14rem)] sm:w-auto sm:flex-1">
-          <span className="text-zinc-600">予約締切（ローカル時刻）</span>
+          <span className="text-zinc-600">
+            予約締切（既定: 開催 2 日前 15:00・ローカル表示）
+          </span>
           <input
             name="deadlineLocal"
             type="datetime-local"
