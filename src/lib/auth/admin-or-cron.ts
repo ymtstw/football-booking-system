@@ -3,12 +3,11 @@ import "server-only";
 import { type NextRequest } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";
+import { cronSecretConfigured } from "@/lib/cron/cron-auth";
 
-/** Cron 用: 16 文字以上の CRON_SECRET を想定（lock-event-days と同じ）。 */
+/** Cron 用: 16 文字以上の CRON_SECRET（lock / matching / 通知 Cron と共通）。 */
 export function cronSecretForMatching(): string | null {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret || secret.length < 16) return null;
-  return secret;
+  return cronSecretConfigured();
 }
 
 export function authorizeCronBearer(request: NextRequest, secret: string): boolean {

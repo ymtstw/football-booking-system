@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { PreDayAdjustPanel } from "./pre-day-adjust-panel";
+
 type EventDayJson = {
   id: string;
   event_date: string;
@@ -84,19 +86,24 @@ type MatchesResponse = {
   slotsOverview: SlotOverviewJson[];
 };
 
+type NotificationRowJson = {
+  id: string;
+  channel: string;
+  status: string;
+  template_key: string | null;
+  payload_summary: unknown;
+  error_message: string | null;
+  created_at: string;
+  reservation_id: string | null;
+};
+
 type BuildMeta = {
   unfilledMorningReservationIds: string[];
   unfilledAfternoonReservationIds: string[];
+  /** 全日 target 未達（編成メタ拡張・旧データでは無い場合あり） */
+  targetPlayShortfallReservationIds?: string[];
   notes: string[];
 };
-
-function todayLocalIsoDate(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 function formatWarnings(w: unknown): string {
   if (Array.isArray(w)) return (w as string[]).join(", ");
@@ -137,7 +144,7 @@ function UnifiedSlotsTable({
 
   if (slotsOverview.length === 0) {
     return (
-      <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 sm:p-5">
+      <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 sm:p-5">
         <h2 className="text-sm font-medium text-zinc-800">試合・枠一覧</h2>
         <p className="mt-2">枠データがありません。</p>
       </div>
@@ -145,22 +152,25 @@ function UnifiedSlotsTable({
   }
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
+    <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-3 sm:p-5">
       <h2 className="text-sm font-medium text-zinc-800">試合・枠一覧（時間順）</h2>
       <p className="mt-1 text-xs text-zinc-500">
         午前・午後の全枠を1表にしています。試合行がある枠は種別・審判・警告を表示し、午前で行がないときは希望枠の予約をチーム列に出します（試合が別枠のときは注記を付けます）。
       </p>
-      <div className="mt-3 overflow-x-auto">
-        <table className="min-w-full text-left text-sm text-zinc-800">
+      <p className="mt-2 text-xs text-zinc-500 sm:hidden">
+        表は横にスクロールできます。
+      </p>
+      <div className="mt-3 min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+        <table className="w-full min-w-176 border-separate border-spacing-0 text-left text-sm text-zinc-800">
           <thead>
             <tr className="border-b border-zinc-200 text-xs font-medium tracking-wide text-zinc-500">
               <th className="whitespace-nowrap py-2 pr-3">枠</th>
               <th className="whitespace-nowrap py-2 pr-3">枠状態</th>
               <th className="whitespace-nowrap py-2 pr-3">種別</th>
-              <th className="py-2 pr-3">チームA</th>
-              <th className="py-2 pr-3">チームB</th>
-              <th className="py-2 pr-3">審判</th>
-              <th className="py-2">警告</th>
+              <th className="min-w-0 py-2 pr-3">チームA</th>
+              <th className="min-w-0 py-2 pr-3">チームB</th>
+              <th className="min-w-0 py-2 pr-3">審判</th>
+              <th className="min-w-0 py-2 pr-1">警告</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -200,14 +210,14 @@ function UnifiedSlotsTable({
 
               return (
                 <tr key={slot.slotId} className="align-top">
-                  <td className="whitespace-nowrap py-2 pr-3 text-zinc-600">
+                  <td className="whitespace-nowrap py-2 pr-3 align-top text-zinc-600">
                     {slot.phase === "morning" ? "午前" : "午後"} {slot.slotCode}
                     <br />
                     <span className="text-xs text-zinc-400">
                       {slot.startTime?.slice(0, 5) ?? ""}–{slot.endTime?.slice(0, 5) ?? ""}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap py-2 pr-3 text-xs">
+                  <td className="whitespace-nowrap py-2 pr-3 align-top text-xs">
                     {slot.isActive === false ? (
                       <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-zinc-600">
                         無効
@@ -216,11 +226,21 @@ function UnifiedSlotsTable({
                       <span className="text-zinc-500">有効</span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap py-2 pr-3 font-mono text-xs text-zinc-700">{typeStr}</td>
-                  <td className="max-w-[140px] py-2 pr-3 wrap-break-word">{aStr}</td>
-                  <td className="max-w-[140px] py-2 pr-3 wrap-break-word">{bStr}</td>
-                  <td className="max-w-[120px] py-2 pr-3 wrap-break-word text-zinc-700">{refStr}</td>
-                  <td className="max-w-[180px] py-2 text-xs text-amber-800">{warnStr}</td>
+                  <td className="whitespace-nowrap py-2 pr-3 align-top font-mono text-xs text-zinc-700">
+                    {typeStr}
+                  </td>
+                  <td className="min-w-0 max-w-44 py-2 pr-3 align-top wrap-break-word sm:max-w-56 lg:max-w-72">
+                    {aStr}
+                  </td>
+                  <td className="min-w-0 max-w-44 py-2 pr-3 align-top wrap-break-word sm:max-w-56 lg:max-w-72">
+                    {bStr}
+                  </td>
+                  <td className="min-w-0 max-w-36 py-2 pr-3 align-top wrap-break-word text-zinc-700 sm:max-w-48">
+                    {refStr}
+                  </td>
+                  <td className="min-w-0 max-w-40 py-2 pr-1 align-top wrap-break-word text-xs text-amber-800 sm:max-w-56">
+                    {warnStr}
+                  </td>
                 </tr>
               );
             })}
@@ -263,11 +283,26 @@ function statusBadgeClass(status: string): string {
   }
 }
 
-export function PreDayResultsClient({ initialDate }: { initialDate: string | null }) {
-  const [date, setDate] = useState(() => initialDate ?? todayLocalIsoDate());
+export type PreDayResultsTab = "matches" | "adjust";
+
+export function PreDayResultsClient({
+  initialDate,
+  initialTab,
+  initialNotificationsFocus,
+}: {
+  initialDate: string;
+  initialTab: PreDayResultsTab;
+  initialNotificationsFocus: "failed" | null;
+}) {
+  const [tab, setTab] = useState<PreDayResultsTab>(initialTab);
+  const [date, setDate] = useState(() => initialDate);
   const [data, setData] = useState<MatchesResponse | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /** null: 未取得／開催日 id なし。空配列: 取得済みで 0 件 */
+  const [failedNotifications, setFailedNotifications] = useState<NotificationRowJson[] | null>(null);
+  const [failedNotifError, setFailedNotifError] = useState<string | null>(null);
+  const [failedNotifLoading, setFailedNotifLoading] = useState(false);
   const [actionBusy, setActionBusy] = useState<"run" | "undo" | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [lastMeta, setLastMeta] = useState<BuildMeta | null>(null);
@@ -300,11 +335,61 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
     }
   }, [date]);
 
-  // `?date=YYYY-MM-DD` で開いたときだけ初回自動読込（日付変更のたびに API を叩かない）
+  // `?date=` やサーバー既定（東京の直近開催日）に合わせて入力を同期
   useEffect(() => {
-    if (!initialDate) return;
+    setDate(initialDate);
+  }, [initialDate]);
+
+  // 試合一覧タブのとき、開催日が決まったら一覧を自動取得（初回・日付変更・タブ切替）
+  useEffect(() => {
+    if (tab !== "matches") return;
     void loadMatches();
-  }, [initialDate, loadMatches]);
+  }, [tab, date, loadMatches]);
+
+  // ダッシュボード等から ?notifications=failed で遷移したとき、当該開催日の failed を表示
+  useEffect(() => {
+    if (tab !== "matches" || initialNotificationsFocus !== "failed") {
+      setFailedNotifications(null);
+      setFailedNotifError(null);
+      return;
+    }
+    const eventDayId = data?.eventDay?.id;
+    if (!eventDayId) {
+      setFailedNotifications(null);
+      setFailedNotifLoading(false);
+      setFailedNotifError(null);
+      return;
+    }
+    let cancelled = false;
+    setFailedNotifLoading(true);
+    setFailedNotifError(null);
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/notifications?eventDayId=${encodeURIComponent(eventDayId)}&status=failed`,
+          { credentials: "include" }
+        );
+        const json = (await res.json()) as { notifications?: NotificationRowJson[]; error?: string };
+        if (cancelled) return;
+        if (!res.ok) {
+          setFailedNotifications(null);
+          setFailedNotifError(json.error ?? `取得失敗 (${res.status})`);
+          return;
+        }
+        setFailedNotifications(json.notifications ?? []);
+      } catch {
+        if (!cancelled) {
+          setFailedNotifications(null);
+          setFailedNotifError("通信エラーが発生しました");
+        }
+      } finally {
+        if (!cancelled) setFailedNotifLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, initialNotificationsFocus, data?.eventDay?.id]);
 
   // 日付を変えたら直近の meta は別日の内容になりうるため消す
   useEffect(() => {
@@ -421,31 +506,77 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <p className="text-xs font-medium text-zinc-500">SCR-11 / 試合一覧・自動編成</p>
-        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">前日確定・試合一覧</h1>
+        <p className="text-xs font-medium text-zinc-500">SCR-11 / 試合一覧・自動編成 · SCR-12 補正</p>
+        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">前日確定</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          開催日を選んで一覧を表示します。<strong className="font-medium">locked</strong> の日だけ自動編成を実行できます。
-          確定済み（<strong className="font-medium">confirmed</strong>）の日は、巻き戻しで締切後に戻してから再実行できます（希望枠は予約のまま）。
+          試合一覧では、
+          <strong className="font-medium">
+            開催日の初期値は東京の「今日以降で最も近い登録開催日」
+          </strong>
+          （当日があれば当日）とし、開いたときに一覧を読み込みます（
+          <code className="rounded bg-zinc-100 px-1 font-mono text-[11px]">?date=</code>{" "}
+          で上書き可）。
+          <strong className="font-medium"> locked </strong>
+          の日だけ自動編成を実行できます。確定済み（
+          <strong className="font-medium">confirmed</strong>
+          ）は巻き戻しで締切後に戻してから再実行できます（希望枠は予約のまま）。
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:p-5">
-        <label className="flex min-w-0 flex-col gap-1 text-sm">
+      <div
+        className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3"
+        role="tablist"
+        aria-label="前日確定の表示切替"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "matches"}
+          onClick={() => setTab("matches")}
+          className={`inline-flex min-h-10 w-full min-w-0 items-center justify-center rounded-lg border px-3 text-sm font-medium sm:w-auto ${
+            tab === "matches"
+              ? "border-zinc-900 bg-zinc-900 text-white"
+              : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
+          }`}
+        >
+          試合一覧・自動編成
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "adjust"}
+          onClick={() => setTab("adjust")}
+          className={`inline-flex min-h-10 w-full min-w-0 items-center justify-center rounded-lg border px-3 text-sm font-medium sm:w-auto ${
+            tab === "adjust"
+              ? "border-zinc-900 bg-zinc-900 text-white"
+              : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
+          }`}
+        >
+          確定の補正
+        </button>
+      </div>
+
+      {tab === "adjust" ? <PreDayAdjustPanel eventDate={date} /> : null}
+
+      {tab === "matches" ? (
+        <>
+      <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:p-5">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-48 sm:flex-initial">
           <span className="font-medium text-zinc-800">開催日</span>
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="min-h-10 rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900"
+            className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-3 py-2 text-zinc-900 sm:w-auto"
           />
         </label>
         <button
           type="button"
           onClick={() => void loadMatches()}
           disabled={loading}
-          className="inline-flex min-h-10 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50"
+          className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white disabled:opacity-50 sm:w-auto"
         >
-          {loading ? "読込中…" : "一覧を表示"}
+          {loading ? "読込中…" : "再読込"}
         </button>
       </div>
 
@@ -455,10 +586,73 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
         </p>
       ) : null}
 
+      {tab === "matches" && initialNotificationsFocus === "failed" ? (
+        <section
+          id="notifications-failed"
+          className="scroll-mt-6 rounded-lg border border-red-200/80 bg-red-50/40 px-4 py-4 sm:px-5"
+          aria-labelledby="failed-notif-title"
+        >
+          <h2 id="failed-notif-title" className="text-sm font-semibold text-red-950">
+            この開催日の通知 failed
+          </h2>
+          <p className="mt-1 text-xs leading-relaxed text-red-900/80">
+            メール送信エラー等。再送は運用で Resend / DB を確認してください。
+          </p>
+          {failedNotifLoading ? (
+            <p className="mt-3 text-sm text-red-900/80">読込中…</p>
+          ) : failedNotifError ? (
+            <p className="mt-3 text-sm text-red-800" role="alert">
+              {failedNotifError}
+            </p>
+          ) : failedNotifications !== null && failedNotifications.length === 0 ? (
+            <p className="mt-3 text-sm text-zinc-700">該当する failed はありません。</p>
+          ) : failedNotifications !== null && failedNotifications.length > 0 ? (
+            <div className="mt-3 overflow-x-auto rounded-md border border-red-200/60 bg-white/80">
+              <table className="min-w-full text-left text-xs text-zinc-800 sm:text-sm">
+                <thead className="border-b border-red-100 bg-red-50/90">
+                  <tr>
+                    <th className="px-3 py-2 font-medium text-red-900">時刻（UTC）</th>
+                    <th className="px-3 py-2 font-medium text-red-900">template</th>
+                    <th className="px-3 py-2 font-medium text-red-900">channel</th>
+                    <th className="px-3 py-2 font-medium text-red-900">reservation</th>
+                    <th className="px-3 py-2 font-medium text-red-900">エラー</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-red-100">
+                  {failedNotifications.map((n) => (
+                    <tr key={n.id}>
+                      <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-600">
+                        {n.created_at?.replace("T", " ").slice(0, 19) ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-[11px]">{n.template_key ?? "—"}</td>
+                      <td className="px-3 py-2">{n.channel}</td>
+                      <td className="max-w-[120px] truncate px-3 py-2 font-mono text-[11px]">
+                        {n.reservation_id ? `${n.reservation_id.slice(0, 8)}…` : "—"}
+                      </td>
+                      <td className="max-w-[220px] px-3 py-2 wrap-break-word text-red-900">
+                        {n.error_message ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-zinc-600">
+              {loadError
+                ? "開催日を読み込めないため、通知一覧は取得できません。"
+                : loading
+                  ? "開催日の読込中です…"
+                  : "該当する failed はありません。"}
+            </p>
+          )}
+        </section>
+      ) : null}
+
       {data ? (
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 text-sm sm:p-5">
-          <div className="flex flex-col gap-3 border-b border-zinc-200/80 pb-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
+        <div className="min-w-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 text-sm sm:p-5">
+          <div className="flex min-w-0 flex-col gap-4 border-b border-zinc-200/80 pb-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0 flex-1">
               <h2 className="text-xs font-medium text-zinc-500">状態表示</h2>
               <p className="mt-1 font-medium text-zinc-900">
                 {data.eventDay.event_date}{" "}
@@ -486,7 +680,7 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
                 </p>
               ) : null}
             </div>
-            <dl className="grid shrink-0 grid-cols-2 gap-x-6 gap-y-1 text-xs sm:text-sm">
+            <dl className="grid w-full min-w-0 shrink-0 grid-cols-2 gap-x-4 gap-y-1 text-xs sm:max-w-sm sm:text-sm">
               <div>
                 <dt className="text-zinc-500">午前試合</dt>
                 <dd className="font-medium tabular-nums text-zinc-900">{morningRows.length} 件</dd>
@@ -532,13 +726,13 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
             </ul>
           </div>
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <div className="mt-4 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
             <button
               type="button"
               onClick={() => void runMatching()}
               disabled={!canRun || actionBusy !== null}
               title={!canRun ? "locked のときのみ実行できます" : undefined}
-              className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {actionBusy === "run" ? "実行中…" : "自動編成を実行"}
             </button>
@@ -551,7 +745,7 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
                   ? "confirmed のときのみ利用できます"
                   : "morning_fill と afternoon_auto を削除し locked に戻します。morning_fixed は残しますが審判はクリアします。予約（午前希望枠）は変更しません。"
               }
-              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-amber-700 bg-white px-4 text-sm font-medium text-amber-900 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-700 bg-white px-4 text-sm font-medium text-amber-900 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {actionBusy === "undo"
                 ? "処理中…"
@@ -593,6 +787,16 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
               </p>
             </div>
             <div>
+              <p className="text-xs font-medium text-zinc-500">
+                全日 target 未達（予約ID）
+              </p>
+              <p className="mt-1 font-mono text-xs break-all">
+                {lastMeta.targetPlayShortfallReservationIds?.length
+                  ? lastMeta.targetPlayShortfallReservationIds.join(", ")
+                  : "なし"}
+              </p>
+            </div>
+            <div>
               <p className="text-xs font-medium text-zinc-500">notes</p>
               <ul className="mt-1 list-inside list-disc text-sm">
                 {lastMeta.notes.length ? (
@@ -608,6 +812,8 @@ export function PreDayResultsClient({ initialDate }: { initialDate: string | nul
 
       {data ? (
         <UnifiedSlotsTable slotsOverview={data.slotsOverview} assignments={data.assignments} />
+      ) : null}
+        </>
       ) : null}
     </div>
   );

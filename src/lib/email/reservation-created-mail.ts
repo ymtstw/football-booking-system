@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { gradeYearLabelJa } from "@/lib/reservations/grade-year";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const TEMPLATE_KEY = "reservation_created";
@@ -32,6 +33,8 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   teamName: string;
   eventDateIso: string | null;
   gradeBand: string | null;
+  /** 予約時に選択した代表学年（1〜6） */
+  representativeGradeYear: number;
   reservationTokenPlain: string;
 }): Promise<void> {
   const {
@@ -42,6 +45,7 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     teamName,
     eventDateIso,
     gradeBand,
+    representativeGradeYear,
     reservationTokenPlain,
   } = params;
 
@@ -61,6 +65,7 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   const gradeLine = gradeBand?.trim()
     ? `学年帯: ${gradeBand.trim()}`
     : null;
+  const repYearLine = `代表学年: ${gradeYearLabelJa(representativeGradeYear)}`;
   const manageUrl = managePageUrl();
   const manageLine = manageUrl
     ? `予約の確認・変更（締切前）・キャンセル（締切前）:\n${manageUrl}`
@@ -76,6 +81,7 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     `チーム名: ${teamName}`,
     `開催日: ${eventLine}`,
     ...(gradeLine ? [gradeLine] : []),
+    repYearLine,
     "",
     "▼ 予約確認コード（厳重に保管してください）",
     "第三者に見せると、予約の確認や操作ができる可能性があります。",
@@ -110,6 +116,7 @@ ${
     ? `<li>学年帯: ${escaped(gradeBand.trim())}</li>`
     : ""
 }
+<li>代表学年: ${escaped(gradeYearLabelJa(representativeGradeYear))}</li>
 </ul>
 <p><strong>予約確認コード</strong>（厳重に保管してください。第三者に共有しないでください。）</p>
 ${tokenHtml}

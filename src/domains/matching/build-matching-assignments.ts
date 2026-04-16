@@ -6,8 +6,8 @@
  * 1. 午前 `morning_fixed` を現行どおりコピー
  * 2. 午前 `morning_fill` … `morning_fixed` の a/b 以外の active をプールにし、**全探索または貪欲**でペア割当と枠を同時に決める（全日試合数の偏り max−min≤1 を守る。プール大は貪欲）
  * 2b. 空き午前枠が残るとき、**枠優先のフォールバック**（固定外プールのみ・各チーム午前1試合まで）で段階1〜2のみ緩和し `morning_fill` を追加。必要なら希望枠キーのみ段階2相当で再試行。
- * 2c. なお空枠があれば **午前必須埋め**（active 全体から選び、空枠ゼロを最優先。通常の「午前1試合まで」を満たせないときは警告付きで再出場を許容）。
- * 3. 午後は**未使用枠を時間順に1枠ずつ**処理し、毎回 **午後まだ0試合の者**同士の最良辺を active 全体から選ぶ（各チーム午後最大1試合。同日・午前と重なるペアは他候補がある限り除外）
+ * 2c. なお空枠があれば **午前必須埋め**（空枠ゼロ最優先。両者とも午前0のペアがあれば再出場候補より優先し、無いときのみ再出場を許容）。
+ * 3. 午後は**未使用枠を時間順に1枠ずつ**処理。各枠で「午後0本かつ target 未達」の eligible で `pickBest` → 無理なら緩い eligible で再試行。候補の **hard** は target 未超過＋欠損列のペア消化可行性のみ。**soft** は初午後付与人数→強さ一致→学年差小→同カ残り可行性（加点）→重複・prior→gap/consec/spread。
  * 4. 午前試合行に審判を決定（1枠目は次の午前枠の出場者を、2枠目は直前の午前枠の出場者を優先。午前3枠目以降（インデックス≥2）は審判回数等のみ。枠数は `event_day_slots` に追従）
  * 5. 午後行を確定順で出力しつつ審判を決定（全日試合列インデックスに応じた優先ルール）
  *
@@ -27,8 +27,10 @@ export type RpcAssignmentRow = {
 export type BuildMatchingMeta = {
   /** 午前でペアにできず残った予約（奇数 singles 等） */
   unfilledMorningReservationIds: string[];
-  /** 午後に1試合も割り当てられなかった予約 */
+  /** 午後に1試合も割り当てられなかった予約（編成上の午後ゼロ） */
   unfilledAfternoonReservationIds: string[];
+  /** 全日の targetCount（試合行×2 の割付）に最終的に届かなかった予約 */
+  targetPlayShortfallReservationIds: string[];
   /** 運用メモ（ログ用・短い日本語） */
   notes: string[];
 };
@@ -48,6 +50,8 @@ export type SlotRow = {
 
 type TeamRow = {
   strength_category: "strong" | "potential";
+  /** 1〜6。未設定の既存データは編成上は学年差0扱い */
+  representative_grade_year?: number | null;
 };
 
 type ReservationRow = {
@@ -91,7 +95,14 @@ function filterMorningFixedEligibleForActive(
 type Single = { slotId: string; reservationId: string };
 
 /** 午後の試合計画（まだ RpcAssignmentRow にはしていない中間形） */
-type AfternoonPlan = { slotId: string; a: string; b: string; phase2?: boolean };
+type AfternoonPlan = {
+  slotId: string;
+  a: string;
+  b: string;
+  phase2?: boolean;
+  /** 午後ペア選定の緩和段（追跡用）。A=同カ非重複… */
+  pickTier?: "A" | "B" | "C" | "D";
+};
 
 /** teams が配列のとき先頭のみ参照（MVP の単一チーム想定） */
 function singleTeam(t: TeamRow | TeamRow[] | null | undefined): TeamRow | null {
@@ -102,6 +113,27 @@ function singleTeam(t: TeamRow | TeamRow[] | null | undefined): TeamRow | null {
 /** 強さカテゴリ（欠損は potential 扱い） */
 function strengthOf(r: ReservationRow | undefined): "strong" | "potential" {
   return singleTeam(r?.teams)?.strength_category ?? "potential";
+}
+
+/** 代表学年 1〜6（欠損は null） */
+function gradeYearOf(r: ReservationRow | undefined): number | null {
+  const raw = singleTeam(r?.teams)?.representative_grade_year;
+  if (raw == null || typeof raw !== "number" || !Number.isFinite(raw)) return null;
+  const y = Math.trunc(raw);
+  if (y < 1 || y > 6) return null;
+  return y;
+}
+
+/** 学年差（両方欠損のときは 0＝比較不能で中立） */
+function gradeYearPairDistance(
+  ra: string,
+  rb: string,
+  byRes: Map<string, ReservationRow>
+): number {
+  const a = gradeYearOf(byRes.get(ra));
+  const b = gradeYearOf(byRes.get(rb));
+  if (a == null || b == null) return 0;
+  return Math.abs(a - b);
 }
 
 /** 午前→午後、同一 phase 内は slot_code で並べ替え用のキー */
@@ -201,35 +233,23 @@ function cloneDayOpponentCount(src: Map<string, Map<string, number>>): Map<strin
   return out;
 }
 
-/** active ごとの strong / potential 人数がどちらも偶数か */
-function activeEvenCountsPerStrengthCategory(activeIds: string[], byRes: Map<string, ReservationRow>): boolean {
-  let strong = 0;
-  let pot = 0;
-  for (const id of activeIds) {
-    if (strengthOf(byRes.get(id)) === "strong") strong += 1;
-    else pot += 1;
-  }
-  return strong % 2 === 0 && pot % 2 === 0;
-}
-
 /**
- * 残り `remainingSlots` 本を、同カテゴリペアのみ・重複回避（現状の duplicate 定義）・各 active の午後あと枠（`afternoonMaxPerPlayer−午後試合数`）で埋められるか。
- * アクティブ各カテゴリ偶数は呼び出し側で別チェック。
+ * 残り `remainingSlots` 本を、同カテゴリペアのみ・重複回避（現状の duplicate 定義）で埋められるか。
+ * 各 active の「この後まだ載せられる出場回数」は呼び出し側の `remainingAppearancesCap`（目標−現状と午後段階上限の min 等）で渡す。
  */
 function canFillRemainingAfternoonWithIntraCategoryOnly(
   activeIds: string[],
   byRes: Map<string, ReservationRow>,
-  afternoonCount: Map<string, number>,
   dayOpponentCount: Map<string, Map<string, number>>,
   morningEdge: Map<string, Set<string>>,
   remainingSlots: number,
-  afternoonMaxPerPlayer: number
+  remainingAppearancesCap: Map<string, number>
 ): boolean {
   if (remainingSlots <= 0) return true;
 
   const caps = new Map<string, number>();
   for (const id of activeIds) {
-    caps.set(id, Math.max(0, afternoonMaxPerPlayer - (afternoonCount.get(id) ?? 0)));
+    caps.set(id, Math.max(0, remainingAppearancesCap.get(id) ?? 0));
   }
 
   const dup = cloneDayOpponentCount(dayOpponentCount);
@@ -263,6 +283,224 @@ function canFillRemainingAfternoonWithIntraCategoryOnly(
   }
 
   return dfs(remainingSlots);
+}
+
+/**
+ * 全日の最終出場回数目標。`totalMatchRows * 2` を active で割り付け、余りは ID 昇順の先頭 extra 人に +1。
+ * 割り切れる場合は全員 `baseTarget`。
+ */
+function buildTargetPlayCountMap(activeIds: string[], totalMatchRows: number): Map<string, number> {
+  const sorted = [...activeIds].sort((a, b) => a.localeCompare(b));
+  const targetCount = new Map<string, number>();
+  if (sorted.length === 0) return targetCount;
+  const totalRequiredAppearances = totalMatchRows * 2;
+  const baseTarget = Math.floor(totalRequiredAppearances / sorted.length);
+  const extra = totalRequiredAppearances % sorted.length;
+  for (let i = 0; i < sorted.length; i++) {
+    targetCount.set(sorted[i]!, baseTarget + (i < extra ? 1 : 0));
+  }
+  return targetCount;
+}
+
+/**
+ * 午後段階ごとの「この段階であと何試合まで午後に載せうるか」のうち、**午後本数だけ**による上限。
+ * - phase 1: 全員の「午後1試合目」を優先するため、まだ午後0本の人にのみ1本まで。
+ * - phase 2: 多枠（例: 午後4枠×3チーム）では全日目標まで午後3本目以上が必要になるため、**固定2本上限は廃止**。
+ *   実効上限は `remainingCapPickAfternoon` 側で `targetCount` との差分（＋可行性チェック）が担う。
+ */
+function remainingAfternoonSlotCapacity(
+  id: string,
+  afternoonPhase: 1 | 2,
+  afternoonCount: Map<string, number>
+): number {
+  const a = afternoonCount.get(id) ?? 0;
+  if (afternoonPhase === 1) return Math.max(0, 1 - a);
+  return Number.MAX_SAFE_INTEGER;
+}
+
+/** この枠で選ぶとき、各予約があと何回出場できるか（目標未到達 ∩ 上記の午後段階による上限） */
+function remainingCapPickAfternoon(
+  id: string,
+  afternoonPhase: 1 | 2,
+  afternoonCount: Map<string, number>,
+  totalDayPlay: Map<string, number>,
+  targetCount: Map<string, number>
+): number {
+  const byTarget = Math.max(0, (targetCount.get(id) ?? 0) - (totalDayPlay.get(id) ?? 0));
+  const byAfternoon = remainingAfternoonSlotCapacity(id, afternoonPhase, afternoonCount);
+  return Math.min(byTarget, byAfternoon);
+}
+
+/**
+ * 各 id の不足出場 d_i（target−現状）について、残り `k` 試合（= k 本の辺）を
+ * **ループ無し多重辺**として実現できるか（各辺は異なる2人の d を1ずつ消費）。
+ * 必要十分: sum d_i = 2k かつ max d_i <= sum_{j!=i} d_j かつ正の d を持つ id が2人以上（k>=1時）。
+ */
+function deficitSequenceCanFillRemainingMatches(
+  activeIds: string[],
+  deficitById: Map<string, number>,
+  remainingMatchCount: number
+): boolean {
+  if (remainingMatchCount === 0) {
+    for (const id of activeIds) {
+      if ((deficitById.get(id) ?? 0) !== 0) return false;
+    }
+    return true;
+  }
+  if (remainingMatchCount < 0) return false;
+
+  let sum = 0;
+  const positives: number[] = [];
+  for (const id of activeIds) {
+    const d = Math.max(0, deficitById.get(id) ?? 0);
+    sum += d;
+    if (d > 0) positives.push(d);
+  }
+  if (sum !== remainingMatchCount * 2) return false;
+  if (positives.length < 2) return false;
+  const mx = Math.max(...positives);
+  return mx <= sum - mx;
+}
+
+/**
+ * ペア (ra,rb) をこの枠に載せたとき、目標超過が無く、
+ * 残り午後枠を**全て**埋め切れるか（不足の総和だけでなくペアとしての実現可能性）。
+ */
+function afternoonPairKeepsTargetsAndFeasible(params: {
+  activeIds: string[];
+  ra: string;
+  rb: string;
+  totalDayPlay: Map<string, number>;
+  targetCount: Map<string, number>;
+  /** この枠を埋めた直後に空く午後枠の本数（≥0）＝残り試合本数 */
+  remainingAfternoonSlotsAfterThis: number;
+}): boolean {
+  const { activeIds, ra, rb, totalDayPlay, targetCount, remainingAfternoonSlotsAfterThis } = params;
+  const deficitById = new Map<string, number>();
+  for (const id of activeIds) {
+    const cur = totalDayPlay.get(id) ?? 0;
+    const add = id === ra || id === rb ? 1 : 0;
+    const after = cur + add;
+    const target = targetCount.get(id) ?? 0;
+    if (after > target) return false;
+    deficitById.set(id, target - after);
+  }
+  return deficitSequenceCanFillRemainingMatches(
+    activeIds,
+    deficitById,
+    remainingAfternoonSlotsAfterThis
+  );
+}
+
+/**
+ * この辺を載せた直後の状態で、残り午後枠を「同カテゴリのみ・重複規則つき」で埋め切れるか（可行性）。
+ * 同カ優先は「今同カ辺があるか」ではなく、この結果で判定する。
+ */
+function intraRemainderFeasibleAfterAfternoonEdge(params: {
+  activeIds: string[];
+  ra: string;
+  rb: string;
+  totalDayPlay: Map<string, number>;
+  afternoonCount: Map<string, number>;
+  dayOpponentCount: Map<string, Map<string, number>>;
+  morningEdge: Map<string, Set<string>>;
+  byRes: Map<string, ReservationRow>;
+  targetCount: Map<string, number>;
+  afternoonPhase: 1 | 2;
+  remainingAfternoonSlotsAfterThis: number;
+}): boolean {
+  const {
+    activeIds,
+    ra,
+    rb,
+    totalDayPlay,
+    afternoonCount,
+    dayOpponentCount,
+    morningEdge,
+    byRes,
+    targetCount,
+    afternoonPhase,
+    remainingAfternoonSlotsAfterThis,
+  } = params;
+
+  if (remainingAfternoonSlotsAfterThis <= 0) return true;
+
+  const simDup = cloneDayOpponentCount(dayOpponentCount);
+  bumpOpponentCount(simDup, ra, rb);
+
+  const simTotal = new Map(totalDayPlay);
+  simTotal.set(ra, (simTotal.get(ra) ?? 0) + 1);
+  simTotal.set(rb, (simTotal.get(rb) ?? 0) + 1);
+
+  const simAfternoon = new Map(afternoonCount);
+  simAfternoon.set(ra, (simAfternoon.get(ra) ?? 0) + 1);
+  simAfternoon.set(rb, (simAfternoon.get(rb) ?? 0) + 1);
+
+  const caps = new Map<string, number>();
+  for (const id of activeIds) {
+    caps.set(
+      id,
+      remainingCapPickAfternoon(id, afternoonPhase, simAfternoon, simTotal, targetCount)
+    );
+  }
+
+  return canFillRemainingAfternoonWithIntraCategoryOnly(
+    activeIds,
+    byRes,
+    simDup,
+    morningEdge,
+    remainingAfternoonSlotsAfterThis,
+    caps
+  );
+}
+
+/** 警告用ティアラベル（A=同カ非重複 … D=異カ重複） */
+function afternoonEdgePickTierLabel(
+  ra: string,
+  rb: string,
+  morningEdge: Map<string, Set<string>>,
+  dayOpponentCount: Map<string, Map<string, number>>,
+  byRes: Map<string, ReservationRow>
+): "A" | "B" | "C" | "D" {
+  const dup = afternoonPairIsDuplicate(ra, rb, morningEdge, dayOpponentCount);
+  const same = diffCategoryPenalty(ra, rb, byRes) === 0;
+  if (same && !dup) return "A";
+  if (same && dup) return "C";
+  if (!same && !dup) return "B";
+  return "D";
+}
+
+/** 午後1辺の複合比較キー（hard: target＋欠損のペア消化のみ通過後の soft） */
+type AfternoonEdgeComposite = {
+  ra: string;
+  rb: string;
+  /** この辺で初午後を付けられる人数（0〜2）。大きいほど「全員午後1試合」寄与が大きい */
+  firstAfternoonCoverage: 0 | 1 | 2;
+  /** strong/potential が一致するほど 0（近い強さを優先） */
+  strengthMismatch: 0 | 1;
+  /** 代表学年の差（小さいほど近い学年を優先） */
+  gradeYearGap: number;
+  /** 残りを同カのみ・重複規則付きで埋め切れるか（加点のみ・hard ではない） */
+  intraRemainderOk: 0 | 1;
+  dupEdge: 0 | 1;
+  prior: number;
+  soft: AfternoonPairPickKey;
+};
+
+function isAfternoonEdgeCompositeBetter(
+  a: AfternoonEdgeComposite,
+  b: AfternoonEdgeComposite,
+  afternoonPhase: 1 | 2
+): boolean {
+  if (a.firstAfternoonCoverage !== b.firstAfternoonCoverage) {
+    return a.firstAfternoonCoverage > b.firstAfternoonCoverage;
+  }
+  if (a.strengthMismatch !== b.strengthMismatch) return a.strengthMismatch < b.strengthMismatch;
+  if (a.gradeYearGap !== b.gradeYearGap) return a.gradeYearGap < b.gradeYearGap;
+  if (a.intraRemainderOk !== b.intraRemainderOk) return a.intraRemainderOk > b.intraRemainderOk;
+  if (a.dupEdge !== b.dupEdge) return a.dupEdge < b.dupEdge;
+  if (a.prior !== b.prior) return a.prior < b.prior;
+  return isAfternoonPairSoftPickBetter(a.soft, b.soft, afternoonPhase);
 }
 
 /** 当日累計出場の偏りを抑える係数（午前ペア用） */
@@ -415,10 +653,10 @@ function refereeCount(rows: RpcAssignmentRow[], rid: string): number {
 
 /**
  * 午前ペアのスコア（小さいほど良い）。
- * - カテゴリ不一致: +5
- * - 午前ですでに対戦辺がある: +DUPLICATE_OPPONENT_SCORE_PENALTY（同日重複回避を最優先）
- * - 出場回数の和: 全体の試合数を抑えたい方向
- * - 出場回数の差: 午前だけでも「多い人同士／少ない人同士」より、差が小さくなる組を優先
+ * - 強さカテゴリ不一致: 大きめペナルティ（近い強さを優先）
+ * - 学年差: 1学年差あたりのペナルティ
+ * - 午前ですでに対戦辺がある: +DUPLICATE_OPPONENT_SCORE_PENALTY
+ * - 出場回数の和・差（平準化）
  */
 function scoreMorningPair(
   ra: string,
@@ -428,7 +666,7 @@ function scoreMorningPair(
   rows: RpcAssignmentRow[]
 ): number {
   let s = 0;
-  if (strengthOf(byRes.get(ra)) !== strengthOf(byRes.get(rb))) s += 5;
+  if (strengthOf(byRes.get(ra)) !== strengthOf(byRes.get(rb))) s += 50;
   if (areAdjacent(morningEdge, ra, rb)) s += DUPLICATE_OPPONENT_SCORE_PENALTY;
   const ca = playerMatchCount(rows, ra);
   const cb = playerMatchCount(rows, rb);
@@ -595,22 +833,25 @@ function morningFillPlanMetrics(
   nPairs: number;
   hopeCover: number;
   crossCat: number;
+  gradeDistSum: number;
   dupPenalty: number;
   balance: number;
 } {
   const nPairs = fills.length;
   const hopeCover = morningHopeCoverageCount(fills, fixedFromCurrent, hopeMorningSlotIds);
   let crossCat = 0;
+  let gradeDistSum = 0;
   let dupPenalty = 0;
   let balance = 0;
   const edge = cloneMorningEdge(morningEdgeBase);
   for (const f of fills) {
     if (strengthOf(byRes.get(f.a)) !== strengthOf(byRes.get(f.b))) crossCat += 1;
+    gradeDistSum += gradeYearPairDistance(f.a, f.b, byRes);
     if (areAdjacent(edge, f.a, f.b)) dupPenalty += 1;
     balance += scoreMorningPair(f.a, f.b, byRes, edge, fixedRows);
     addUndirectedEdge(edge, f.a, f.b);
   }
-  return { nPairs, hopeCover, crossCat, dupPenalty, balance };
+  return { nPairs, hopeCover, crossCat, gradeDistSum, dupPenalty, balance };
 }
 
 function morningFillPlanTieKey(fills: MorningFillAtom[]): string {
@@ -639,6 +880,7 @@ function morningFillPlanIsBetter(
   if (mc.nPairs !== mb.nPairs) return mc.nPairs > mb.nPairs;
   if (mc.hopeCover !== mb.hopeCover) return mc.hopeCover > mb.hopeCover;
   if (mc.crossCat !== mb.crossCat) return mc.crossCat < mb.crossCat;
+  if (mc.gradeDistSum !== mb.gradeDistSum) return mc.gradeDistSum < mb.gradeDistSum;
   if (mc.dupPenalty !== mb.dupPenalty) return mc.dupPenalty < mb.dupPenalty;
   if (mc.balance !== mb.balance) return mc.balance < mb.balance;
   return morningFillPlanTieKey(cand).localeCompare(morningFillPlanTieKey(best)) < 0;
@@ -905,6 +1147,8 @@ function pickMorningFallbackPairForSlot(params: {
       }
 
       let score = 0;
+      if (strengthOf(byRes.get(a0)) !== strengthOf(byRes.get(b0))) score += 50;
+      score += gradeYearPairDistance(a0, b0, byRes) * 6;
       // 段階1以降は同カテゴリ優先をスコアに含めない（異カテゴリでも同等扱い）
       if (stage >= 2 && areAdjacent(morningEdge, a0, b0)) score += 80;
       score += playerMatchCount(rows, a0) + playerMatchCount(rows, b0);
@@ -1072,7 +1316,9 @@ function pickMorningMandatoryPairForEmptySlot(params: {
   const baseCounts = buildPlayCountsFromRows(rows, activeIds);
 
   type Cand = { a: string; b: string; score: number; tie: string };
-  let best: Cand | null = null;
+  let bestAny: Cand | null = null;
+  /** 両者ともまだ午前0試合の候補が1組でもあれば、その集合だけから選ぶ（再出場は最後の手段） */
+  let bestBothMorningZero: Cand | null = null;
 
   for (let i = 0; i < sorted.length; i++) {
     for (let j = i + 1; j < sorted.length; j++) {
@@ -1094,21 +1340,33 @@ function pickMorningMandatoryPairForEmptySlot(params: {
       const mb = playerMorningMatchCount(rows, b0);
       let score = ma * 500 + mb * 500;
       if (areAdjacent(morningEdge, a0, b0)) score += 120;
-      if (strengthOf(byRes.get(a0)) !== strengthOf(byRes.get(b0))) score += 40;
+      if (strengthOf(byRes.get(a0)) !== strengthOf(byRes.get(b0))) score += 50;
+      score += gradeYearPairDistance(a0, b0, byRes) * 6;
       score += playerMatchCount(rows, a0) + playerMatchCount(rows, b0);
 
       const tie = `${xa}\0${xb}`;
+      const cand: Cand = { a: xa, b: xb, score, tie };
       if (
-        best === null ||
-        score < best.score ||
-        (score === best.score && tie.localeCompare(best.tie) < 0)
+        bestAny === null ||
+        score < bestAny.score ||
+        (score === bestAny.score && tie.localeCompare(bestAny.tie) < 0)
       ) {
-        best = { a: xa, b: xb, score, tie };
+        bestAny = cand;
+      }
+      if (ma === 0 && mb === 0) {
+        if (
+          bestBothMorningZero === null ||
+          score < bestBothMorningZero.score ||
+          (score === bestBothMorningZero.score && tie.localeCompare(bestBothMorningZero.tie) < 0)
+        ) {
+          bestBothMorningZero = cand;
+        }
       }
     }
   }
-  if (!best) return null;
-  return { a: best.a, b: best.b };
+  const chosen = bestBothMorningZero ?? bestAny;
+  if (!chosen) return null;
+  return { a: chosen.a, b: chosen.b };
 }
 
 function applyMorningMandatoryEmptySlotFill(params: {
@@ -1285,12 +1543,11 @@ function afternoonGlobalBalanceAfterEdge(
   return { spread: ma - mi, countAtMin, globalMax: ma };
 }
 
-/** 午後ペア（辺）の辞書式キー（spread<2 フィルタ後の辞書式比較用） */
+/** 午後ペアのソフト末尾キー（同カ・重複・prior は composite 側で先に比較） */
 type AfternoonPairPickKey = {
-  diffCatPenalty: 0 | 1;
-  priorDayMatches: number;
-  /** 午後第2段階: 既に午後1試合ある端の全日累計の和（小さいほど「総試合少ない人に2試合目」を寄せる） */
+  /** 午後第2段階: 既に午後1試合ある端の全日累計の和（小さいほど総出場が少ない側に2試合目） */
   secondAfternoonPlaySum: number;
+  /** 全日 max−min（小さいほど良い） */
   spread: number;
   countAtMin: number;
   gapSum: number;
@@ -1327,8 +1584,6 @@ function buildAfternoonPairPickKey(
   const edge = ra.localeCompare(rb) < 0 ? `${ra}:${rb}` : `${rb}:${ra}`;
   const bal = afternoonGlobalBalanceAfterEdge(totalDayPlay, activeIds, ra, rb);
   return {
-    diffCatPenalty: diffCategoryPenalty(ra, rb, byRes),
-    priorDayMatches: sameDayOpponentCount(dayOpponentCount, ra, rb),
     secondAfternoonPlaySum,
     spread: bal.spread,
     countAtMin: bal.countAtMin,
@@ -1340,14 +1595,12 @@ function buildAfternoonPairPickKey(
   };
 }
 
-function isAfternoonPairPickKeyBetter(
+/** gap / consecutive / spread 系（最終段のソフト） */
+function isAfternoonPairSoftPickBetter(
   a: AfternoonPairPickKey,
   b: AfternoonPairPickKey,
   afternoonPhase: 1 | 2
 ): boolean {
-  // 追加後 spread<2 は呼び出し側の pickEdges で優先済み。ここでは 同カ → 未対戦 → gap/連続 → 残りタイブレーク
-  if (a.diffCatPenalty !== b.diffCatPenalty) return a.diffCatPenalty < b.diffCatPenalty;
-  if (a.priorDayMatches !== b.priorDayMatches) return a.priorDayMatches < b.priorDayMatches;
   if (afternoonPhase === 2 && a.secondAfternoonPlaySum !== b.secondAfternoonPlaySum) {
     return a.secondAfternoonPlaySum < b.secondAfternoonPlaySum;
   }
@@ -1362,23 +1615,19 @@ function isAfternoonPairPickKeyBetter(
 
 /**
  * 午後の空枠 slotId に載せるペア。
- * **activeIds 上の全無向辺**のうち、`eligible(id)` を両端が満たす辺だけ候補。
- * 第1段階は `afternoonCount < 1`（全員にまず午後1試合）、第2段階は空枠が残るときのみ `afternoonCount < 2` を許可。
- * 「ペア内累計差 maxDiff」のみ段階緩和。連続枠はキー（consec）で劣後。
- * 各段で **追加後の全日 max(累計)−min(累計)≤1** の辺のみ候補（違反辺は採用しない）。
- * **午前辺と同一のペア、または同日対戦が既に1回以上**の辺は、当段でそれ以外の辺が1本でもあれば比較から除外（なければフォールバックで許容）。
- * **同カテゴリ完結ハード**: active の strong/potential がどちらも偶数人数で、かつ残り枠を同カ・重複規則・各 active の午後上限（`afternoonMaxPerPlayer`）のもとで埋められると判定できるときは、候補から異カテゴリ辺を除く（除いた結果が空ならフォールバックで異カも可）。
+ * **hard**: `eligible` 両端・target 超過なし・`afternoonPairKeepsTargetsAndFeasible`（残りを任意のペア列で消化可能か）。
+ * **soft**: 初午後を付けられる人数 → 同カのみ残り可行性（加点）→ 異カ・重複・prior → gap/consec/spread。
  */
 function pickBestAfternoonPairForSlot(params: {
   activeIds: string[];
-  /** この枠に出場させたい人（第1段階: 午後0試合のみ / 第2段階: 午後2試合未満） */
+  /** この枠に出場させたい人（呼び出し側で目標未到達・午後段階に合わせて絞る） */
   eligible: (id: string) => boolean;
-  /** 各予約の午後試合数（同カ完結 DFS 用） */
+  /** 各予約の午後試合数（ソフト比較・可行性シミュ用） */
   afternoonCount: Map<string, number>;
-  /** 1: まず全員午後1試合 / 2: 空枠解消のため午後2試合目を最小限許可 */
+  /** 1: 全員午後1試合を優先 / 2: 目標までの追加（午後本数の固定2上限は phase 外で target が絞る） */
   afternoonPhase: 1 | 2;
-  /** 同カ完結 DFS で使う「1人あたり午後に載せられる最大試合数」（第1段階1・第2段階2） */
-  afternoonMaxPerPlayer: number;
+  /** 全日の最終出場回数目標 */
+  targetCount: Map<string, number>;
   /** この枠を含む、まだ割り当てていない午後枠の本数 */
   remainingAfternoonSlots: number;
   morningEdge: Map<string, Set<string>>;
@@ -1389,13 +1638,13 @@ function pickBestAfternoonPairForSlot(params: {
   byRes: Map<string, ReservationRow>;
   dayOpponentCount: Map<string, Map<string, number>>;
   totalDayPlay: Map<string, number>;
-}): { a: string; b: string } | null {
+}): { a: string; b: string; pickTier: "A" | "B" | "C" | "D" } | null {
   const {
     activeIds,
     eligible,
     afternoonCount,
     afternoonPhase,
-    afternoonMaxPerPlayer,
+    targetCount,
     remainingAfternoonSlots,
     morningEdge,
     slotId,
@@ -1413,59 +1662,65 @@ function pickBestAfternoonPairForSlot(params: {
   }
   if (eligibleCount < 2) return null;
 
-  const hardIntraCategoryOnly =
-    activeEvenCountsPerStrengthCategory(activeIds, byRes) &&
-    canFillRemainingAfternoonWithIntraCategoryOnly(
+  const sortedIds = [...activeIds].sort((a, b) => a.localeCompare(b));
+  type Edge = { ra: string; rb: string; pa: number; pb: number };
+  const edges: Edge[] = [];
+  for (let i = 0; i < sortedIds.length; i++) {
+    const ra = sortedIds[i]!;
+    if (!eligible(ra)) continue;
+    for (let j = i + 1; j < sortedIds.length; j++) {
+      const rb = sortedIds[j]!;
+      if (!eligible(rb)) continue;
+      const pa = totalDayPlay.get(ra) ?? 0;
+      const pb = totalDayPlay.get(rb) ?? 0;
+      edges.push({ ra, rb, pa, pb });
+    }
+  }
+  if (edges.length === 0) return null;
+
+  const slotsAfterThisPick = remainingAfternoonSlots - 1;
+  const targetOkEdges = edges.filter((e) =>
+    afternoonPairKeepsTargetsAndFeasible({
       activeIds,
-      byRes,
+      ra: e.ra,
+      rb: e.rb,
+      totalDayPlay,
+      targetCount,
+      remainingAfternoonSlotsAfterThis: slotsAfterThisPick,
+    })
+  );
+  if (targetOkEdges.length === 0) return null;
+
+  let best: AfternoonEdgeComposite | null = null;
+  for (const e of targetOkEdges) {
+    const ca = afternoonCount.get(e.ra) ?? 0;
+    const cb = afternoonCount.get(e.rb) ?? 0;
+    const n0 = (ca === 0 ? 1 : 0) + (cb === 0 ? 1 : 0);
+    const coverage: 0 | 1 | 2 = n0 >= 2 ? 2 : n0 === 1 ? 1 : 0;
+
+    const intraOk = intraRemainderFeasibleAfterAfternoonEdge({
+      activeIds,
+      ra: e.ra,
+      rb: e.rb,
+      totalDayPlay,
       afternoonCount,
       dayOpponentCount,
       morningEdge,
-      remainingAfternoonSlots,
-      afternoonMaxPerPlayer
-    );
-
-  const sortedIds = [...activeIds].sort((a, b) => a.localeCompare(b));
-  const maxDiffStages = [1, 2, 3, Infinity] as const;
-
-  for (const maxD of maxDiffStages) {
-    type Edge = { ra: string; rb: string; pa: number; pb: number };
-    const edges: Edge[] = [];
-    for (let i = 0; i < sortedIds.length; i++) {
-      const ra = sortedIds[i]!;
-      if (!eligible(ra)) continue;
-      for (let j = i + 1; j < sortedIds.length; j++) {
-        const rb = sortedIds[j]!;
-        if (!eligible(rb)) continue;
-        const pa = totalDayPlay.get(ra) ?? 0;
-        const pb = totalDayPlay.get(rb) ?? 0;
-        const d = Math.abs(pa - pb);
-        if (maxD !== Infinity && d > maxD) continue;
-        edges.push({ ra, rb, pa, pb });
-      }
-    }
-    if (edges.length === 0) continue;
-
-    const balancedEdges = edges.filter((e) => Math.abs(e.pa - e.pb) < 2);
-    const useEdges = balancedEdges.length > 0 ? balancedEdges : edges;
-
-    // 全日の試合数 max−min が 1 を超えない辺のみ（違反辺は採用しない。候補が無ければ当段はスキップ）
-    const spreadTight = useEdges.filter((e) => afternoonSpreadOkAfterEdge(totalDayPlay, activeIds, e.ra, e.rb));
-    if (spreadTight.length === 0) continue;
-
-    const withoutDup = spreadTight.filter(
-      (e) => !afternoonPairIsDuplicate(e.ra, e.rb, morningEdge, dayOpponentCount)
-    );
-    let consider = withoutDup.length > 0 ? withoutDup : spreadTight;
-
-    if (hardIntraCategoryOnly) {
-      const intra = consider.filter((e) => diffCategoryPenalty(e.ra, e.rb, byRes) === 0);
-      if (intra.length > 0) consider = intra;
-    }
-
-    let best: { a: string; b: string; key: AfternoonPairPickKey } | null = null;
-    for (const e of consider) {
-      const key = buildAfternoonPairPickKey(
+      byRes,
+      targetCount,
+      afternoonPhase,
+      remainingAfternoonSlotsAfterThis: slotsAfterThisPick,
+    });
+    const cand: AfternoonEdgeComposite = {
+      ra: e.ra,
+      rb: e.rb,
+      firstAfternoonCoverage: coverage,
+      strengthMismatch: diffCategoryPenalty(e.ra, e.rb, byRes),
+      gradeYearGap: gradeYearPairDistance(e.ra, e.rb, byRes),
+      intraRemainderOk: intraOk ? 1 : 0,
+      dupEdge: afternoonPairIsDuplicate(e.ra, e.rb, morningEdge, dayOpponentCount) ? 1 : 0,
+      prior: sameDayOpponentCount(dayOpponentCount, e.ra, e.rb),
+      soft: buildAfternoonPairPickKey(
         activeIds,
         e.ra,
         e.rb,
@@ -1477,18 +1732,24 @@ function pickBestAfternoonPairForSlot(params: {
         dayOpponentCount,
         totalDayPlay,
         afternoonCount
-      );
-      if (best === null || isAfternoonPairPickKeyBetter(key, best.key, afternoonPhase)) {
-        best = { a: e.ra, b: e.rb, key };
-      }
-    }
-    if (best !== null) {
-      const x = best.a.localeCompare(best.b) < 0 ? best.a : best.b;
-      const y = best.a.localeCompare(best.b) < 0 ? best.b : best.a;
-      return { a: x, b: y };
+      ),
+    };
+    if (best === null || isAfternoonEdgeCompositeBetter(cand, best, afternoonPhase)) {
+      best = cand;
     }
   }
-  return null;
+
+  if (best === null) return null;
+  const pickTier = afternoonEdgePickTierLabel(
+    best.ra,
+    best.rb,
+    morningEdge,
+    dayOpponentCount,
+    byRes
+  );
+  const x = best.ra.localeCompare(best.rb) < 0 ? best.ra : best.rb;
+  const y = best.ra.localeCompare(best.rb) < 0 ? best.rb : best.ra;
+  return { a: x, b: y, pickTier };
 }
 
 type DayMatchSides = { a: string; b: string };
@@ -1616,6 +1877,7 @@ function computeBuildMatchingAssignments(params: {
   const meta: BuildMatchingMeta = {
     unfilledMorningReservationIds: [],
     unfilledAfternoonReservationIds: [],
+    targetPlayShortfallReservationIds: [],
     notes: [],
   };
 
@@ -1674,6 +1936,7 @@ function computeBuildMatchingAssignments(params: {
       meta: {
         unfilledMorningReservationIds: ids,
         unfilledAfternoonReservationIds: ids,
+        targetPlayShortfallReservationIds: ids,
         notes: meta.notes,
       },
     };
@@ -1884,62 +2147,62 @@ function computeBuildMatchingAssignments(params: {
     totalDayPlay.set(id, playerMatchCount(rows, id));
   }
 
-  // --- 午後: 第1段階で「午後0試合」の者だけ埋め、空枠が残れば第2段階で `afternoonCount < 2` を最小限許可 ---
+  // --- 午後: 全日目標出場回数 target を先に決め、第1段階→空枠が残れば第2段階で不足分のみ埋める ---
   const afternoonSlotCount = afternoonSlots.length;
-  const extraAfternoonAppearancesNeeded = Math.max(0, afternoonSlotCount * 2 - activeIds.length);
+  const morningMatchesFilled = rows.filter((r) => r.match_phase === "morning").length;
+  const totalMatchRowsForTargets = morningMatchesFilled + afternoonSlotCount;
+  const targetCount = buildTargetPlayCountMap(activeIds, totalMatchRowsForTargets);
+  const uniformTarget =
+    totalMatchRowsForTargets > 0 && (totalMatchRowsForTargets * 2) % activeIds.length === 0;
+  meta.notes.push(
+    uniformTarget
+      ? `全日目標出場: 試合${totalMatchRowsForTargets}本のため全員 ${(totalMatchRowsForTargets * 2) / activeIds.length} 試合`
+      : `全日目標出場: 試合${totalMatchRowsForTargets}本（最大差1の base / base+1 割付）`
+  );
 
-  const countAfternoonEligibleLt = (n: number) => activeIds.filter((id) => afternoonCount.get(id)! < n).length;
+  const countEligible = (pred: (id: string) => boolean) => activeIds.filter((id) => pred(id)).length;
 
+  const strictPhase1Eligible = (id: string) =>
+    (afternoonCount.get(id) ?? 0) < 1 &&
+    (totalDayPlay.get(id) ?? 0) < (targetCount.get(id) ?? 0);
+
+  const relaxedAfternoonEligible = (id: string) =>
+    remainingCapPickAfternoon(id, 2, afternoonCount, totalDayPlay, targetCount) > 0;
+
+  /** 1枠ごと: 午後0本目標の厳しい eligible → 無理なら緩い eligible（同一枠で必ず試す） */
   for (const slot of afternoonSlots) {
     if (usedAfternoonSlotIds.has(slot.id)) continue;
-    if (countAfternoonEligibleLt(1) < 2) break;
 
     const remainingSlots = afternoonSlots.filter((s) => !usedAfternoonSlotIds.has(s.id)).length;
 
-    const pair = pickBestAfternoonPairForSlot({
-      activeIds,
-      eligible: (id) => afternoonCount.get(id)! < 1,
-      afternoonPhase: 1,
-      afternoonMaxPerPlayer: 1,
-      afternoonCount,
-      remainingAfternoonSlots: remainingSlots,
-      morningEdge,
-      slotId: slot.id,
-      rows,
-      planned,
-      globalIndex: globalSlotIndex,
-      byRes,
-      dayOpponentCount,
-      totalDayPlay,
-    });
-    if (!pair) break;
+    let fromRelaxed = false;
+    let pair =
+      countEligible(strictPhase1Eligible) >= 2
+        ? pickBestAfternoonPairForSlot({
+            activeIds,
+            eligible: strictPhase1Eligible,
+            afternoonPhase: 1,
+            targetCount,
+            afternoonCount,
+            remainingAfternoonSlots: remainingSlots,
+            morningEdge,
+            slotId: slot.id,
+            rows,
+            planned,
+            globalIndex: globalSlotIndex,
+            byRes,
+            dayOpponentCount,
+            totalDayPlay,
+          })
+        : null;
 
-    const { a: r1, b: r2 } = pair;
-    planned.push({ slotId: slot.id, a: r1, b: r2 });
-    usedAfternoonSlotIds.add(slot.id);
-    bumpOpponentCount(dayOpponentCount, r1, r2);
-    afternoonCount.set(r1, afternoonCount.get(r1)! + 1);
-    afternoonCount.set(r2, afternoonCount.get(r2)! + 1);
-    totalDayPlay.set(r1, (totalDayPlay.get(r1) ?? 0) + 1);
-    totalDayPlay.set(r2, (totalDayPlay.get(r2) ?? 0) + 1);
-  }
-
-  const hasUnusedAfternoonSlot = afternoonSlots.some((s) => !usedAfternoonSlotIds.has(s.id));
-  if (hasUnusedAfternoonSlot) {
-    meta.notes.push(
-      `午後第2段階: 空枠解消のため午後2試合目を許可（理論上の追加出場必要数=${extraAfternoonAppearancesNeeded}、総試合が少ない予約を優先）`
-    );
-    for (const slot of afternoonSlots) {
-      if (usedAfternoonSlotIds.has(slot.id)) continue;
-      if (countAfternoonEligibleLt(2) < 2) break;
-
-      const remainingSlots = afternoonSlots.filter((s) => !usedAfternoonSlotIds.has(s.id)).length;
-
-      const pair = pickBestAfternoonPairForSlot({
+    if (!pair && countEligible(relaxedAfternoonEligible) >= 2) {
+      fromRelaxed = true;
+      pair = pickBestAfternoonPairForSlot({
         activeIds,
-        eligible: (id) => afternoonCount.get(id)! < 2,
+        eligible: relaxedAfternoonEligible,
         afternoonPhase: 2,
-        afternoonMaxPerPlayer: 2,
+        targetCount,
         afternoonCount,
         remainingAfternoonSlots: remainingSlots,
         morningEdge,
@@ -1951,17 +2214,29 @@ function computeBuildMatchingAssignments(params: {
         dayOpponentCount,
         totalDayPlay,
       });
-      if (!pair) continue;
-
-      const { a: r1, b: r2 } = pair;
-      planned.push({ slotId: slot.id, a: r1, b: r2, phase2: true });
-      usedAfternoonSlotIds.add(slot.id);
-      bumpOpponentCount(dayOpponentCount, r1, r2);
-      afternoonCount.set(r1, afternoonCount.get(r1)! + 1);
-      afternoonCount.set(r2, afternoonCount.get(r2)! + 1);
-      totalDayPlay.set(r1, (totalDayPlay.get(r1) ?? 0) + 1);
-      totalDayPlay.set(r2, (totalDayPlay.get(r2) ?? 0) + 1);
     }
+
+    if (!pair) {
+      meta.notes.push(
+        `午後: 枠 ${slot.id} — target＋欠損可行性を満たす辺が1本も無く未割当（ここで打ち切り）`
+      );
+      break;
+    }
+
+    const { a: r1, b: r2, pickTier } = pair;
+    planned.push({
+      slotId: slot.id,
+      a: r1,
+      b: r2,
+      pickTier,
+      ...(fromRelaxed ? { phase2: true as const } : {}),
+    });
+    usedAfternoonSlotIds.add(slot.id);
+    bumpOpponentCount(dayOpponentCount, r1, r2);
+    afternoonCount.set(r1, afternoonCount.get(r1)! + 1);
+    afternoonCount.set(r2, afternoonCount.get(r2)! + 1);
+    totalDayPlay.set(r1, (totalDayPlay.get(r1) ?? 0) + 1);
+    totalDayPlay.set(r2, (totalDayPlay.get(r2) ?? 0) + 1);
   }
 
   // 出力・審判は枠の時間順（午後 slot の並び）に合わせる
@@ -2028,6 +2303,7 @@ function computeBuildMatchingAssignments(params: {
 
     const w: string[] = [];
     if (p.phase2) w.push("afternoon_second_round_fill");
+    if (p.pickTier) w.push(`afternoon_pair_pick_tier_${p.pickTier}`);
     if (strengthOf(byRes.get(p.a)) !== strengthOf(byRes.get(p.b))) w.push("cross_category_match");
     // 午前の同一ペアと再度当たる場合
     if (areAdjacent(morningEdge, p.a, p.b)) w.push("duplicate_opponent");
@@ -2067,11 +2343,25 @@ function computeBuildMatchingAssignments(params: {
     }
   }
 
+  for (const id of activeIds) {
+    const tgt = targetCount.get(id) ?? 0;
+    const got = playerMatchCount(rows, id);
+    if (got < tgt) {
+      meta.targetPlayShortfallReservationIds.push(id);
+    }
+  }
+  meta.targetPlayShortfallReservationIds.sort((a, b) => a.localeCompare(b));
+
   if (meta.unfilledMorningReservationIds.length) {
     meta.notes.push("午前に未ペアの予約あり（unfilled_slot 相当・行には未付与）");
   }
   if (meta.unfilledAfternoonReservationIds.length) {
-    meta.notes.push("午後に試合が付かない予約あり（奇数・枠不足など）");
+    meta.notes.push("午後に1試合も付かなかった予約あり（編成結果・午後ゼロ）");
+  }
+  if (meta.targetPlayShortfallReservationIds.length) {
+    meta.notes.push(
+      "全日の targetCount に届かなかった予約あり（targetPlayShortfallReservationIds）"
+    );
   }
 
   const finalSpread = playCountSpreadForActiveRows(rows, activeIds);
@@ -2122,6 +2412,7 @@ export function buildMatchingAssignments(params: {
       meta: {
         unfilledMorningReservationIds: all,
         unfilledAfternoonReservationIds: all,
+        targetPlayShortfallReservationIds: all,
         notes: [`編成例外を捕捉し固定のみ返却: ${msg}`],
       },
     };

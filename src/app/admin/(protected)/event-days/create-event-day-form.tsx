@@ -6,13 +6,13 @@ import { DEFAULT_EVENT_DAY_SLOT_COUNT } from "@/domains/event-days/default-slots
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-/** 開催日前日 13:00（JST）の締切を `datetime-local` 用に組み立て（ローカル表示）。 */
+/** 開催日前日 12:00（JST）の締切を `datetime-local` 用に組み立て（ローカル表示）。 */
 function defaultDeadlineLocalForEventDate(eventDate: string): string {
   const d = new Date(`${eventDate}T12:00:00`);
   if (Number.isNaN(d.getTime())) return "";
   const prev = new Date(d);
   prev.setDate(prev.getDate() - 1);
-  prev.setHours(13, 0, 0, 0);
+  prev.setHours(12, 0, 0, 0);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${prev.getFullYear()}-${pad(prev.getMonth() + 1)}-${pad(prev.getDate())}T${pad(prev.getHours())}:${pad(prev.getMinutes())}`;
 }

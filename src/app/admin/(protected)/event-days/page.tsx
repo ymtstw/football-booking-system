@@ -255,6 +255,9 @@ export default async function AdminEventDaysPage({
                           <span className="lg:hidden">締切</span>
                         </th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium text-zinc-700">
+                          枠 / 天候
+                        </th>
+                        <th className="whitespace-nowrap px-3 py-2 font-medium text-zinc-700">
                           操作
                         </th>
                       </tr>
@@ -295,6 +298,22 @@ export default async function AdminEventDaysPage({
                             {formatDateTimeTokyoWithWeekday(
                               row.reservation_deadline_at
                             )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:gap-x-3">
+                              <Link
+                                href={`/admin/event-days/${row.id}/slots`}
+                                className="text-sm font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
+                              >
+                                枠・時刻
+                              </Link>
+                              <Link
+                                href={`/admin/event-days/${row.id}/weather`}
+                                className="text-sm font-medium text-sky-800 underline decoration-sky-600/60 underline-offset-2 hover:text-sky-950"
+                              >
+                                雨天判断
+                              </Link>
+                            </div>
                           </td>
                           <td className="px-3 py-2">
                             <EventDayRowActions

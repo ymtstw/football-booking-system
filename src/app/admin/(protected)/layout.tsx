@@ -19,37 +19,25 @@ export default async function AdminProtectedLayout({
   return (
     <div className="min-h-dvh min-h-screen bg-zinc-50">
       <header className="border-b border-zinc-200 bg-white pt-[env(safe-area-inset-top,0px)]">
-        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+        <div className="mx-auto flex min-w-0 max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <nav className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <Link
-              href="/admin/event-days"
-              className="min-h-9 inline-flex items-center font-medium text-zinc-900"
-            >
-              開催日
-            </Link>
-            <Link
               href="/admin/dashboard"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+              className="min-h-9 inline-flex items-center font-medium text-zinc-900"
             >
               ダッシュボード
             </Link>
             <Link
-              href="/admin/event-day-slots"
+              href="/admin/event-days"
               className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
             >
-              枠管理
+              開催日
             </Link>
             <Link
               href="/admin/pre-day-results"
               className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
             >
               前日確定
-            </Link>
-            <Link
-              href="/admin/pre-day-adjust"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
-            >
-              確定補正
             </Link>
           </nav>
           <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
@@ -63,7 +51,7 @@ export default async function AdminProtectedLayout({
           </div>
         </div>
       </header>
-      <div className="mx-auto max-w-4xl px-4 py-6 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-5 sm:py-8">
+      <div className="mx-auto min-w-0 max-w-6xl px-4 py-6 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] sm:px-5 sm:py-8">
         {children}
       </div>
     </div>

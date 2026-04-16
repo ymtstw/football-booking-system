@@ -27,6 +27,8 @@ type RpcResult = {
 type TeamInput = {
   teamName?: string;
   strengthCategory?: string;
+  /** 1〜6（開催日の学年帯に含まれる学年） */
+  representativeGradeYear?: number;
   contactName?: string;
   contactEmail?: string;
   contactPhone?: string;
@@ -68,6 +70,11 @@ function parseBody(raw: unknown): {
       strengthCategory:
         typeof team.strengthCategory === "string"
           ? team.strengthCategory
+          : undefined,
+      representativeGradeYear:
+        typeof team.representativeGradeYear === "number" &&
+        Number.isInteger(team.representativeGradeYear)
+          ? team.representativeGradeYear
           : undefined,
       contactName:
         typeof team.contactName === "string" ? team.contactName : undefined,
@@ -168,6 +175,19 @@ export async function POST(request: Request) {
     );
   }
 
+  const gradeYear = team.representativeGradeYear;
+  if (
+    gradeYear == null ||
+    !Number.isInteger(gradeYear) ||
+    gradeYear < 1 ||
+    gradeYear > 6
+  ) {
+    return NextResponse.json(
+      { error: "代表学年は1年〜6年から選んでください" },
+      { status: 422 }
+    );
+  }
+
   if (!Number.isInteger(participantCount) || participantCount < 1) {
     return NextResponse.json(
       { error: "participantCount は 1 以上の整数にしてください" },
@@ -211,6 +231,7 @@ export async function POST(request: Request) {
       p_meal_count: mealCount,
       p_remarks: "",
       p_token_hash: tokenHash,
+      p_representative_grade_year: gradeYear,
     });
 
     if (error) {
@@ -240,6 +261,7 @@ export async function POST(request: Request) {
         teamName: team.teamName!.trim(),
         eventDateIso: eventDayRow?.event_date ?? null,
         gradeBand: eventDayRow?.grade_band ?? null,
+        representativeGradeYear: gradeYear,
         reservationTokenPlain: tokenPlain,
       });
 

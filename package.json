@@ -10,12 +10,15 @@
     "progress:sync": "node scripts/generate-progress-json.mjs",
     "supabase": "supabase",
     "db:push": "supabase db push",
+    "db:push:all": "supabase db push --include-all",
     "db:push:local": "supabase db push --local",
     "db:reset": "supabase db reset",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:status": "supabase status",
-    "test:integration": "vitest run --config vitest.integration.config.ts"
+    "cron:local-day-before": "node scripts/run-local-day-before-cron.mjs",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:unit": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

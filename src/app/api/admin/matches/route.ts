@@ -320,12 +320,27 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const activeReservationsPayload = [...reservationMap.values()]
+    .map((r) => {
+      const t = singleTeam(r.teams);
+      return {
+        id: r.id,
+        teamId: r.team_id,
+        teamName: t?.team_name ?? null,
+        strengthCategory: t?.strength_category ?? null,
+        displayName: r.display_name,
+        selectedMorningSlotId: r.selected_morning_slot_id,
+      };
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+
   if (!currentRun) {
     return NextResponse.json({
       eventDay: day,
       matchingRun: null,
       assignments: [],
       slotsOverview: buildSlotsOverview(new Map(), new Map()),
+      activeReservations: activeReservationsPayload,
     });
   }
 
@@ -417,5 +432,6 @@ export async function GET(request: NextRequest) {
     },
     assignments,
     slotsOverview: buildSlotsOverview(afternoonBySlot, morningResToMatchSlot),
+    activeReservations: activeReservationsPayload,
   });
 }

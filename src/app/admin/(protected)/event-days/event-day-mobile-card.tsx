@@ -1,4 +1,6 @@
 /** 開催日1件のモバイル用カード（md 未満）。テーブル横スクロールの代替。 */
+import Link from "next/link";
+
 import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
@@ -56,7 +58,19 @@ export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
           {formatDateTimeTokyoWithWeekday(row.reservation_deadline_at)}
         </dd>
       </dl>
-      <div className="mt-4 border-t border-zinc-200 pt-3">
+      <div className="mt-4 space-y-2 border-t border-zinc-200 pt-3">
+        <Link
+          href={`/admin/event-days/${row.id}/slots`}
+          className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-emerald-700/40 bg-emerald-50/80 px-3 text-sm font-medium text-emerald-950 hover:bg-emerald-100/90"
+        >
+          枠・時刻を編集
+        </Link>
+        <Link
+          href={`/admin/event-days/${row.id}/weather`}
+          className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-sky-700/40 bg-sky-50/80 px-3 text-sm font-medium text-sky-950 hover:bg-sky-100/90"
+        >
+          雨天判断
+        </Link>
         <EventDayRowActions
           id={row.id}
           status={row.status as EventDayAdminStatus}

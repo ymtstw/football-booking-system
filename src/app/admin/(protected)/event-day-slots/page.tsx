@@ -10,11 +10,11 @@ export default function AdminEventDaySlotsPlaceholderPage() {
           開催日枠の管理
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          時間枠の追加・無効化・時刻変更などを行う専用画面のプレースホルダです。現状は
+          枠の追加・時刻・有効化は
           <Link href="/admin/event-days" className="mx-0.5 font-medium text-zinc-900 underline">
             開催日管理
           </Link>
-          から一部操作できる想定で、本画面はレイアウト検討用です。
+          の各行「枠・時刻」から行います。本ページはレイアウト検討用のプレースホルダです。
         </p>
       </div>
 

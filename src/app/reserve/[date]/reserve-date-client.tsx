@@ -3,7 +3,7 @@
 /** SCR-01: 指定日の午前枠選択＋予約フォーム → SCR-02 へ sessionStorage で遷移。 */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import {
@@ -15,6 +15,10 @@ import {
   normalizeContactPhoneDigits,
 } from "@/lib/validators/contact-phone";
 import { inputAsciiDigitsOnly } from "@/lib/validators/digits-input";
+import {
+  gradeYearLabelJa,
+  representativeGradeYearChoicesForBand,
+} from "@/lib/reservations/grade-year";
 import {
   RESERVE_STRENGTH_OPTIONS,
   strengthCategoryLabelJa,
@@ -75,6 +79,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
   const [selectedSlotId, setSelectedSlotId] = useState<string>("");
   const [teamName, setTeamName] = useState("");
   const [strengthCategory, setStrengthCategory] = useState<string>("strong");
+  const [representativeGradeYear, setRepresentativeGradeYear] = useState<string>("");
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -112,6 +117,10 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         setData(json);
         setLoadIssue(null);
         setSelectedSlotId("");
+        {
+          const first = representativeGradeYearChoicesForBand(json.gradeBand)[0];
+          setRepresentativeGradeYear(first != null ? String(first) : "");
+        }
       })
       .catch(() => {
         if (cancelled) return;
@@ -122,6 +131,11 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
       cancelled = true;
     };
   }, [eventDate]);
+
+  const gradeYearChoices = useMemo(
+    () => (data ? representativeGradeYearChoicesForBand(data.gradeBand) : []),
+    [data]
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -157,6 +171,14 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
       setSubmitError("チームカテゴリを選んでください");
       return;
     }
+    const gy = parseInt(representativeGradeYear, 10);
+    if (
+      !Number.isInteger(gy) ||
+      !gradeYearChoices.includes(gy)
+    ) {
+      setSubmitError("代表学年を選んでください");
+      return;
+    }
     const phoneDigits = normalizeContactPhoneDigits(contactPhone);
     if (!isContactPhoneDigitsValid(phoneDigits)) {
       setSubmitError(
@@ -175,6 +197,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         team: {
           teamName: teamName.trim(),
           strengthCategory,
+          representativeGradeYear: gy,
           contactName: contactName.trim(),
           contactEmail: contactEmail.trim(),
           contactPhone: phoneDigits,
@@ -403,6 +426,29 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
                   {RESERVE_STRENGTH_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>
                       {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-800">
+                <p className="font-medium text-zinc-900">代表学年</p>
+                <p className="mt-1">
+                  参加する児童の学年を1つ選びます。複数学年が混ざる場合は、
+                  <span className="font-medium">人数が多い方の学年</span>
+                  に合わせて登録してください。
+                </p>
+              </div>
+              <label className="block text-sm">
+                <span className="text-zinc-700">代表学年を選択</span>
+                <select
+                  required
+                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:text-sm"
+                  value={representativeGradeYear}
+                  onChange={(e) => setRepresentativeGradeYear(e.target.value)}
+                >
+                  {gradeYearChoices.map((y) => (
+                    <option key={y} value={String(y)}>
+                      {gradeYearLabelJa(y)}
                     </option>
                   ))}
                 </select>

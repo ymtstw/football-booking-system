@@ -2,7 +2,7 @@
  * Cron: 締切を過ぎた `open` 開催日を `locked` に一括更新。
  *
  * **Vercel Cron** はこの Route に **GET** を送る（`vercel.json` の `crons`）。
- * スケジュール式は **UTC**。`0 4 * * *` = 毎日 04:00 UTC = **13:00（同日）Asia/Tokyo**。
+ * スケジュール式は **UTC**。`0 3 * * *` = 毎日 03:00 UTC = **12:00（同日）Asia/Tokyo**。
  *
  * **認証:** 環境変数 `CRON_SECRET` を Vercel に登録すると、Vercel が
  * `Authorization: Bearer <CRON_SECRET>` を付与する（公式ドキュメント準拠）。
@@ -15,22 +15,10 @@
  */
 import { type NextRequest, NextResponse } from "next/server";
 
+import { authorizeCronBearer, cronSecretConfigured } from "@/lib/cron/cron-auth";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
-
-function cronSecretConfigured(): string | null {
-  const secret = process.env.CRON_SECRET?.trim();
-  if (!secret || secret.length < 16) {
-    return null;
-  }
-  return secret;
-}
-
-function authorizeCron(request: NextRequest, secret: string): boolean {
-  const auth = request.headers.get("authorization");
-  return auth === `Bearer ${secret}`;
-}
 
 async function lockDeadlinePassedOpenDays(): Promise<{
   updatedCount: number;
@@ -69,7 +57,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!authorizeCron(request, secret)) {
+  if (!authorizeCronBearer(request, secret)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

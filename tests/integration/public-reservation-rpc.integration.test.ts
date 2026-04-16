@@ -29,6 +29,7 @@ function baseCreateRpcParams(
     p_meal_count: 0,
     p_remarks: "",
     p_token_hash: tokenHash,
+    p_representative_grade_year: 3,
   };
 }
 

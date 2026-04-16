@@ -8,7 +8,8 @@
 
 ## 編成の前提条件（プロダクト）
 
-- **枠数**: 合計6枠（午前3+午後3）から **8枠（午前4+午後4）などへ拡張可能**。枠本数は `event_day_slots` の有効行に従い、編成は **枠数に比例してループ**する（固定本数のハードコードなし）。  
+- **枠数（運用）:** 管理画面・API では **午前=午後で 3 または 4 のみ**（3+3 または 4+4）。詳細は `design-mvp.md` §3-2-1、`src/lib/event-days/event-day-slot-count-policy.ts`。  
+- **枠数（編成）:** 上記のとおり `event_day_slots` の有効行に従い、編成は **枠数に比例してループ**する（固定本数のハードコードなし）。  
 - **前日自動編成**: 締切後の `matching/run` で **可能な限り枠に試合行を付与**する（午前は空枠解消を特に重視。詳細は 2b/2c）。  
 - **参加チーム数**: 従来の「3〜6」に **上限は設けない**（8チーム以上も同じロジックで処理。`active` が **2未満**のときだけ `morning_fixed` のみ返して打ち切り）。チーム数と枠数の組み合わせは固定しない。  
 - **試合数の平準化**: チーム間で **全日の試合数の max−min が 2 以上開くことは避ける**（多くて **1試合差**まで許容）。総試合数や「枠が余る」ことによる **±1試合程度の差**は許容。  
@@ -21,9 +22,9 @@
 | 項目 | 内容 |
 |------|------|
 | 開催日 | `event_days.status` は RPC 側で **`locked`** であること（それ以外は拒否）。 |
-| 予約 | **`status = active`** のみ。 |
+| 予約 | **`status = active`** のみ。`teams.representative_grade_year`（1〜6）が入っていれば午後の **学年差**ソフトに使う（欠損は中立扱い）。 |
 | 参加数 | **`active` が 2 以上**で午前埋め・午後編成を行う。**2 未満**のときは **`morning_fixed` の複製のみ**返し、全 active を `meta.unfilledMorningReservationIds` / `meta.unfilledAfternoonReservationIds` に入れて終了（エラーにしない）。人数上限は設けない。 |
-| 枠 | `event_day_slots` のうち **`is_active !== false`** のみを午前・午後の対象とする。午前・午後の **本数は固定しない**（並びは `slot_code` 順）。既定テンプレは **午前4・午後4**（`src/domains/event-days/default-slots.ts`）。 |
+| 枠 | `event_day_slots` のうち **`is_active !== false`** のみを午前・午後の対象とする。午前・午後の **本数は固定しない**（並びは `slot_code` 順）。新規開催日の既定テンプレは **午前3・午後3**（`src/domains/event-days/default-slots.ts`）。4枠運用は管理 API で **4+4** に拡張する。 |
 | 既存 run | **現在 `is_current = true` の run** の `morning_fixed` を読み、新 run に **コピー**する（枠・予約 ID はそのまま）。 |
 | 再実行 | 既存 current に **`afternoon_auto` が1件でもある**と RPC は **`already_matched`**（409）。 |
 | 取り消し | **`POST /api/admin/matching/undo`**（管理ログインのみ）→ RPC **`admin_undo_afternoon_matching`** で current run の **`afternoon_auto` と `morning_fill` を削除**し、**`morning_fixed` は残したまま審判のみ NULL** にし、**`event_days.status` を `locked` に戻す**（締切直後・自動編成前に近い状態）。その後に再度 `matching/run` 可能。 |
@@ -36,9 +37,9 @@
 2. **午前 `morning_fill`** … `morning_fixed` の a/b 以外の active を対象に、**全探索または貪欲**で `morning_fill` の集合（ペアと枠）を決める（下記「午前 morning_fill」）。全日試合数の偏り（max−min）が **1 を超えない**枝だけを採用。プールが大きいときは貪欲。  
 2b. **午前枠埋めフォールバック** … 全探索の直後、**固定以外の午前枠のうち試合行が無い枠**が残るときのみ、**固定外プール・各チーム午前1試合まで**の範囲で段階1〜2＋必要なら希望枠キー緩和のみ試行する（下記「午前枠埋めフォールバック」）。**午後は触れない**（午後は下記の二段階で別途編成）。  
 2c. **午前必須埋め** … 2b の後も **非固定の午前枠に行が無い**とき、**空枠を無くす**ことを最優先し `morning_fill` を追加する。**active 全員**からペアを選び、再出場・既対戦・異カテゴリはスコアで劣後。通常の「午前1試合まで」だけでは埋まらない構成（例: 有効午前4枠・active6）では **午前の再出場** を警告付きで許容する。希望枠キーは可能なら守り、無理なときのみ緩和。  
-3. **午後** … **二段階**。**第1段階**で有効な午後枠を時間順に処理し、毎回 **`afternoonCount < 1`** の最良ペアを選び **まず全員に午後1試合**を付ける。**空枠が残るときだけ第2段階**に入り、**`afternoonCount < 2`** を許可して埋める（理論上の「追加で必要な出場数」は `max(0, 午後枠数×2 − active数)`。5チーム・午後3枠なら1）。第2段階では総試合数が少ない予約を優先し、`duplicate` / 異カテゴリは可能な限り避け、必要なら警告付きで許容。  
+3. **午後** … **目標出場回数**と可行性をハードにしつつ、枠を時間順に処理。**第1段階**は **午後0本の人のみ** eligible で **全員午後1試合**を優先。**第2段階**は **全日目標まで**追加出場を許可（**午後本数の固定2上限は廃止**；多枠で午後3試合目以降も可）。候補比較は `AfternoonEdgeComposite`（強さ・学年差・重複等）。詳細は下記「午後」。  
 4. **審判** … 午前→午後の **全日の試合列** でインデックスを決め、午前・午後の各行に同じルールを適用する。**1試合目**は **2試合目の出場2人**から、**2試合目以降（最終除く）**は **次の試合に出ない** active を第一候補とし、審判回数・出場回数で平準化。`morning_fixed` で既に審判 ID がある行は上書きしない。  
-5. **メタ情報** … 午前・午後で試合に入れなかった予約 ID を `meta` に格納（DB 行には載せない）。  
+5. **メタ情報** … 午前未ペア・**午後ゼロ**・**全日 target 未達**などの予約 ID と短文 `notes` を `meta` に格納（DB 行には載せない）。  
 6. **RPC** … 旧 current を外し、新 `matching_runs` と全 `match_assignments` を INSERT し、`event_days.status` を **`confirmed`** にする。
 
 ---
@@ -111,10 +112,12 @@
 
 | 要素 | 重み | 意味 |
 |------|------|------|
-| カテゴリ不一致 | +5 | `strong` / `potential` が異なる。 |
+| 強さカテゴリ不一致 | +50 | `strong` / `potential` が異なる（近い強さを優先）。 |
 | 午前で既に対戦 | +1000 | 同一ペアの二重辺。 |
 | 出場回数 | +1×件数 | `morning_fixed` の行のみを数えた **a/b 出場数**の和。 |
 | 出場回数の差 | +4×差 | 同日で試合数を揃えやすくする。 |
+
+代表学年の寄与は **午前は `morningFillPlan` 側の `gradeDistSum` 等**で扱い、`scoreMorningPair` 本体には含めない（二重計上回避）。
 
 ### 未ペア
 
@@ -131,53 +134,42 @@
 - **午後の計画**では、**各ペアを確定するたび**に同日対戦回数へ加算する（次の枠の候補選びに直ちに反映）。  
 - **レスポンス用の警告計算**の直前に、地図を **午前のみ**にリセットし、午後各行を追加するたびに加算し直す（警告と実データの整合）。
 
-### 二段階ループ（枠ごとの全体最良）
+### 目標出場回数（全日）
 
-- **有効な午後枠**を **`slot_code` / phase 順（時間順）**に並べる。
+- 午前で埋まった試合行数 `morningMatchesFilled` と **有効な午後枠本数** `afternoonSlotCount` から **全日の試合行数** `totalMatchRowsForTargets = morningMatchesFilled + afternoonSlotCount` を求める。  
+- 各 active 予約について **目標出場回数** `targetCount` を **`totalMatchRowsForTargets × 2` を人数で割った base / base+1**（最大1試合差）で割り当てる（`buildTargetPlayCountMap`）。  
+- 各午後枠では、候補辺 `(ra, rb)` が **この1本を足してもどちらも target を超えない**こと、かつ **この枠のあと残る午後枠数**について **不足分をペア列で消化できるか**（`afternoonPairKeepsTargetsAndFeasible` / `deficitSequenceCanFillRemainingMatches`）を **ハード**とする。
 
-**第1段階（全員午後1試合を優先）**
+### 二段階ループ（枠ごと・eligible の切り替え）
 
-- **まだ行を割り当てていない枠**を先頭から順に1枠ずつ処理する。  
-- 各枠で、**active 全員の予約 ID を両端とする無向辺**のうち、**両端とも `afternoonCount < 1`** の辺だけを候補に含める。  
-- **午後まだ0試合の予約が2人未満**になったら第1段階を打ち切る。
+- **有効な午後枠**を **`slot_code` / phase 順（時間順）**に並べ、**未使用枠を順に1本ずつ**処理する。  
+- **第1段階（`afternoonPhase = 1`）:** `eligible(id) = afternoonCount(id) < 1` かつ **全日が target 未満**（`totalDayPlay < targetCount`）の予約が **2人以上**いるとき、その `eligible` で `pickBestAfternoonPairForSlot` を呼ぶ。  
+- **第2段階（`afternoonPhase = 2`）:** 上記でペアが取れないとき、**`remainingCapPickAfternoon(id, 2, ...) > 0`** な予約が2人以上いれば、同関数を **phase 2** で呼ぶ。  
+  - `remainingCapPickAfternoon` は **`min(全日あと何試合まで可か by target, 午後段階による上限)`**。  
+  - **phase 2 の「午後本数」上限は固定2本にしない**（`remainingAfternoonSlotCapacity` の phase 2 は実質無制限）。多枠（例: 午後4枠×3チーム）で **午後3試合目以降**が必要になる場合を許し、実効上限は **target との差分**のみ。  
+  - **phase 1** は従来どおり **午後0本の人にのみ1本**まで（全員午後1試合を優先）。  
+- いずれの段でもペアが **`null`**（候補辺が無い／可行性で全滅）なら **`break`** して打ち切り（残枠は未編成。旧バグは phase2 の午後2本固定上限で多枠時に起き得た）。  
+- 採用辺は **`AfternoonEdgeComposite` の辞書式比較**（`firstAfternoonCoverage` → **`strengthMismatch`** → **`gradeYearGap`** → `intraRemainderOk` → `dupEdge` → `prior` → `soft`）。`soft` 内では phase 2 のとき **`secondAfternoonPlaySum`**（午後2本目を付ける側の全日累計の和が小さいほど優先）→ gap → consecutive → spread 等。
 
-**第2段階（空枠解消のため午後2試合目を最小限許可）**
+**補足（旧記述からの差分）**
 
-- 第1段階のあと **未使用の午後枠が1本でも残っているときだけ**実行する。  
-- 各未使用枠で、**両端とも `afternoonCount < 2`** の辺を候補に含める（午後2試合目を許容）。  
-- 理論上「枠を全て埋めるために追加で必要な出場数」は **`max(0, 午後枠本数×2 − active 人数)`**（例: 5人・午後3枠なら1）。実装ではこの値を `meta.notes` の短文に含め、第2段階のタイブレークで **既に午後1試合ある端の全日累計試合数の和**が小さい辺を優先する（総試合が少ない予約に2試合目を寄せる）。  
-- ある枠でペアが選べなければ **その枠をスキップして次の空枠**を試す（第1段階とは異なり `continue`）。
+- 旧: 「第2段階は `afternoonCount < 2` のみ」。→ **廃止**。第2段階は **target と可行性**で上限が決まる。  
+- **同カテゴリ完結**の可否は、辺候補の **`intraRemainderFeasibleAfterAfternoonEdge`**（シミュレート後の残りを同カのみで埋め切れるか）を **ソフト加点**として扱う（ハードの「偶数なら異カ除外」は現行実装では別形を取るため、詳細はソース参照）。
 
-**共通（第1・第2段階）**
+**`buildAfternoonPairPickKey`（`soft` の一部）**
 
-- 段階は **「当事者二人の累計試合数の差 ≤1 → ≤2 → ≤3 → 無制限」** のみ（連続枠は辺を先に落とさず、キーの **consec** で劣後）。  
-- 各段で、**当事者二人の累計の差が 2 以上になる辺は原則捨てる**（その段で辺が1本も残らないときだけフォールバック）。  
-- **全日の試合数バランス（ハード）**: 辺を追加したあとの **active 全員の max(累計)−min(累計) ≤ 1** を満たす辺 **だけ**を候補に残す（満たす辺が1本も無い段はスキップ）。**spread 違反の辺は採用しない**（以前の「spread 制約なしフォールバック」は廃止）。  
-- **重複辺の扱い**: **午前の試合行と同じ二人の組**（`morningEdge`）である、または **同日対戦回数が既に 1 以上**の辺は、当段・当フィルタ後の候補のうち **それ以外の辺が1本でもあれば比較対象から除外**する。除外後に辺が無くなるときだけ、重複辺も含めて比較する（フォールバック）。  
-- **同カテゴリ完結ハード**: **active ごとの `strong` 人数と `potential` 人数がどちらも偶数**で、かつ **この枠を含む残り午後枠本数**を、**同カテゴリのペアのみ**（上記の重複規則・各予約の午後あと枠数 **`afternoonMaxPerPlayer−afternoonCount`** を守り。第1段階では上限1、第2段階では上限2）で埋められると判定できるときは、当段・当フィルタ後の候補から **異カテゴリの辺を除外**する。除外後に辺が1本も残らないときだけ **異カも候補に戻す**（フォールバック）。  
-- **spread フィルタ後**の辺同士は辞書式で比較する。確定したペアは **予約 ID の辞書順**で `a` / `b` を並べ、両者の `afternoonCount` と累計出場を +1 して次の枠へ。  
-- 第1段階で **午後まだ0試合の予約が2人未満**になったらその段を打ち切る。第2段階で **午後2試合未満が2人未満**なら打ち切る。
-
-**ペア（辺）のキー順**（`totalDayPlay` はシミュレート後。**max−min≤1** の辺に限定したうえで、表はタイブレーク）
-
-| 順位 | キー | 意味 |
-|------|------|------|
-| 1 | diffCatPenalty | **異カテゴリなら 1**、同カテゴリなら **0**（同カを優先） |
-| 2 | priorDayMatches | **同日の既対戦回数**を最小化（未対戦を優先） |
-| 3 | secondAfternoonPlaySum | **第2段階のみ**。既に午後1試合ある端の **全日累計試合数の和**を最小化（総試合が少ない人に2試合目を寄せる）。第1段階では常に0。 |
-| 4 | gap ソフト | **両者**の直前出場〜当該枠の間隔ペナルティの**合計**を最小化 |
-| 5 | 連続枠 | 直前枠の次への連続出場が **当事者の人数分**（0〜2）だけ不利に加算 |
-| 6 | spread | 全日 **max(累計) − min(累計)**（タイブレーク） |
-| 7 | countAtMin | **min(累計) にいる人数** を最小化 |
-| 8 | globalMax | 全日 **最大累計** を小さく |
-| 9 | pairMaxAfter | 当事者二人の **max(累計+1)** を小さく |
-| 10 | 辺キー | 予約 ID ペアの辞書順（安定タイブレーク） |
-
-各枠でペアを確定するたびに同日対戦回数マップへ反映し、続く枠の候補で重複を避ける。
+| 順位 | キー | 意味（小さいほど良い） |
+|------|------|------------------------|
+| 1 | secondAfternoonPlaySum | **phase 2 のみ**有効。午後2本目を付ける端の全日累計の和。 |
+| 2 | gapSum | 直前出場からの間隔ペナルティ合算 |
+| 3 | consec | 連続出場ペナルティ |
+| 4 | spread / countAtMin / globalMax / pairMaxAfter | 全日の偏り平準化 |
+| 5 | edge | 安定タイブレーク |
 
 ### 午後に試合なし
 
-- 最終的に **`afternoonCount < 1`** の予約を **`meta.unfilledAfternoonReservationIds`** に入れる（奇数・枠不足など）。
+- 最終的に **`afternoonCount < 1`** の予約を **`meta.unfilledAfternoonReservationIds`** に入れる。  
+- **`targetCount` に全日で届かなかった**予約は **`meta.targetPlayShortfallReservationIds`** に入れる。
 
 ---
 
@@ -231,13 +223,14 @@
 |--------|------------|
 | `cross_category_match` | 午前/午後でカテゴリが異なるペア。 |
 | `duplicate_opponent` | 午前で対戦済み、または **同日で既に1回以上対戦**している相手と再度対戦。 |
-| `afternoon_second_round_fill` | 午後 **第2段階**で割り当てた試合（空枠解消のため午後2試合目を許可した行）。 |
+| `afternoon_second_round_fill` | 午後 **第2段階**（`afternoonPhase = 2`）で割り当てた試合（目標未到達の追加出場。2試合目に限らない）。 |
 | `morning_fallback_fill` / `morning_fallback_stage_1` / `morning_fallback_stage_2` | 午前枠埋めフォールバック（2b）。 |
 | `morning_fallback_relaxed_prefs` | 希望枠順キー制約を緩めたとき（2b または 2c）。 |
 | `mandatory_morning_slot_fill` | 午前必須埋め（2c）。空枠解消のため通常より制約を広げたペア。 |
 | `repeat_morning_play` | 同一予約が午前に複数試合に出るとき（主に 2c）。 |
 | `match_count_spread_violation` | 全日試合数の max−min≤1 を守れずに割り当てたとき（主に 2c の最終緩和）。 |
 | `referee_unassigned` | 審判候補がいない。 |
+| `afternoon_pair_pick_tier_A`〜`_D` | 午後辺の採用ティア（A=同カ非重複 … D=異カ重複。`afternoonEdgePickTierLabel`）。 |
 
 `double_assigned_reservation` 等は **現状付与しない**（二重割当防止は組み立てロジックで回避）。
 
@@ -251,6 +244,7 @@
 |------------|-----|------|
 | `unfilledMorningReservationIds` | `string[]` | 午前の固定外プールで **ペアに入らなかった** active 予約 ID。 |
 | `unfilledAfternoonReservationIds` | `string[]` | 午後1試合も付かなかった予約 ID。 |
+| `targetPlayShortfallReservationIds` | `string[]` | 編成後も **全日の `targetCount` に届かなかった**予約 ID。 |
 | `notes` | `string[]` | 人間向け短文（0枠スキップ理由など）。 |
 
 ---
