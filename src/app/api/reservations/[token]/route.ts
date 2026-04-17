@@ -10,6 +10,11 @@ import {
   rateLimitReservationTokenPatch,
 } from "@/lib/rate-limit/reservation-public";
 import {
+  parseLunchItemsInput,
+} from "@/lib/lunch/parse-lunch-items-body";
+import { replaceReservationLunchItems } from "@/lib/lunch/replace-reservation-lunch-items";
+import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
+import {
   hashReservationTokenPlain,
   isReservationLookupExpired,
   isValidReservationTokenFormat,
@@ -45,7 +50,14 @@ type SlotRow = {
   phase: string;
 } | null;
 
-type MealRow = { meal_count: number } | null;
+type LunchLineRow = {
+  menu_item_id: string | null;
+  item_name_snapshot: string;
+  unit_price_snapshot_tax_included: number;
+  quantity: number;
+  line_total: number;
+  created_at: string;
+};
 
 type ReservationRow = {
   id: string;
@@ -56,7 +68,7 @@ type ReservationRow = {
   event_days: EventDayRow;
   teams: TeamRow;
   event_day_slots: SlotRow;
-  meal_orders: MealRow | MealRow[] | null;
+  reservation_lunch_items: LunchLineRow[] | LunchLineRow | null;
 };
 
 const RESERVATION_SELECT = `
@@ -86,16 +98,35 @@ const RESERVATION_SELECT = `
         end_time,
         phase
       ),
-      meal_orders (
-        meal_count
+      reservation_lunch_items (
+        menu_item_id,
+        item_name_snapshot,
+        unit_price_snapshot_tax_included,
+        quantity,
+        line_total,
+        created_at
       )
     `;
 
-function mealCount(row: ReservationRow): number {
-  const m = row.meal_orders;
-  if (m === null || m === undefined) return 0;
-  const first = Array.isArray(m) ? m[0] : m;
-  return first?.meal_count ?? 0;
+function lunchLinesFromRow(row: ReservationRow): {
+  lunchItems: ReservationLunchLinePublic[];
+  lunchTotalTaxIncluded: number;
+} {
+  const raw = row.reservation_lunch_items;
+  const list = raw == null ? [] : Array.isArray(raw) ? raw : [raw];
+  const sorted = [...list].sort(
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  const lunchItems: ReservationLunchLinePublic[] = sorted.map((r) => ({
+    menuItemId: r.menu_item_id,
+    itemName: r.item_name_snapshot,
+    unitPriceTaxIncluded: Number(r.unit_price_snapshot_tax_included),
+    quantity: Number(r.quantity),
+    lineTotal: Number(r.line_total),
+  }));
+  const lunchTotalTaxIncluded = lunchItems.reduce((s, x) => s + x.lineTotal, 0);
+  return { lunchItems, lunchTotalTaxIncluded };
 }
 
 function reservationJson(row: ReservationRow) {
@@ -108,12 +139,15 @@ function reservationJson(row: ReservationRow) {
         ? slot[0] ?? null
         : null;
 
+  const { lunchItems, lunchTotalTaxIncluded } = lunchLinesFromRow(row);
+
   return {
     reservation: {
       id: row.id,
       status: row.status,
       participantCount: row.participant_count,
-      mealCount: mealCount(row),
+      lunchItems,
+      lunchTotalTaxIncluded,
       createdAt: row.created_at,
       eventDay: {
         id: ed.id,
@@ -144,7 +178,7 @@ function reservationJson(row: ReservationRow) {
 
 function parsePatchBody(raw: unknown): {
   participantCount: number;
-  mealCount: number;
+  lunchItems: NonNullable<ReturnType<typeof parseLunchItemsInput>>;
   contactName: string;
   contactPhoneDigits: string;
 } | null {
@@ -154,10 +188,7 @@ function parsePatchBody(raw: unknown): {
     typeof o.participantCount === "number" && Number.isFinite(o.participantCount)
       ? o.participantCount
       : NaN;
-  const mealCount =
-    typeof o.mealCount === "number" && Number.isFinite(o.mealCount)
-      ? o.mealCount
-      : NaN;
+  const lunchItems = parseLunchItemsInput(o.lunchItems);
   const contactName =
     typeof o.contactName === "string" ? o.contactName.trim() : "";
   const contactPhoneRaw =
@@ -165,11 +196,11 @@ function parsePatchBody(raw: unknown): {
   const contactPhoneDigits = normalizeContactPhoneDigits(contactPhoneRaw);
 
   if (!Number.isInteger(participantCount) || participantCount < 1) return null;
-  if (!Number.isInteger(mealCount) || mealCount < 0) return null;
+  if (lunchItems === null) return null;
   if (!contactName) return null;
   if (!isContactPhoneDigitsValid(contactPhoneDigits)) return null;
 
-  return { participantCount, mealCount, contactName, contactPhoneDigits };
+  return { participantCount, lunchItems, contactName, contactPhoneDigits };
 }
 
 export async function GET(
@@ -248,7 +279,7 @@ export async function PATCH(
     return NextResponse.json(
       {
         error:
-          "参加人数（1以上の整数）・昼食数（0以上の整数）・代表者名・電話（数字10〜15桁）を確認してください",
+          "参加人数（1以上の整数）・昼食（lunchItems 配列）・代表者名・電話（数字10〜15桁）を確認してください",
       },
       { status: 422 }
     );
@@ -303,7 +334,7 @@ export async function PATCH(
     );
   }
 
-  const { participantCount, mealCount, contactName, contactPhoneDigits } =
+  const { participantCount, lunchItems, contactName, contactPhoneDigits } =
     parsed;
 
   const { error: rErr } = await supabase
@@ -319,16 +350,17 @@ export async function PATCH(
     );
   }
 
-  const { error: mErr } = await supabase
-    .from("meal_orders")
-    .update({ meal_count: mealCount })
-    .eq("reservation_id", row.id);
-
-  if (mErr) {
-    return NextResponse.json(
-      { error: mErr.message, code: mErr.code },
-      { status: 500 }
-    );
+  const lunchRes = await replaceReservationLunchItems(
+    supabase,
+    row.id,
+    lunchItems
+  );
+  if (!lunchRes.ok) {
+    const status =
+      lunchRes.code === "lunch_menu_invalid" || lunchRes.code === "lunch_duplicate"
+        ? 422
+        : 500;
+    return NextResponse.json({ error: lunchRes.message }, { status });
   }
 
   const { error: tErr } = await supabase

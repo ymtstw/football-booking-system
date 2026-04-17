@@ -18,7 +18,8 @@
     "db:status": "supabase status",
     "cron:local-day-before": "node scripts/run-local-day-before-cron.mjs",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "test:unit": "vitest run --config vitest.config.ts"
+    "test:unit": "vitest run --config vitest.config.ts",
+    "copy:reserve-icons": "node scripts/copy-reserve-raster-icons.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.9.0",

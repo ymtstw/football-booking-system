@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>全画面 UI モック（実装ルート準拠・ティール案）</title>
+    <link rel="stylesheet" href="styles/mock-common.css" />
+  </head>
+  <body class="mock-doc">
+    <header class="doc-head">
+      <h1>交流試合システム — 全画面モックアップ</h1>
+      <p>
+        リポジトリ内の <code>src/app/**/page.tsx</code> に相当する画面を列挙。配色は提案トーン（ティール＋ミント）。左目次からジャンプできます。実装とは別の静的 HTML です。
+      </p>
+    </header>
+
+    <div class="doc-layout">
+      <nav class="toc" aria-label="画面一覧">
+        <strong>目次</strong>
+        <a href="#intro">はじめに</a>
+
+        <span class="toc-group">公開（/）</span>
+        <a href="#screen-home">トップ /</a>
+        <a href="#screen-reserve-cal">予約カレンダー</a>
+        <a href="#screen-reserve-date">日付別予約</a>
+        <a href="#screen-reserve-complete">予約完了</a>
+        <a href="#screen-reserve-manage">確認・キャンセル</a>
+        <a href="#screen-reserve-camp">合宿案内</a>
+        <a href="#screen-reserve-camp-inq">合宿相談フォーム</a>
+        <a href="#screen-reserve-contact">お問い合わせ</a>
+
+        <span class="toc-group">認証</span>
+        <a href="#screen-admin-login">管理者ログイン</a>
+        <a href="#screen-auth-update">パスワード更新</a>
+        <a href="#screen-reset">再設定リダイレクト</a>
+
+        <span class="toc-group">管理（/admin）</span>
+        <a href="#screen-adm-dash">ダッシュボード</a>
+        <a href="#screen-adm-days">開催日一覧</a>
+        <a href="#screen-adm-day-slots">開催日・枠編集</a>
+        <a href="#screen-adm-force">枠・強制変更</a>
+        <a href="#screen-adm-weather">雨天判断</a>
+        <a href="#screen-adm-op-cancel">運営中止</a>
+        <a href="#screen-adm-notif-sum">開催日・通知</a>
+        <a href="#screen-adm-slot-ph">枠管理プレース</a>
+        <a href="#screen-adm-resv">予約一覧</a>
+        <a href="#screen-adm-resv-id">予約詳細</a>
+        <a href="#screen-adm-preday">前日確定</a>
+        <a href="#screen-adm-preadj">補正（リダイレクト）</a>
+        <a href="#screen-adm-fail">メール失敗</a>
+        <a href="#screen-adm-camp">合宿相談一覧</a>
+        <a href="#screen-adm-camp-id">合宿相談詳細</a>
+      </nav>
+
+      <main class="screens">
+        <section class="mock-wrap" id="intro">
+          <div class="route-bar"><span>モックの使い方</span></div>
+          <div class="device-frame">
+            <div class="pub-main">
+              <div class="callout-mint">
+                <strong>公開エリア</strong>は <code>/reserve/layout.tsx</code>
+                のナビ（予約カレンダー／確認・キャンセル／合宿／お問い合わせ／トップ）をモック上部に反映。<strong>管理エリア</strong>は
+                <code>admin/(protected)/layout.tsx</code> のリンクを簡略表示しています。
+              </div>
+              <p class="lead" style="margin-top: 0.75rem">
+                <code>/admin</code> は実装ではログインまたは開催日へリダイレクトのみのため、独立モックは省略しています。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 公開 ========== -->
+        <section class="mock-wrap" id="screen-home">
+          <div class="route-bar">
+            <code>/</code>
+            <span>トップ（`src/app/page.tsx`）</span>
+          </div>
+          <div class="device-frame">
+            <div class="hero-teal">
+              <h1>和歌山サッカー交流試合（予約）</h1>
+              <p>開催日の申し込み・確認コードによる予約の確認・キャンセルは、下のボタンから行えます。</p>
+            </div>
+            <div class="pub-main stack" style="padding-top: 1.25rem">
+              <button type="button" class="btn btn-primary">開催日一覧・予約</button>
+              <button type="button" class="btn btn-secondary">予約の確認・キャンセル</button>
+              <button type="button" class="btn btn-ghost">管理者ログイン</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-cal">
+          <div class="route-bar">
+            <code>/reserve</code>
+            <span>予約カレンダー（`reserve/page.tsx`）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav" aria-label="予約サブナビ">
+                <a href="#">予約カレンダー</a>
+                <a href="#">予約確認・キャンセル</a>
+                <a href="#">合宿のご案内</a>
+                <a href="#">お問い合わせ</a>
+                <a href="#">トップ</a>
+              </nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">予約カレンダー</h1>
+              <p class="lead">
+                緑の枠の日をタップで午前枠予約へ。締切後・確定済みはグレー、中止は赤系（実装の説明文に準拠）。
+              </p>
+              <div class="stack" style="margin-bottom: 0.75rem">
+                <button type="button" class="btn btn-secondary" style="width: auto; min-height: 2rem; font-size: 0.72rem">
+                  前の月 / 今月 / 次の月
+                </button>
+              </div>
+              <div class="cal-grid" style="margin-bottom: 0.35rem; font-weight: 600; color: var(--muted)">
+                <span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span>
+              </div>
+              <div class="cal-grid">
+                <div class="cal-cell"></div>
+                <div class="cal-cell">1</div>
+                <div class="cal-cell open">10</div>
+                <div class="cal-cell">11</div>
+                <div class="cal-cell bad">17</div>
+                <div class="cal-cell">…</div>
+                <div class="cal-cell">…</div>
+              </div>
+              <p class="lead" style="margin-top: 0.75rem">
+                合宿のご相談は <a href="#">合宿のご案内</a> から（実装の導線）。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-date">
+          <div class="route-bar">
+            <code>/reserve/[date]</code>
+            <span>日付別・空き状況＋フォーム（`reserve-date-client.tsx`）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav"><a href="#">予約カレンダー</a><a href="#">…</a></nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">2026年5月10日（土）3・4年帯</h1>
+              <p class="pill">受付中 · 締切: 2026/5/8 15:00</p>
+              <h2 class="h2">午前枠の空き</h2>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>枠</th>
+                      <th>空き</th>
+                      <th>状況</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>10:00–11:00</td>
+                      <td>1 / 2</td>
+                      <td>予約可</td>
+                    </tr>
+                    <tr>
+                      <td>11:00–12:00</td>
+                      <td>0 / 2</td>
+                      <td>満枠</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h2 class="h2">チーム・連絡先</h2>
+              <div class="field"><label>チーム名</label><input readonly value="和歌山FC U-10" /></div>
+              <div class="field"><label>チームカテゴリ</label><input readonly value="ハイレベル（strong）" /></div>
+              <div class="field"><label>代表学年</label><select><option>小学3年</option></select></div>
+              <div class="field"><label>代表者名 / メール / 電話（数字のみ）</label><input readonly value="…" /></div>
+              <div class="field"><label>参加人数 / 昼食数</label><input readonly value="18 / 16" /></div>
+              <button type="button" class="btn btn-primary">予約を送信</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-complete">
+          <div class="route-bar">
+            <code>/reserve/complete</code>
+            <span>予約完了（`reserve/complete/page.tsx`）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav"><a href="#">…</a></nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">予約完了</h1>
+              <p class="lead">確認コードは sessionStorage のみ（URL に載せない）。コピー・確認ページへ。</p>
+              <div class="callout-mint">
+                <strong>確認コード（例）</strong><br />
+                <code style="word-break: break-all; font-size: 0.65rem">a1b2…64 hex…</code>
+              </div>
+              <div class="stack">
+                <button type="button" class="btn btn-secondary">確認コードをコピー</button>
+                <button type="button" class="btn btn-primary">予約の確認・キャンセルページへ</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-manage">
+          <div class="route-bar">
+            <code>/reserve/manage</code>
+            <span>確認コード照会（`reserve/manage/page.tsx`）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav"><a href="#">…</a></nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">予約の確認・キャンセル</h1>
+              <p class="lead">64 文字の確認コードを貼り付け。締切前・open のみ変更・取消可。</p>
+              <div class="field">
+                <label>予約確認コード</label>
+                <textarea rows="3" class="field" placeholder="64 文字の英数字"></textarea>
+              </div>
+              <button type="button" class="btn btn-primary">確認</button>
+              <div class="callout-mint" style="margin-top: 1rem">
+                トラブル時は運営へ。公開画面からの再送は無し（実装メッセージに準拠）。
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-camp">
+          <div class="route-bar">
+            <code>/reserve/camp</code>
+            <span>合宿のご案内（`reserve/camp/page.tsx`）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav"><a href="#">…</a></nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">合宿・宿泊のご案内</h1>
+              <p class="lead">日帰り予約とは別経路。相談フォームへの導線。</p>
+              <button type="button" class="btn btn-primary">相談フォームへ</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-camp-inq">
+          <div class="route-bar">
+            <code>/reserve/camp/inquiry</code>
+            <span>合宿相談（`camp/inquiry`）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav"><a href="#">…</a></nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">合宿のご相談</h1>
+              <p class="lead">送信で Resend 通知＋DB（実装の項目に合わせたダミー）。</p>
+              <div class="field"><label>チーム名</label><input /></div>
+              <div class="field"><label>担当者名・メール・電話</label><input /></div>
+              <div class="field"><label>希望・問い合わせ内容</label><textarea rows="4"></textarea></div>
+              <button type="button" class="btn btn-primary">送信</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reserve-contact">
+          <div class="route-bar">
+            <code>/reserve/contact</code>
+            <span>お問い合わせ（メール未接続の注意あり）</span>
+          </div>
+          <div class="device-frame pub-shell">
+            <div class="pub-top">
+              <span class="pub-brand">交流試合 予約</span>
+              <nav class="pub-nav"><a href="#">…</a></nav>
+            </div>
+            <div class="pub-main">
+              <h1 class="h1">お問い合わせ</h1>
+              <div class="callout-amber">実装ではメール自動送信は未接続。配布資料の連絡先を案内。</div>
+              <div class="field"><label>お名前</label><input /></div>
+              <div class="field"><label>メール</label><input type="email" /></div>
+              <div class="field"><label>内容</label><textarea rows="4"></textarea></div>
+              <button type="button" class="btn btn-primary">送信（イメージ）</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 認証 ========== -->
+        <section class="mock-wrap" id="screen-admin-login">
+          <div class="route-bar">
+            <code>/admin/login</code>
+            <span>管理者ログイン（`admin/(public)/login`）</span>
+          </div>
+          <div class="device-frame">
+            <div class="pub-main" style="max-width: 22rem">
+              <h1 class="h1">管理者ログイン</h1>
+              <div class="field"><label>メール</label><input type="email" /></div>
+              <div class="field"><label>パスワード</label><input type="password" /></div>
+              <button type="button" class="btn btn-primary">ログイン</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-auth-update">
+          <div class="route-bar">
+            <code>/auth/update-password</code>
+            <span>パスワード更新（Supabase リカバリー後）</span>
+          </div>
+          <div class="device-frame">
+            <div class="pub-main" style="max-width: 22rem">
+              <h1 class="h1">新しいパスワードを設定</h1>
+              <div class="field"><label>新パスワード</label><input type="password" /></div>
+              <div class="field"><label>新パスワード（確認）</label><input type="password" /></div>
+              <button type="button" class="btn btn-primary">更新</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-reset">
+          <div class="route-bar">
+            <code>/reset-password</code> · <code>/resetpassword</code>
+            <span>いずれも `/auth/update-password` へ replace（実装同様）</span>
+          </div>
+          <div class="device-frame">
+            <div class="pub-main" style="text-align: center; padding: 2rem 1rem">
+              <p class="lead">パスワード再設定ページへ移動しています…</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ========== 管理 ========== -->
+        <section class="mock-wrap" id="screen-adm-dash">
+          <div class="route-bar">
+            <code>/admin/dashboard</code>
+            <span>ダッシュボード（直近開催サマリ）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav">
+                <a href="#">ダッシュボード</a>
+                <a href="#">開催日</a>
+                <a href="#">予約一覧</a>
+                <a href="#">前日確定</a>
+                <a href="#">メール失敗</a>
+                <a href="#">合宿相談</a>
+              </nav>
+              <span class="adm-user">admin@example.com · ログアウト</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">ダッシュボード</h1>
+              <p class="lead">次の開催日の人数・昼食・状態・通知 failed への導線（`DashboardUpcomingChain` イメージ）。</p>
+              <div class="dashed">カード: 2026/5/10（土）3・4年 — locked — 昼食合計 … — <a href="#">メール失敗</a></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-days">
+          <div class="route-bar">
+            <code>/admin/event-days</code>
+            <span>開催日一覧・作成・公開操作</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav">
+                <a href="#">ダッシュボード</a>
+                <a href="#">開催日</a>
+                <a href="#">…</a>
+              </nav>
+              <span class="adm-user">admin@…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">開催日管理</h1>
+              <div class="dashed" style="margin-bottom: 0.75rem">コンパクトカレンダー（全開催日の点表示）</div>
+              <h2 class="h2">新規開催日</h2>
+              <div class="field"><label>開催日</label><input type="date" /></div>
+              <div class="field"><label>学年帯</label><select><option>3-4</option></select></div>
+              <button type="button" class="btn btn-primary" style="max-width: 12rem">作成</button>
+              <h2 class="h2">一覧（アンカー日付周辺）</h2>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>日付</th>
+                      <th>帯</th>
+                      <th>状態</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>2026-05-10</td>
+                      <td>3-4</td>
+                      <td><span class="pill">open</span></td>
+                      <td>公開 / 枠・時刻 / 雨天…</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-day-slots">
+          <div class="route-bar">
+            <code>/admin/event-days/[id]/slots</code>
+            <span>枠・時刻編集（`slots-editor-client`）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">開催日</a><a href="#">…</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">枠・時刻 · 2026/5/10</h1>
+              <p class="pill">open · 午前3・午後3</p>
+              <h2 class="h2">午前枠</h2>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>コード</th>
+                      <th>時刻</th>
+                      <th>capacity</th>
+                      <th>有効</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>M1</td>
+                      <td>09:00–10:00</td>
+                      <td>2</td>
+                      <td>✓</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-secondary" style="max-width: 14rem; margin-top: 0.5rem">午前1枠追加（ポリシー準拠時）</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-force">
+          <div class="route-bar">
+            <code>/admin/event-days/[id]/slots/force</code>
+            <span>予約あり枠の強制変更（確認 UI）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">開催日</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">枠の強制変更</h1>
+              <div class="callout-red">予約への影響あり。実装では <code>acknowledgeReservationRisk: true</code> 等。</div>
+              <label class="field"><input type="checkbox" /> リスクを理解しました</label>
+              <button type="button" class="btn btn-primary" style="max-width: 14rem">実行</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-weather">
+          <div class="route-bar">
+            <code>/admin/event-days/[id]/weather</code>
+            <span>雨天判断・即時／前日17時（`weather-decision-form`）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">開催日</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">雨天・天候の判断</h1>
+              <div class="tabs">
+                <button type="button" class="on">即時メール</button>
+                <button type="button">前日17時に送る</button>
+                <button type="button">判断を保存</button>
+              </div>
+              <div class="field"><label>運営メモ / 文面</label><textarea rows="3"></textarea></div>
+              <button type="button" class="btn btn-primary" style="max-width: 12rem">送信・保存</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-op-cancel">
+          <div class="route-bar">
+            <code>/admin/event-days/[id]/operational-cancel</code>
+            <span>運営中止（`operational-cancel-form`）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">開催日</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">運営都合による中止</h1>
+              <div class="field"><label>参加者向けお知らせ文</label><textarea rows="4"></textarea></div>
+              <button type="button" class="btn btn-primary" style="max-width: 14rem">中止を実行・通知</button>
+              <p class="lead" style="margin-top: 0.75rem">復帰操作がある場合は別 UI（実装参照）。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-notif-sum">
+          <div class="route-bar">
+            <code>/admin/event-days/[id]/notifications</code>
+            <span>通知サマリ（テンプレ別件数・失敗導線）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">開催日</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">通知 · 2026/5/10</h1>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>template_key</th>
+                      <th>sent</th>
+                      <th>failed</th>
+                      <th>pending</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>matching_proposal</td>
+                      <td>5</td>
+                      <td>0</td>
+                      <td>0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <button type="button" class="btn btn-secondary" style="max-width: 16rem; margin-top: 0.5rem">メール送信失敗一覧へ</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-slot-ph">
+          <div class="route-bar">
+            <code>/admin/event-day-slots</code>
+            <span>SCR-14 プレースホルダ（本流は開催日の「枠・時刻」）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">開催日</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <p class="pill-warn" style="display: inline-block; margin-bottom: 0.5rem">Phase 拡張予定</p>
+              <h1 class="h1">開催日枠の管理</h1>
+              <div class="dashed">日付・開催日 ID 選択（ダミー）</div>
+              <div class="dashed" style="margin-top: 0.75rem">枠一覧テーブル（午前/午後）— ダミー行</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-resv">
+          <div class="route-bar">
+            <code>/admin/reservations</code>
+            <span>開催日別予約一覧・絞り込み</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">予約一覧</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">予約一覧</h1>
+              <div class="row2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 0.5rem">
+                <div class="field"><label>開催日</label><input type="date" /></div>
+                <div class="field"><label>チーム名検索</label><input /></div>
+              </div>
+              <div class="field"><label>メール検索</label><input type="email" /></div>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>チーム</th>
+                      <th>状態</th>
+                      <th>詳細</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>和歌山FC</td>
+                      <td>有効</td>
+                      <td><a href="#">開く</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-resv-id">
+          <div class="route-bar">
+            <code>/admin/reservations/[id]</code>
+            <span>予約詳細・編集（変更可能項目の制限あり）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">予約一覧</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">予約詳細</h1>
+              <p class="lead">チーム名・メール・午前枠は運営依頼（実装メッセージ）。人数・昼食・代表者名・電話は更新可イメージ。</p>
+              <div class="field"><label>参加人数</label><input value="18" /></div>
+              <div class="field"><label>昼食数</label><input value="16" /></div>
+              <button type="button" class="btn btn-primary" style="max-width: 10rem">保存</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-preday">
+          <div class="route-bar">
+            <code>/admin/pre-day-results</code>
+            <span>前日確定・対戦表・warning・補正タブ</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">前日確定</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">前日確定</h1>
+              <div class="tabs">
+                <button type="button" class="on">対戦・スケジュール</button>
+                <button type="button">warning</button>
+                <button type="button">補正</button>
+              </div>
+              <div class="dashed">開催日セレクト · 午前fixed / 午後編成の表（ダミー）</div>
+              <div class="callout-mint" style="margin-top: 0.75rem">
+                <code>?notifications=failed</code> 等の導線は実装に合わせて配置。
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-preadj">
+          <div class="route-bar">
+            <code>/admin/pre-day-adjust</code>
+            <span>→ <code>/admin/pre-day-results?tab=adjust</code> へ redirect のみ</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-main">
+              <div class="callout-amber">
+                本ルートはモックでは「前日確定」画面の <strong>補正タブ</strong>に統合済みである旨のみ表示。
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-fail">
+          <div class="route-bar">
+            <code>/admin/notifications/failed</code>
+            <span>失敗一覧・再送（<code>reservation_created</code> は不可）</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">メール失敗</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">メール送信失敗</h1>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>template</th>
+                      <th>予約</th>
+                      <th>エラー</th>
+                      <th>操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>day_before_final</td>
+                      <td>…</td>
+                      <td>Bounce…</td>
+                      <td><button type="button" class="btn btn-secondary" style="min-height: 2rem; font-size: 0.65rem; padding: 0.2rem 0.5rem">再送</button></td>
+                    </tr>
+                    <tr>
+                      <td>reservation_created</td>
+                      <td>…</td>
+                      <td>…</td>
+                      <td><span class="pill-warn">再送不可</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-camp">
+          <div class="route-bar">
+            <code>/admin/camp-inquiries</code>
+            <span>合宿相談一覧</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">合宿相談</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">合宿のご相談</h1>
+              <div class="table-wrap">
+                <table class="mock-table">
+                  <thead>
+                    <tr>
+                      <th>日時</th>
+                      <th>チーム</th>
+                      <th>状態</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>2026-04-01</td>
+                      <td>○○FC</td>
+                      <td>新規</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="mock-wrap" id="screen-adm-camp-id">
+          <div class="route-bar">
+            <code>/admin/camp-inquiries/[id]</code>
+            <span>相談詳細・ステータス管理</span>
+          </div>
+          <div class="device-frame adm-shell">
+            <div class="adm-top">
+              <nav class="adm-nav"><a href="#">合宿相談</a></nav>
+              <span class="adm-user">…</span>
+            </div>
+            <div class="adm-main">
+              <h1 class="h1">相談詳細</h1>
+              <p class="lead">本文・連絡先・対応メモ・ステータス更新（クライアント実装イメージ）。</p>
+              <div class="tabs">
+                <button type="button" class="on">内容</button>
+                <button type="button">対応履歴</button>
+              </div>
+              <div class="dashed">フォーム: 対応中 / 完了 等</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

@@ -8,6 +8,11 @@ import { randomBytes } from "crypto";
 import { NextResponse } from "next/server";
 
 import { sendReservationCreatedEmailAndUpdateNotification } from "@/lib/email/reservation-created-mail";
+import {
+  lunchItemsToRpcJson,
+  parseLunchItemsInput,
+  type ParsedLunchItem,
+} from "@/lib/lunch/parse-lunch-items-body";
 import { rateLimitReservationCreate } from "@/lib/rate-limit/reservation-public";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -39,7 +44,7 @@ function parseBody(raw: unknown): {
   selectedMorningSlotId: string;
   team: TeamInput;
   participantCount: number;
-  mealCount: number;
+  lunchItems: ParsedLunchItem[] | null;
 } | null {
   if (raw === null || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -57,10 +62,7 @@ function parseBody(raw: unknown): {
     typeof o.participantCount === "number" && Number.isFinite(o.participantCount)
       ? o.participantCount
       : NaN;
-  const mealCount =
-    typeof o.mealCount === "number" && Number.isFinite(o.mealCount)
-      ? o.mealCount
-      : NaN;
+  const lunchItems = parseLunchItemsInput(o.lunchItems);
 
   return {
     eventDayId,
@@ -84,7 +86,7 @@ function parseBody(raw: unknown): {
         typeof team.contactPhone === "string" ? team.contactPhone : undefined,
     },
     participantCount,
-    mealCount,
+    lunchItems,
   };
 }
 
@@ -140,7 +142,7 @@ export async function POST(request: Request) {
     selectedMorningSlotId,
     team,
     participantCount,
-    mealCount,
+    lunchItems,
   } = parsed;
 
   if (!eventDayId || !selectedMorningSlotId) {
@@ -195,9 +197,12 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!Number.isInteger(mealCount) || mealCount < 0) {
+  if (lunchItems === null) {
     return NextResponse.json(
-      { error: "mealCount は 0 以上の整数にしてください" },
+      {
+        error:
+          "lunchItems は [{ menuItemId, quantity }] の配列で送ってください（昼食なしは空配列）",
+      },
       { status: 400 }
     );
   }
@@ -228,7 +233,7 @@ export async function POST(request: Request) {
       p_contact_email: team.contactEmail!.trim(),
       p_contact_phone: phoneDigits,
       p_participant_count: participantCount,
-      p_meal_count: mealCount,
+      p_lunch_items: lunchItemsToRpcJson(lunchItems),
       p_remarks: "",
       p_token_hash: tokenHash,
       p_representative_grade_year: gradeYear,

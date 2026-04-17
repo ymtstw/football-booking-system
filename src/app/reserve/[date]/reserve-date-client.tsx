@@ -5,6 +5,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { FieldLabel } from "../_components/field-label";
+import { LunchPaymentNote } from "../_components/lunch-payment-note";
+import { MorningSlotsSelect } from "../_components/morning-slots-select";
+import {
+  IconArrowLeft,
+  IconArrowRight,
+  IconCalendar,
+  IconClipboard,
+  IconLock,
+} from "../_components/reserve-icons";
+import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-icon";
+import { ReserveStepper } from "../_components/reserve-stepper";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import {
   formatDateTimeTokyoWithWeekday,
@@ -19,10 +31,9 @@ import {
   gradeYearLabelJa,
   representativeGradeYearChoicesForBand,
 } from "@/lib/reservations/grade-year";
-import {
-  RESERVE_STRENGTH_OPTIONS,
-  strengthCategoryLabelJa,
-} from "@/lib/reservations/strength-labels";
+import { RESERVE_STRENGTH_OPTIONS } from "@/lib/reservations/strength-labels";
+import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
+import type { LunchMenuItemPublic } from "@/lib/lunch/types";
 
 const SESSION_COMPLETE_KEY = "football_reservation_complete_v1";
 
@@ -45,6 +56,8 @@ type MorningSlot = {
     reservationId: string;
     teamName: string;
     strengthCategory: string;
+    /** 1〜6。旧データで欠ける場合は未表示 */
+    representativeGradeYear?: number | null;
   }>;
 };
 
@@ -60,10 +73,29 @@ type AvailabilityJson = {
   error?: string;
 };
 
-function formatHm(t: string): string {
-  if (!t) return "";
-  return t.length >= 5 ? t.slice(0, 5) : t;
+function pickInitialMorningSlot(
+  json: AvailabilityJson,
+  morningId: string | undefined
+): string {
+  const id = morningId?.trim();
+  if (!id || !json.acceptingReservations || !json.morningSlots?.length) return "";
+  const s = json.morningSlots.find((x) => x.id === id);
+  return s?.bookable ? id : "";
 }
+
+function gradeBandLabelJa(band: string): string {
+  const g = band.trim();
+  if (g === "1-2") return "1〜2年生";
+  if (g === "3-4") return "3〜4年生";
+  if (g === "5-6") return "5〜6年生";
+  return g;
+}
+
+const PM_DISPLAY_SLOTS = [
+  { start: "13:30", end: "14:30" },
+  { start: "14:30", end: "15:30" },
+  { start: "15:30", end: "16:30" },
+] as const;
 
 type AvailabilityLoadIssue =
   | null
@@ -72,7 +104,14 @@ type AvailabilityLoadIssue =
   /** 5xx や想定外の 4xx、通信失敗 */
   | { kind: "error"; message: string };
 
-export function ReserveDateClient({ eventDate }: { eventDate: string }) {
+export function ReserveDateClient({
+  eventDate,
+  initialMorningSlotId,
+}: {
+  eventDate: string;
+  /** 開催日選択画面から引き継いだ午前枠（任意） */
+  initialMorningSlotId?: string;
+}) {
   const router = useRouter();
   const [data, setData] = useState<AvailabilityJson | null>(null);
   const [loadIssue, setLoadIssue] = useState<AvailabilityLoadIssue>(null);
@@ -84,7 +123,9 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [participantCount, setParticipantCount] = useState("18");
-  const [mealCount, setMealCount] = useState("16");
+  const [lunchMenus, setLunchMenus] = useState<LunchMenuItemPublic[] | null>(null);
+  const [lunchMenuLoadError, setLunchMenuLoadError] = useState<string | null>(null);
+  const [qtyByMenuId, setQtyByMenuId] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -116,7 +157,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         }
         setData(json);
         setLoadIssue(null);
-        setSelectedSlotId("");
+        setSelectedSlotId(pickInitialMorningSlot(json, initialMorningSlotId));
         {
           const first = representativeGradeYearChoicesForBand(json.gradeBand)[0];
           setRepresentativeGradeYear(first != null ? String(first) : "");
@@ -126,6 +167,46 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
         if (cancelled) return;
         setData(null);
         setLoadIssue({ kind: "error", message: "通信に失敗しました" });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventDate, initialMorningSlotId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/lunch-menu")
+      .then(async (res) => {
+        const j = (await res.json().catch(() => ({}))) as {
+          items?: LunchMenuItemPublic[];
+          error?: string;
+        };
+        return { res, j };
+      })
+      .then(({ res, j }) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setLunchMenus([]);
+          setLunchMenuLoadError(
+            typeof j.error === "string" && j.error.trim()
+              ? j.error
+              : "昼食メニューを取得できませんでした"
+          );
+          return;
+        }
+        setLunchMenuLoadError(null);
+        const items = Array.isArray(j.items) ? j.items : [];
+        setLunchMenus(items);
+        if (items.length === 1) {
+          setQtyByMenuId({ [items[0].id]: "16" });
+        } else {
+          setQtyByMenuId(Object.fromEntries(items.map((m) => [m.id, "0"])));
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLunchMenus([]);
+        setLunchMenuLoadError("昼食メニューの取得に失敗しました");
       });
     return () => {
       cancelled = true;
@@ -149,14 +230,23 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
       return;
     }
     const pc = parseInt(participantCount, 10);
-    const mc = parseInt(mealCount, 10);
     if (!Number.isInteger(pc) || pc < 1) {
       setSubmitError("参加人数は 1 以上の整数にしてください");
       return;
     }
-    if (!Number.isInteger(mc) || mc < 0) {
-      setSubmitError("昼食数は 0 以上の整数にしてください");
+    if (!lunchMenus || lunchMenus.length === 0) {
+      setSubmitError("昼食メニューを読み込めていません。しばらくしてから再度お試しください");
       return;
+    }
+    const lunchItems: { menuItemId: string; quantity: number }[] = [];
+    for (const m of lunchMenus) {
+      const raw = qtyByMenuId[m.id] ?? "0";
+      const q = parseInt(raw, 10);
+      if (!Number.isInteger(q) || q < 0 || q > 500) {
+        setSubmitError("昼食の数量は 0〜500 の整数にしてください");
+        return;
+      }
+      lunchItems.push({ menuItemId: m.id, quantity: q });
     }
     if (
       !teamName.trim() ||
@@ -203,7 +293,7 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
           contactPhone: phoneDigits,
         },
         participantCount: pc,
-        mealCount: mc,
+        lunchItems,
       }),
     });
     const json = (await res.json().catch(() => ({}))) as {
@@ -242,29 +332,40 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <div>
-        <Link
-          href="/reserve"
-          className="inline-flex min-h-9 items-center text-sm text-zinc-600 hover:text-zinc-900"
+      <ReserveStepper current={3} />
+
+      <div className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+        <ReserveHeadingWithIcon
+          as="h1"
+          shell="navy"
+          icon={<IconCalendar className="h-6 w-6 sm:h-6 sm:w-6" strokeWidth={1.65} />}
+          textClassName="text-xl font-bold text-rp-navy sm:text-2xl"
         >
-          ← 開催日一覧
-        </Link>
-        <h1 className="mt-2 text-lg font-semibold text-zinc-900 sm:text-xl">
           {formatIsoDateWithWeekdayJa(eventDate)} の予約
-        </h1>
+        </ReserveHeadingWithIcon>
         {data && (
-          <p className="mt-1 break-words text-sm text-zinc-600">
-            学年帯: {data.gradeBand} ／ 締切:{" "}
-            {formatDateTimeTokyoWithWeekday(data.reservationDeadlineAt)}
-          </p>
+          <div className="mt-5 grid gap-4 rounded-xl border border-rp-mint-2 bg-rp-mint/50 p-4 sm:grid-cols-3 sm:p-5">
+            <div>
+              <p className="text-xs font-medium text-zinc-500">ご希望日</p>
+              <p className="mt-1 text-sm font-semibold text-zinc-900">
+                {formatIsoDateWithWeekdayJa(eventDate)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500">対象学年帯</p>
+              <p className="mt-1 text-sm font-semibold text-zinc-900">
+                {gradeBandLabelJa(data.gradeBand)}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-zinc-500">予約締切</p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-900">
+                {formatDateTimeTokyoWithWeekday(data.reservationDeadlineAt)}
+              </p>
+            </div>
+          </div>
         )}
       </div>
-
-      {data?.acceptingReservations && (
-        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-relaxed text-amber-950">
-          午前の対戦はこの予約で確定します。午後の試合は前日の自動編成で決まります。
-        </p>
-      )}
 
       {loadIssue?.kind === "no_open_day" && (
         <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-3 text-sm leading-relaxed text-sky-950">
@@ -280,10 +381,10 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
           </p>
           <p className="mt-3">
             <Link
-              href="/reserve"
+              href="/reserve/calendar"
               className="inline-flex min-h-10 items-center justify-center rounded-lg bg-sky-900 px-4 py-2 text-sm font-medium text-white hover:bg-sky-950"
             >
-              予約カレンダーへ戻る
+              開催日選択へ戻る
             </Link>
           </p>
         </div>
@@ -301,258 +402,314 @@ export function ReserveDateClient({ eventDate }: { eventDate: string }) {
 
       {data && (
         <>
-          <section className="min-w-0">
-            <h2 className="text-base font-semibold text-zinc-900">
-              午前の枠を選択してください
-            </h2>
-            <ul className="mt-2 space-y-1 text-sm text-zinc-700">
-              <li>
-                <span className="font-medium text-zinc-900">ハイレベル</span>
-                ：経験が多く試合に慣れているチーム
-              </li>
-              <li>
-                <span className="font-medium text-zinc-900">ポテンシャル</span>
-                ：これから成長していくチーム
-              </li>
-            </ul>
-            {!data.acceptingReservations && (
-              <p className="mt-3 text-sm text-red-700">
-                {data.eventDayStatus === "cancelled_weather"
-                  ? "雨天のため開催中止です。新規の予約はできません。"
-                  : data.eventDayStatus === "cancelled_operational"
-                    ? "運営の都合により開催中止です。新規の予約はできません。"
-                    : data.eventDayStatus === "cancelled_minimum"
-                    ? "最少催行に満たないため開催中止です。新規の予約はできません。"
-                    : data.eventDayStatus === "confirmed"
-                      ? "編成が確定済みのため、新規の予約はできません。"
-                      : data.eventDayStatus === "locked"
-                        ? "締切後のため、新規の予約はできません。"
-                        : "予約締切を過ぎているため、新規の予約はできません。"}
+          <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
+            <MorningSlotsSelect
+              morningSlots={data.morningSlots}
+              acceptingReservations={data.acceptingReservations}
+              eventDayStatus={data.eventDayStatus}
+              selectedSlotId={selectedSlotId}
+              onSelectSlot={setSelectedSlotId}
+              subheading="チームにつき 1 枠をお選びください。予約済みチームの学年・カテゴリを参考にできます。"
+              variant="full"
+            />
+
+            <section className="min-w-0 rounded-2xl border border-zinc-200 bg-zinc-50/90 p-4 sm:p-5">
+              <h2 className="flex items-center gap-2.5 text-base font-bold text-zinc-700">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-200/80 text-zinc-600 ring-1 ring-zinc-300/80">
+                  <IconLock className="h-5 w-5" />
+                </span>
+                午後の対戦枠（選択不可・調整中）
+              </h2>
+              <p className="mt-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+                開催日の2日前15:00締切後、16:30に登録メールアドレス宛へお送りします。午前1試合・午後1試合を原則としています。
               </p>
-            )}
-            <ul className="mt-4 space-y-3">
-              {data.morningSlots.map((s) => {
-                const disabled = !s.bookable || !data.acceptingReservations;
-                const teams = s.bookedTeams ?? [];
-                const remain = Math.max(0, s.capacity - s.activeCount);
-                const slotHeadline = s.full
-                  ? `${formatHm(s.startTime)}–${formatHm(s.endTime)}（満席）`
-                  : `${formatHm(s.startTime)}–${formatHm(s.endTime)}（残り${remain}枠）`;
-                return (
-                  <li key={s.id}>
-                    <label
-                      className={`flex min-h-[3.25rem] cursor-pointer items-start gap-3 rounded-lg border p-3.5 sm:p-3 ${
-                        disabled
-                          ? "border-zinc-200 bg-zinc-100 text-zinc-500"
-                          : selectedSlotId === s.id
-                            ? "border-zinc-900 bg-white"
-                            : "border-zinc-200 bg-white hover:border-zinc-400"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="slot"
-                        value={s.id}
-                        className="mt-0.5 h-[1.125rem] w-[1.125rem] shrink-0 sm:mt-1 sm:h-4 sm:w-4"
-                        checked={selectedSlotId === s.id}
-                        disabled={disabled}
-                        onChange={() => setSelectedSlotId(s.id)}
-                      />
-                      <div className="min-w-0 flex-1 space-y-2 text-sm">
-                        <div className="font-medium text-zinc-900">
-                          {slotHeadline}
-                          {s.isLocked && " ・ロック中"}
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-zinc-500">
-                            この枠の予約済みチーム
-                          </p>
-                          {teams.length === 0 ? (
-                            <p className="mt-1 text-zinc-500">なし</p>
-                          ) : (
-                            <ul className="mt-1 space-y-0.5 text-sm text-zinc-800">
-                              {teams.map((t) => (
-                                <li key={t.reservationId}>
-                                  {t.teamName}:
-                                  {strengthCategoryLabelJa(t.strengthCategory)}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    </label>
+              <ul className="mt-4 space-y-2">
+                {PM_DISPLAY_SLOTS.map((slot) => (
+                  <li
+                    key={`${slot.start}-${slot.end}`}
+                    className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white/80 px-3 py-3 text-sm text-zinc-500"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-zinc-400">
+                      <IconLock className="h-5 w-5 opacity-80" />
+                    </span>
+                    <span className="font-medium tabular-nums">
+                      {slot.start}–{slot.end}
+                    </span>
                   </li>
-                );
-              })}
-            </ul>
-          </section>
+                ))}
+              </ul>
+            </section>
+          </div>
 
           <form
             onSubmit={handleSubmit}
-            className={`space-y-4 ${!data.acceptingReservations ? "hidden" : ""}`}
+            className={`space-y-6 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8 ${!data.acceptingReservations ? "hidden" : ""}`}
             aria-hidden={!data.acceptingReservations}
           >
-            <h2 className="text-sm font-semibold text-zinc-800">チーム・連絡先</h2>
-            <div className="space-y-3 rounded-lg border border-zinc-200 bg-white p-3.5 sm:p-4">
-              <label className="block text-sm">
-                <span className="text-zinc-700">チーム名</span>
-                <input
-                  required
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  autoComplete="organization"
-                />
-              </label>
-              <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm leading-relaxed text-sky-950">
-                <p className="font-medium">カテゴリ</p>
-                <ul className="mt-1 space-y-0.5 text-xs leading-snug">
-                  <li>
-                    <span className="font-medium">ハイレベル</span>
-                    ：経験が多く試合に慣れているチーム
-                  </li>
-                  <li>
-                    <span className="font-medium">ポテンシャル</span>
-                    ：これから成長していくチーム
-                  </li>
-                </ul>
+            <ReserveHeadingWithIcon
+              as="h2"
+              shell="navy"
+              icon={<IconClipboard className="h-5 w-5 sm:h-6 sm:w-6" />}
+              textClassName="text-lg font-bold text-rp-navy"
+            >
+              予約情報の入力
+            </ReserveHeadingWithIcon>
+
+            <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
+              <div className="space-y-4 rounded-xl border border-sky-200/70 bg-sky-50/50 p-4 sm:p-5">
+                <label className="block text-sm">
+                  <FieldLabel required>チーム名</FieldLabel>
+                  <input
+                    required
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none ring-rp-brand/20 focus:border-rp-brand focus:ring-2 sm:text-sm"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    autoComplete="organization"
+                    placeholder="例：○○サッカークラブ"
+                  />
+                </label>
+                <div className="rounded-xl border border-rp-mint-2 bg-rp-mint/60 px-3 py-2.5 text-xs leading-relaxed text-zinc-800 sm:text-sm">
+                  <p className="font-semibold text-rp-brand">カテゴリについて</p>
+                  <ul className="mt-1 space-y-1">
+                    <li>
+                      <span className="font-medium">ハイレベル</span>
+                      ：経験が多く試合に慣れているチーム
+                    </li>
+                    <li>
+                      <span className="font-medium">ポテンシャル</span>
+                      ：これから成長していくチーム
+                    </li>
+                  </ul>
+                </div>
+                <label className="block text-sm">
+                  <FieldLabel required>カテゴリを選択</FieldLabel>
+                  <select
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                    value={strengthCategory}
+                    onChange={(e) => setStrengthCategory(e.target.value)}
+                  >
+                    {RESERVE_STRENGTH_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="rounded-xl border border-zinc-200 bg-white/80 px-3 py-2.5 text-xs text-zinc-700">
+                  <p className="font-medium text-zinc-900">代表学年</p>
+                  <p className="mt-1">
+                    複数学年が混ざる場合は、
+                    <span className="font-semibold">人数が多い方の学年</span>
+                    を選んでください。
+                  </p>
+                </div>
+                <label className="block text-sm">
+                  <FieldLabel required>代表学年を選択</FieldLabel>
+                  <select
+                    required
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                    value={representativeGradeYear}
+                    onChange={(e) => setRepresentativeGradeYear(e.target.value)}
+                  >
+                    {gradeYearChoices.map((y) => (
+                      <option key={y} value={String(y)}>
+                        {gradeYearLabelJa(y)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  <FieldLabel required>チーム代表者名</FieldLabel>
+                  <input
+                    required
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    autoComplete="name"
+                    placeholder="例：山田 太郎（監督）"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <FieldLabel required>メール</FieldLabel>
+                  <input
+                    required
+                    type="email"
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    autoComplete="email"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <FieldLabel required>電話（数字のみ）</FieldLabel>
+                  <input
+                    required
+                    type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={15}
+                    placeholder="09012345678"
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                    value={contactPhone}
+                    onChange={(e) =>
+                      setContactPhone(normalizeContactPhoneDigits(e.target.value))
+                    }
+                    autoComplete="tel"
+                  />
+                  <span className="mt-1 block text-xs text-zinc-500">
+                    10〜15 桁・ハイフン不要（保存時は半角に統一）
+                  </span>
+                </label>
               </div>
-              <label className="block text-sm">
-                <span className="text-zinc-700">カテゴリを選択</span>
-                <select
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:text-sm"
-                  value={strengthCategory}
-                  onChange={(e) => setStrengthCategory(e.target.value)}
-                >
-                  {RESERVE_STRENGTH_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-xs leading-relaxed text-zinc-800">
-                <p className="font-medium text-zinc-900">代表学年</p>
-                <p className="mt-1">
-                  参加する児童の学年を1つ選びます。複数学年が混ざる場合は、
-                  <span className="font-medium">人数が多い方の学年</span>
-                  に合わせて登録してください。
-                </p>
+
+              <div className="space-y-4 rounded-xl border border-rp-orange-border bg-rp-orange/60 p-4 sm:p-5">
+                <label className="block text-sm">
+                  <FieldLabel required>参加人数</FieldLabel>
+                  <input
+                    required
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={4}
+                    placeholder="18"
+                    className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                    value={participantCount}
+                    onChange={(e) =>
+                      setParticipantCount(inputAsciiDigitsOnly(e.target.value))
+                    }
+                  />
+                </label>
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold text-zinc-900">
+                    <FieldLabel required>昼食のご注文</FieldLabel>
+                  </p>
+                  {lunchMenuLoadError ? (
+                    <p className="text-sm text-red-700">{lunchMenuLoadError}</p>
+                  ) : lunchMenus === null ? (
+                    <p className="text-sm text-zinc-500">昼食メニューを読み込み中…</p>
+                  ) : lunchMenus.length === 0 ? (
+                    <p className="text-sm text-amber-900">
+                      現在、昼食メニューを表示できません。時間をおいて再度お試しください。
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
+                      <table className="w-full min-w-[280px] border-collapse text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 bg-zinc-50 text-xs font-semibold text-zinc-600">
+                            <th className="px-3 py-2">メニュー</th>
+                            <th className="px-3 py-2 whitespace-nowrap">税込単価</th>
+                            <th className="px-3 py-2 text-right whitespace-nowrap">数量</th>
+                            <th className="px-3 py-2 text-right whitespace-nowrap">小計</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {lunchMenus.map((m) => {
+                            const raw = qtyByMenuId[m.id] ?? "0";
+                            const q = parseInt(raw, 10);
+                            const safeQ =
+                              Number.isInteger(q) && q >= 0 && q <= 500 ? q : NaN;
+                            const sub =
+                              Number.isFinite(safeQ) && safeQ >= 0
+                                ? safeQ * m.priceTaxIncluded
+                                : NaN;
+                            return (
+                              <tr key={m.id} className="border-b border-zinc-100 last:border-0">
+                                <td className="px-3 py-2 align-top">
+                                  <div className="font-medium text-zinc-900">{m.name}</div>
+                                  {m.description ? (
+                                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                                      {m.description}
+                                    </p>
+                                  ) : null}
+                                </td>
+                                <td className="px-3 py-2 align-top tabular-nums text-zinc-800">
+                                  {formatTaxIncludedYen(m.priceTaxIncluded)}
+                                </td>
+                                <td className="px-3 py-2 align-top text-right">
+                                  <input
+                                    required
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    maxLength={3}
+                                    className="ml-auto block w-16 min-h-9 rounded-lg border border-zinc-200 px-2 py-1.5 text-center text-base tabular-nums outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+                                    value={raw}
+                                    onChange={(e) => {
+                                      const v = inputAsciiDigitsOnly(e.target.value);
+                                      setQtyByMenuId((prev) => ({ ...prev, [m.id]: v }));
+                                    }}
+                                    aria-label={`${m.name} の数量`}
+                                  />
+                                </td>
+                                <td className="px-3 py-2 align-top text-right font-semibold tabular-nums text-zinc-900">
+                                  {Number.isFinite(sub)
+                                    ? formatTaxIncludedYen(sub)
+                                    : "—"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr className="bg-rp-mint/40">
+                            <td colSpan={3} className="px-3 py-2 text-right text-sm font-bold text-rp-navy">
+                              昼食合計（税込）
+                            </td>
+                            <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-rp-brand">
+                              {formatTaxIncludedYen(
+                                lunchMenus.reduce((sum, m) => {
+                                  const raw = qtyByMenuId[m.id] ?? "0";
+                                  const q = parseInt(raw, 10);
+                                  if (!Number.isInteger(q) || q < 0) return sum;
+                                  return sum + q * m.priceTaxIncluded;
+                                }, 0)
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )}
+                  <LunchPaymentNote />
+                </div>
+                <div className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-3 text-xs leading-relaxed text-amber-950 sm:text-sm">
+                  <p className="font-semibold text-amber-900">昼食について</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-4">
+                    <li>会場外への飲食の持ち出しはできません。</li>
+                    <li>昼食未申込の場合は会場カフェの利用などに切り替えられることがあります。</li>
+                  </ul>
+                </div>
               </div>
-              <label className="block text-sm">
-                <span className="text-zinc-700">代表学年を選択</span>
-                <select
-                  required
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:text-sm"
-                  value={representativeGradeYear}
-                  onChange={(e) => setRepresentativeGradeYear(e.target.value)}
-                >
-                  {gradeYearChoices.map((y) => (
-                    <option key={y} value={String(y)}>
-                      {gradeYearLabelJa(y)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-700">チーム代表者名</span>
-                <input
-                  required
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  autoComplete="name"
-                />
-                <span className="mt-1 block text-xs text-zinc-500">
-                  姓・ニックネーム・略称など、運営から呼びかけやすい名前で構いません。
-                </span>
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-700">メール</span>
-                <input
-                  required
-                  type="email"
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  autoComplete="email"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-700">電話（数字のみ）</span>
-                <input
-                  required
-                  type="tel"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={15}
-                  placeholder="09012345678"
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
-                  value={contactPhone}
-                  onChange={(e) =>
-                    setContactPhone(normalizeContactPhoneDigits(e.target.value))
-                  }
-                  autoComplete="tel"
-                />
-                <span className="mt-1 block text-xs text-zinc-500">
-                  半角・全角の数字どちらでも入力できます（保存時は半角に統一）。ハイフンは不要です（10〜15桁）。
-                </span>
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-700">参加人数（帯同含む・数字のみ）</span>
-                <input
-                  required
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  placeholder="18"
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
-                  value={participantCount}
-                  onChange={(e) =>
-                    setParticipantCount(inputAsciiDigitsOnly(e.target.value))
-                  }
-                />
-                <span className="mt-1 block text-xs text-zinc-500">
-                  半角・全角の数字で入力できます（保存時は半角）。1 以上の整数。
-                </span>
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-700">昼食数（数字のみ）</span>
-                <input
-                  required
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={4}
-                  placeholder="16"
-                  className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
-                  value={mealCount}
-                  onChange={(e) =>
-                    setMealCount(inputAsciiDigitsOnly(e.target.value))
-                  }
-                />
-                <span className="mt-1 block text-xs text-zinc-500">
-                  半角・全角の数字で入力できます（保存時は半角）。0 以上の整数。
-                </span>
-              </label>
             </div>
 
-            {submitError && (
-              <p className="text-sm text-red-700">{submitError}</p>
-            )}
+            {submitError ? (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {submitError}
+              </p>
+            ) : null}
 
-            <button
-              type="submit"
-              disabled={
-                submitting ||
-                !data.acceptingReservations ||
-                data.morningSlots.every((s) => !s.bookable)
-              }
-              className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-3 text-base font-medium text-white disabled:cursor-wait disabled:bg-zinc-400 sm:text-sm"
-            >
-              {submitting ? <InlineSpinner variant="onDark" /> : null}
-              {submitting ? "送信中…" : "予約を確定する"}
-            </button>
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-end sm:gap-4">
+              <Link
+                href="/reserve/calendar"
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-rp-brand bg-white px-6 text-base font-semibold text-rp-brand hover:bg-rp-mint/50 sm:order-1 sm:w-auto"
+              >
+                <IconArrowLeft className="h-5 w-5 shrink-0" />
+                開催日選択へ戻る
+              </Link>
+              <button
+                type="submit"
+                disabled={
+                  submitting ||
+                  !data.acceptingReservations ||
+                  data.morningSlots.every((s) => !s.bookable)
+                }
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-8 text-base font-semibold text-white shadow-md transition-colors hover:bg-rp-brand-hover disabled:cursor-wait disabled:bg-zinc-400 sm:order-2 sm:min-w-56 sm:w-auto"
+              >
+                {submitting ? <InlineSpinner variant="onDark" /> : null}
+                {submitting ? "送信中…" : "予約を確認する"}
+                {!submitting ? (
+                  <IconArrowRight className="h-5 w-5 shrink-0" />
+                ) : null}
+              </button>
+            </div>
           </form>
         </>
       )}

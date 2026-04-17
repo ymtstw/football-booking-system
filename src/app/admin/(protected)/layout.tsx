@@ -40,6 +40,12 @@ export default async function AdminProtectedLayout({
               予約一覧
             </Link>
             <Link
+              href="/admin/lunch-menu"
+              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
+            >
+              昼食メニュー
+            </Link>
+            <Link
               href="/admin/pre-day-results"
               className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
             >

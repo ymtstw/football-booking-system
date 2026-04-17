@@ -142,7 +142,7 @@ export default async function AdminCampInquiriesPage({
                 <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">受付日時</th>
                 <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">代表者名</th>
                 <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                  所属チーム名・団体名
+                  所属チーム名
                 </th>
                 <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">希望プラン</th>
                 <th className="min-w-[10rem] px-3 py-2.5 sm:px-4">希望日程</th>

@@ -1,108 +1,154 @@
 "use client";
 
-/** SCR-01 入口: 公開中の開催日を月カレンダーで選択。 */
+/** 画面1: 予約トップ（仕様書 4-1〜4-7 + starter HTML） */
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-
-import { InlineSpinner } from "@/components/ui/inline-spinner";
-import { initialYearMonthFromEvents } from "@/lib/dates/tokyo-calendar-grid";
 
 import {
-  ReserveEventDaysCalendar,
-  type EventDayPublic,
-} from "./reserve-event-days-calendar";
+  IconCalendar,
+  IconClockDay,
+  IconCloudRain,
+  IconPitch,
+  IconScaleSoft,
+  IconSoccerBall,
+  IconUtensils,
+} from "./_components/reserve-icons";
+import { ReserveRasterIcon } from "./_components/reserve-raster-icon";
+import { ReserveStepper } from "./_components/reserve-stepper";
+import {
+  ReserveCallout,
+  ReserveHeroPitchCard,
+  ReserveInfoCard,
+  ReserveInfoGrid,
+  ReserveLead,
+  ReserveLeadingIcon,
+  ReserveMainShell,
+  ReservePageTitle,
+  ReservePrimaryCtaLink,
+  ReserveSectionHeading,
+} from "./_components/ui";
 
-export default function ReserveEventDaysPage() {
-  const [days, setDays] = useState<EventDayPublic[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const res = await fetch("/api/event-days");
-      const json = (await res.json().catch(() => ({}))) as {
-        eventDays?: EventDayPublic[];
-        error?: string;
-      };
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(json.error ?? "一覧の取得に失敗しました");
-        setDays([]);
-        return;
-      }
-      setDays(json.eventDays ?? []);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const calendarInitialMonth = useMemo(() => {
-    if (!days || days.length === 0) return null;
-    return initialYearMonthFromEvents(days.map((d) => d.event_date));
-  }, [days]);
-
+export default function ReserveLandingPage() {
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <div>
-        <h1 className="text-lg font-semibold text-zinc-900 sm:text-xl">
-          予約カレンダー
-        </h1>
-        <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-600">
-          <p>
-            上の「前の月 / 今月 / 次の月」で表示月を変え、
-            <strong className="text-zinc-800">緑の枠</strong>
-            の日をタップすると午前枠の予約へ進みます。締切後・編成確定済みはグレー、開催中止は赤系で表示します（いずれも新規予約はできません）。
-          </p>
-          <p>
-            本画面からは午前の1枠（1時間）のみご予約いただけます。午後の試合は締切後に自動でマッチング・割り振りされます。
-          </p>
-          <p>
-            ご予約いただいたチームは最低でも午前1試合・午後1試合（各1時間）ご利用いただけます。
-          </p>
-        </div>
-      </div>
+    <div className="space-y-8 sm:space-y-10">
+      <ReserveStepper current={1} />
 
-      <p className="text-sm leading-relaxed text-zinc-600">
-        合宿・宿泊のご相談は
+      <ReserveMainShell>
+        <ReservePageTitle
+          icon={<IconSoccerBall className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={1.75} />}
+        >
+          小学生サッカー対戦予約（日帰り）
+        </ReservePageTitle>
+        <ReserveLead>
+          人工芝グラウンド無料貸し出しイベントの予約ページです。
+        </ReserveLead>
+
+        <ReserveInfoGrid>
+          <ReserveHeroPitchCard
+            feature
+            icon={
+              <ReserveRasterIcon
+                name="extra-18"
+                className="relative block h-full min-h-[132px] w-full"
+                alt=""
+              />
+            }
+          >
+            人工芝グラウンド
+            <br />
+            無料開放！
+          </ReserveHeroPitchCard>
+          <ReserveInfoCard
+            title="予約対象は人工芝グラウンドのみです"
+            icon={<IconPitch className="h-6 w-6 sm:h-6 sm:w-6" strokeWidth={1.65} />}
+          >
+            <p>
+              土グラウンドのご利用も可能ですが、予約対象ではありません。
+            </p>
+          </ReserveInfoCard>
+          <ReserveInfoCard
+            title="1日を通した利用が前提です"
+            icon={<IconCalendar className="h-6 w-6 sm:h-6 sm:w-6" strokeWidth={1.65} />}
+          >
+            <p>
+              1枠のみ・午前のみ・午後のみの予約は承っていません。午前から1日を通してご利用いただきます。
+            </p>
+          </ReserveInfoCard>
+          <ReserveInfoCard
+            title="対戦相手の確定や試合成立を保証するものではありません"
+            icon={<IconScaleSoft className="h-6 w-6 sm:h-6 sm:w-6" strokeWidth={1.65} />}
+          >
+            <p>
+              参加チーム数に応じて利用可能な時間および試合数は変動します。
+            </p>
+          </ReserveInfoCard>
+        </ReserveInfoGrid>
+
+        <ReserveCallout
+          tone="green"
+          className="mt-6 space-y-6 p-6 text-base leading-relaxed text-slate-800 sm:p-8 sm:text-lg"
+        >
+          <div className="flex gap-3 sm:gap-4">
+            <ReserveLeadingIcon
+              shell="greenBare"
+              icon={<IconClockDay className="h-5 w-5 sm:h-6 sm:w-6" />}
+            />
+            <div className="min-w-0">
+              <p className="font-bold text-slate-900">
+                予約締切は原則として開催日の2日前15:00です。
+              </p>
+              <p className="mt-1">
+                当日の試合スケジュールは締切日の16:30に登録メールアドレス宛にお送りします。
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3 border-t border-dashed border-green-300 pt-6 sm:gap-4">
+            <ReserveLeadingIcon
+              shell="greenBare"
+              icon={<IconCloudRain className="h-5 w-5 sm:h-6 sm:w-6" />}
+            />
+            <div className="min-w-0">
+              <p className="font-bold text-slate-900">
+                雨天などの悪天候による開催可否は遅くとも前日17:00までにお知らせします。
+              </p>
+              <p className="mt-1">天気予報次第では中止判断が早まる場合があります。</p>
+            </div>
+          </div>
+        </ReserveCallout>
+
+        <ReserveCallout tone="orange" className="mt-6 p-6 sm:p-8">
+          <ReserveSectionHeading
+            as="h2"
+            tone="orange"
+            icon={<IconUtensils className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.65} />}
+          >
+            昼食について
+          </ReserveSectionHeading>
+          <ul className="mt-4 list-disc space-y-2 pl-6 text-base leading-8 text-slate-800 sm:text-lg">
+            <li>ご参加チームには昼食のご注文をお願いしています</li>
+            <li>飲食物の持ち込みは禁止です</li>
+            <li>昼食を申し込まない場合は当施設のカフェをご利用いただくことも可能です</li>
+            <li>昼食代は各チームの代表者がまとめて現地でお支払いください</li>
+            <li>アレルギーや食中毒対策等、やむを得ない場合のみ一部持ち込み可能です</li>
+          </ul>
+        </ReserveCallout>
+
+        <div className="mt-10 flex justify-center">
+          <ReservePrimaryCtaLink href="/reserve/calendar">
+            開催日を確認する
+          </ReservePrimaryCtaLink>
+        </div>
+      </ReserveMainShell>
+
+      <p className="text-center text-sm text-slate-600">
+        合宿・宿泊のご相談は{" "}
         <Link
           href="/reserve/camp"
-          className="font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950"
+          className="font-semibold text-green-700 underline underline-offset-2 hover:text-green-800"
         >
-          合宿のご案内
+          合宿のご相談
         </Link>
-        からお送りください（相談受付〜事前案内まで。当日の進行管理は対象外。日帰り予約の確定とは別です）。
+        からお送りください。
       </p>
-
-      {error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {error}
-        </p>
-      )}
-
-      {days === null && !error && (
-        <div
-          className="flex flex-col items-center justify-center gap-3 py-12 text-sm text-zinc-600"
-          role="status"
-          aria-live="polite"
-          aria-busy="true"
-        >
-          <InlineSpinner size="md" variant="onLight" />
-          <p>開催日を読み込み中…</p>
-        </div>
-      )}
-
-      {days && days.length === 0 && !error && (
-        <p className="text-sm text-zinc-600">現在、公開中の開催日はありません。</p>
-      )}
-
-      {days && days.length > 0 && calendarInitialMonth && (
-        <ReserveEventDaysCalendar
-          key={`${calendarInitialMonth.year}-${calendarInitialMonth.month}`}
-          days={days}
-          initialYearMonth={calendarInitialMonth}
-        />
-      )}
     </div>
   );
 }

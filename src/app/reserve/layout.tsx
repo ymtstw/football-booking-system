@@ -1,9 +1,19 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Noto_Sans_JP } from "next/font/google";
+
+import { ReservePublicFooter } from "./_components/reserve-public-footer";
+import { ReservePublicHeader } from "./_components/reserve-public-header";
+
+const notoSansJp = Noto_Sans_JP({
+  weight: ["400", "500", "700", "800"],
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "予約 | 交流試合",
-  description: "開催日の申し込み・確認コードでの予約確認・キャンセル",
+  title: "小学生サッカー対戦予約",
+  description:
+    "交流試合（日帰り）の予約・確認コードでの確認・キャンセル・合宿のご相談",
 };
 
 export default function ReserveLayout({
@@ -12,52 +22,14 @@ export default function ReserveLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-4xl flex-col gap-3 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <Link
-            href="/reserve"
-            className="shrink-0 text-base font-semibold text-zinc-900 sm:text-[15px]"
-          >
-            交流試合 予約
-          </Link>
-          <nav className="flex flex-wrap gap-x-3 gap-y-2 text-sm sm:gap-x-4 sm:justify-end">
-            <Link
-              href="/reserve"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
-            >
-              予約カレンダー
-            </Link>
-            <Link
-              href="/reserve/manage"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
-            >
-              予約確認・キャンセル
-            </Link>
-            <Link
-              href="/reserve/camp"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
-            >
-              合宿のご案内
-            </Link>
-            <Link
-              href="/reserve/contact"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
-            >
-              お問い合わせ
-            </Link>
-            <Link
-              href="/"
-              className="min-h-9 inline-flex items-center text-zinc-600 hover:text-zinc-900"
-            >
-              トップ
-            </Link>
-          </nav>
-        </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-4 py-6 pb-10 sm:px-5 sm:py-8">
+    <div
+      className={`${notoSansJp.className} flex min-h-dvh flex-col bg-rp-page text-slate-900 antialiased`}
+    >
+      <ReservePublicHeader />
+      <main className="mx-auto w-full max-w-[1280px] flex-1 px-6 py-8 md:px-8 lg:px-10 lg:py-10">
         {children}
       </main>
+      <ReservePublicFooter />
     </div>
   );
 }

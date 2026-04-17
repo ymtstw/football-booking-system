@@ -10,6 +10,17 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* 一般予約サイト（cursor_ui_implementation_spec.md + starter HTML） */
+  --color-rp-brand: #16a34a;
+  --color-rp-brand-hover: #15803d;
+  --color-rp-brand-muted: #bbf7d0;
+  --color-rp-mint: #eef8f0;
+  --color-rp-mint-2: #dcfce7;
+  --color-rp-orange: #fff4e8;
+  --color-rp-orange-border: #fed7aa;
+  --color-rp-page: #f3f4f6;
+  --color-rp-navy: #0f172a;
+  --color-rp-card: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {

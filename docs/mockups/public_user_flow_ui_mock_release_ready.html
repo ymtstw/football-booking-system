@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>和歌山サッカー交流試合 予約サイト モック</title>
+    <style>
+      :root {
+        --brand-900: #0f3d3a;
+        --brand-800: #14524e;
+        --brand-700: #1b6a64;
+        --brand-100: #dff5ef;
+        --brand-050: #effaf7;
+        --ink: #1f2937;
+        --muted: #6b7280;
+        --line: #d1d5db;
+        --bg: #eef2f7;
+        --paper: #ffffff;
+        --sub: #f8fafc;
+        --warn-bg: #fff8e8;
+        --warn-line: #f3d27a;
+        --warn-ink: #7a4b00;
+        --info-bg: #eef6ff;
+        --info-line: #bfd9ff;
+        --info-ink: #0b4ea2;
+        --danger-bg: #fff1f2;
+        --danger-line: #fecdd3;
+        --danger-ink: #9f1239;
+        --radius: 14px;
+        --shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+        --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font);
+        line-height: 1.65;
+      }
+      a { color: var(--brand-800); }
+      .page-header {
+        background: linear-gradient(135deg, var(--brand-900), var(--brand-700));
+        color: #fff;
+        padding: 28px 20px 34px;
+      }
+      .page-header-inner {
+        max-width: 1120px;
+        margin: 0 auto;
+      }
+      .page-header h1 {
+        margin: 0 0 8px;
+        font-size: 1.4rem;
+      }
+      .page-header p {
+        margin: 0;
+        max-width: 760px;
+        opacity: 0.95;
+        font-size: 0.95rem;
+      }
+      .layout {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 20px;
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+      .toc {
+        position: sticky;
+        top: 16px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+      }
+      .toc-title {
+        margin: 0 0 10px;
+        font-size: 0.78rem;
+        letter-spacing: .04em;
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .toc a {
+        display: block;
+        padding: 8px 10px;
+        margin-bottom: 4px;
+        border-radius: 10px;
+        color: var(--brand-900);
+        text-decoration: none;
+        font-size: 0.9rem;
+      }
+      .toc a:hover { background: var(--brand-050); }
+      .screen { margin-bottom: 28px; }
+      .screen-label {
+        margin: 0 0 8px;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--brand-800);
+      }
+      .frame {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      .site-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+      .brand {
+        font-size: 0.95rem;
+        font-weight: 800;
+        color: var(--brand-900);
+      }
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 0.82rem;
+      }
+      .nav a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: var(--brand-800);
+        text-decoration: underline;
+      }
+      .hero {
+        background: linear-gradient(135deg, var(--brand-800), var(--brand-700));
+        color: #fff;
+        padding: 26px 20px;
+      }
+      .hero h2 {
+        margin: 0 0 10px;
+        font-size: 1.35rem;
+      }
+      .hero p {
+        margin: 0;
+        max-width: 760px;
+        font-size: 0.95rem;
+      }
+      .main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 22px 20px 26px;
+        background: var(--sub);
+      }
+      h1.title {
+        margin: 0 0 8px;
+        font-size: 1.2rem;
+      }
+      h2.sec {
+        margin: 24px 0 10px;
+        font-size: 0.98rem;
+        color: var(--brand-900);
+      }
+      .lead {
+        margin: 0 0 14px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .stack { display: grid; gap: 12px; }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        width: 100%;
+        padding: 0 16px;
+        border-radius: 12px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        text-decoration: none;
+        border: none;
+      }
+      .btn-primary { background: var(--brand-800); color: #fff; }
+      .btn-secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+      .btn-dark { background: #111827; color: #fff; }
+      .btn-link {
+        display: inline-block;
+        width: auto;
+        min-height: auto;
+        padding: 0;
+        background: transparent;
+        color: var(--brand-800);
+        text-decoration: underline;
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      .notice, .info, .danger {
+        border-radius: 12px;
+        padding: 14px 16px;
+        font-size: 0.92rem;
+        margin: 14px 0;
+      }
+      .notice { background: var(--warn-bg); border: 1px solid var(--warn-line); color: var(--warn-ink); }
+      .info { background: var(--info-bg); border: 1px solid var(--info-line); color: var(--info-ink); }
+      .danger { background: var(--danger-bg); border: 1px solid var(--danger-line); color: var(--danger-ink); }
+      .list { margin: 0; padding-left: 1.2rem; }
+      .list li { margin-bottom: 8px; }
+      .steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: step;
+      }
+      .steps li {
+        position: relative;
+        padding-left: 40px;
+        margin-bottom: 16px;
+      }
+      .steps li::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--brand-100);
+        color: var(--brand-900);
+        font-weight: 800;
+        font-size: 0.85rem;
+      }
+      .field { margin-bottom: 14px; }
+      .field label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.88rem;
+        font-weight: 700;
+      }
+      .field input, .field textarea, .field select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 11px 12px;
+        font-size: 0.94rem;
+        background: #fff;
+      }
+      .hint {
+        display: block;
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .summary-item {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      .summary-item strong {
+        display: block;
+        font-size: 0.78rem;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .slot-card {
+        background: #fff;
+        border: 2px solid var(--line);
+        border-radius: 12px;
+        padding: 14px;
+        margin-bottom: 10px;
+      }
+      .slot-card.selected { border-color: var(--brand-800); box-shadow: 0 0 0 1px var(--brand-800) inset; }
+      .slot-card.full { opacity: 0.55; background: #f3f4f6; }
+      .slot-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+        font-weight: 800;
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        background: var(--brand-100);
+        color: var(--brand-900);
+      }
+      .badge.gray { background: #e5e7eb; color: #374151; }
+      .calendar-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 14px;
+      }
+      .calendar {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+      }
+      .calendar div {
+        background: #fff;
+        border: 1px solid #ebedf0;
+        border-radius: 10px;
+        min-height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.88rem;
+      }
+      .calendar .head {
+        min-height: auto;
+        border: none;
+        background: transparent;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      .calendar .open {
+        background: var(--brand-050);
+        border-color: #b8eadb;
+        color: var(--brand-900);
+        font-weight: 800;
+      }
+      .calendar .closed {
+        background: #f3f4f6;
+        color: #9ca3af;
+      }
+      .calendar .cancelled {
+        background: var(--danger-bg);
+        border-color: var(--danger-line);
+        color: var(--danger-ink);
+        font-weight: 800;
+      }
+      .code-box {
+        background: #0f172a;
+        color: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.82rem;
+        word-break: break-all;
+      }
+      .foot {
+        margin-top: 16px;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+      @media (max-width: 900px) {
+        .layout { grid-template-columns: 1fr; }
+        .toc { position: static; }
+      }
+      @media (max-width: 640px) {
+        .summary-grid { grid-template-columns: 1fr; }
+        .site-head { align-items: flex-start; flex-direction: column; }
+        .hero h2 { font-size: 1.15rem; }
+        .main { padding: 18px 14px 22px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="page-header">
+      <div class="page-header-inner">
+        <h1>和歌山サッカー交流試合 予約サイト モック</h1>
+        <p>
+          一般の利用者が迷わず使えることを優先した、公開向けUIの完成イメージです。専門用語や運営目線の説明を減らし、予約・確認・合宿相談の導線をわかりやすく整理しています。
+        </p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="toc">
+        <p class="toc-title">画面一覧</p>
+        <a href="#home">1. トップ</a>
+        <a href="#guide">2. 予約前のご案内</a>
+        <a href="#calendar">3. 開催日一覧</a>
+        <a href="#reserve">4. 予約入力</a>
+        <a href="#complete">5. 予約完了</a>
+        <a href="#manage">6. 予約確認・キャンセル</a>
+        <a href="#camp">7. 合宿のご案内</a>
+        <a href="#camp-form">8. 合宿の相談フォーム</a>
+        <a href="#contact">9. お問い合わせ</a>
+      </aside>
+
+      <main>
+        <section class="screen" id="home">
+          <p class="screen-label">トップページ</p>
+          <div class="frame">
+            <div class="hero">
+              <h2>交流試合の予約はこちら</h2>
+              <p>開催日を選んで日帰り参加の予約ができます。予約内容の確認やキャンセル、合宿のご相談もこのサイトから行えます。</p>
+            </div>
+            <div class="main stack">
+              <div class="card">
+                <p class="lead" style="margin-bottom: 0; color: var(--ink);">
+                  このサイトでできることは、<strong>日帰りの交流試合予約</strong>、<strong>予約内容の確認・キャンセル</strong>、<strong>合宿のご相談</strong>です。会員登録やログインは不要です。
+                </p>
+              </div>
+              <button class="btn btn-primary" type="button">開催日を見て予約する</button>
+              <button class="btn btn-secondary" type="button">予約内容を確認する・キャンセルする</button>
+              <button class="btn btn-secondary" type="button">合宿について相談する</button>
+              <p class="foot">
+                当日の進行や細かな試合運営は、現地スタッフの案内に沿ってご参加ください。
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="guide">
+          <p class="screen-label">予約前のご案内</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#manage">予約確認</a>
+                <a href="#camp">合宿相談</a>
+                <a href="#contact">お問い合わせ</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">予約の前にご確認ください</h1>
+              <p class="lead">お申し込み前に、運営方法や予約の流れを簡単にご案内します。</p>
+
+              <ol class="steps">
+                <li><strong>予約できるのは午前の1枠です。</strong> 午後の対戦カードは、締切後に運営側で調整します。</li>
+                <li><strong>締切までは予約内容の確認とキャンセルができます。</strong> 締切日時は開催日ごとに画面に表示されます。</li>
+                <li><strong>開催は参加チーム数によって決まります。</strong> 一定数に満たない場合は中止となることがあります。</li>
+                <li><strong>参加人数には選手・スタッフ・帯同者を含めてください。</strong> 昼食数は参加人数と同じでなくても大丈夫です。</li>
+                <li><strong>予約完了後に確認コードが表示されます。</strong> 後から予約内容を見るときに必要なので、必ず保存してください。</li>
+              </ol>
+
+              <div class="notice">
+                学年やチームレベルは、できるだけ近い相手と対戦できるようにするための参考情報です。希望どおりにならない場合もあります。
+              </div>
+
+              <button class="btn btn-primary" type="button">確認して予約へ進む</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="calendar">
+          <p class="screen-label">開催日一覧</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#manage">予約確認</a>
+                <a href="#camp">合宿相談</a>
+                <a href="#contact">お問い合わせ</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">開催日一覧</h1>
+              <p class="lead">参加したい日を選んでください。予約できる日は緑色、受付終了はグレー、中止日は赤色で表示しています。</p>
+
+              <div class="calendar-controls">
+                <button class="btn btn-secondary" type="button" style="width:auto; min-height:40px;">前の月</button>
+                <button class="btn btn-secondary" type="button" style="width:auto; min-height:40px;">今月</button>
+                <button class="btn btn-secondary" type="button" style="width:auto; min-height:40px;">次の月</button>
+              </div>
+
+              <div class="calendar">
+                <div class="head">月</div><div class="head">火</div><div class="head">水</div><div class="head">木</div><div class="head">金</div><div class="head">土</div><div class="head">日</div>
+                <div></div><div></div><div></div><div></div><div></div><div class="open">9</div><div class="open">10</div>
+                <div class="cancelled">17</div><div></div><div></div><div></div><div></div><div class="closed">23</div><div class="closed">24</div>
+              </div>
+
+              <div class="info">
+                日程を選ぶと、対象学年・締切日時・空いている午前枠が確認できます。
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="reserve">
+          <p class="screen-label">予約入力</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#manage">予約確認</a>
+              </nav>
+            </div>
+            <div class="main">
+              <a class="btn-link" href="#calendar">← 開催日一覧に戻る</a>
+              <h1 class="title">2026年5月10日（日）の予約</h1>
+              <p class="lead">対象学年：小学3〜4年 ／ 締切：2026年5月8日（金）15:00</p>
+
+              <div class="summary-grid" style="margin-bottom: 14px;">
+                <div class="summary-item"><strong>最低保証</strong>午前1試合・午後1試合</div>
+                <div class="summary-item"><strong>予約できる内容</strong>午前の1枠を選択</div>
+              </div>
+
+              <div class="notice">
+                午後の対戦は、締切後に運営側で調整します。午前の時間帯だけ、この画面で選んでください。
+              </div>
+
+              <h2 class="sec">1. 午前の時間帯を選ぶ</h2>
+              <div class="slot-card selected">
+                <div class="slot-title">
+                  <span>10:00〜11:00</span>
+                  <span class="badge">残り1枠</span>
+                </div>
+                <p style="margin: 8px 0 0; font-size: 0.88rem; color: var(--muted);">すでに予約しているチーム：紀南SC（ハイレベル）</p>
+              </div>
+              <div class="slot-card full">
+                <div class="slot-title">
+                  <span>11:00〜12:00</span>
+                  <span class="badge gray">満席</span>
+                </div>
+                <p style="margin: 8px 0 0; font-size: 0.88rem; color: var(--muted);">この時間帯は受付を終了しています。</p>
+              </div>
+
+              <h2 class="sec">2. チーム情報を入力する</h2>
+              <div class="card">
+                <div class="field">
+                  <label>チーム名</label>
+                  <input value="和歌山FC U-10" />
+                </div>
+                <div class="field">
+                  <label>チームのレベル</label>
+                  <select>
+                    <option>ハイレベル</option>
+                    <option>ポテンシャル</option>
+                  </select>
+                  <span class="hint">できるだけ近い相手と対戦できるようにするための目安です。</span>
+                </div>
+                <div class="field">
+                  <label>代表学年</label>
+                  <select>
+                    <option>小学3年</option>
+                    <option>小学4年</option>
+                  </select>
+                  <span class="hint">複数学年で参加する場合は、人数が多い学年を選んでください。</span>
+                </div>
+                <div class="field">
+                  <label>代表者名</label>
+                  <input value="山田 太郎" />
+                </div>
+                <div class="field">
+                  <label>メールアドレス</label>
+                  <input type="email" value="sample@example.com" />
+                </div>
+                <div class="field">
+                  <label>電話番号</label>
+                  <input value="09012345678" />
+                  <span class="hint">ハイフンなしで入力してください。</span>
+                </div>
+                <div class="field">
+                  <label>参加人数</label>
+                  <input value="18" />
+                  <span class="hint">選手・スタッフ・帯同者を含めた人数を入力してください。</span>
+                </div>
+                <div class="field">
+                  <label>昼食数</label>
+                  <input value="16" />
+                </div>
+                <div class="field">
+                  <label>備考（任意）</label>
+                  <textarea rows="4" placeholder="事前に伝えておきたいことがあればご記入ください。"></textarea>
+                </div>
+              </div>
+
+              <div class="info">
+                予約後に表示される確認コードで、締切前まで予約内容の確認やキャンセルができます。
+              </div>
+
+              <button class="btn btn-dark" type="button">この内容で予約する</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="complete">
+          <p class="screen-label">予約完了</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#manage">予約確認</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">予約が完了しました</h1>
+              <p class="lead">ご予約ありがとうございます。下の確認コードは、あとから予約内容を見るときに必要です。</p>
+
+              <div class="notice">
+                <strong>確認コードは必ず保存してください。</strong><br />
+                スクリーンショットを撮るか、コピーして安全な場所に保管してください。
+              </div>
+
+              <div class="code-box">a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12</div>
+              <div class="stack" style="margin-top: 14px;">
+                <button class="btn btn-secondary" type="button">確認コードをコピー</button>
+                <button class="btn btn-primary" type="button">予約内容を確認する</button>
+                <button class="btn btn-secondary" type="button">開催日一覧に戻る</button>
+              </div>
+              <p class="foot">このコードを他の人に共有すると、予約内容を見られたりキャンセルされたりする可能性があります。取り扱いにご注意ください。</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="manage">
+          <p class="screen-label">予約確認・キャンセル</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#camp">合宿相談</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">予約内容の確認・キャンセル</h1>
+              <p class="lead">予約完了時に表示された確認コードを入力してください。締切前であれば、予約内容の確認とキャンセルができます。</p>
+
+              <div class="field">
+                <label>確認コード</label>
+                <textarea rows="3" placeholder="確認コードを貼り付けてください"></textarea>
+              </div>
+              <button class="btn btn-primary" type="button">確認する</button>
+
+              <div class="info">
+                うまく確認できない場合は、前後に空白が入っていないかをご確認ください。
+              </div>
+              <div class="danger">
+                チーム名、メールアドレス、参加枠そのものの変更はこの画面から行わず、運営へご相談ください。
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="camp">
+          <p class="screen-label">合宿のご案内</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#camp-form">合宿相談フォーム</a>
+                <a href="#contact">お問い合わせ</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">合宿のご相談について</h1>
+              <p class="lead">宿泊を伴う交流試合や合宿について、日程や人数が未確定の段階でもご相談いただけます。</p>
+
+              <div class="notice">
+                このページから送る内容は<strong>予約確定ではなく相談受付</strong>です。内容を確認後、運営からご連絡します。
+              </div>
+
+              <div class="card stack">
+                <div>
+                  <strong>ご相談いただける内容</strong>
+                  <ul class="list">
+                    <li>宿泊を含む交流試合の相談</li>
+                    <li>希望日程や人数の目安の共有</li>
+                    <li>利用できるプランの確認</li>
+                  </ul>
+                </div>
+                <div>
+                  <strong>このサイトで扱わない内容</strong>
+                  <ul class="list">
+                    <li>当日の細かな試合進行の管理</li>
+                    <li>当日用の対戦表作成</li>
+                    <li>現地での運営判断そのもの</li>
+                  </ul>
+                </div>
+              </div>
+
+              <button class="btn btn-dark" type="button" style="margin-top:14px;">合宿について相談する</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="camp-form">
+          <p class="screen-label">合宿の相談フォーム</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#camp">合宿のご案内</a>
+                <a href="#contact">お問い合わせ</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">合宿の相談フォーム</h1>
+              <p class="lead">わかる範囲でご記入ください。未定の項目があってもご相談いただけます。</p>
+
+              <div class="card">
+                <div class="field">
+                  <label>代表者名</label>
+                  <input />
+                </div>
+                <div class="field">
+                  <label>チーム名・団体名</label>
+                  <input />
+                </div>
+                <div class="field">
+                  <label>メールアドレス</label>
+                  <input type="email" />
+                </div>
+                <div class="field">
+                  <label>電話番号</label>
+                  <input />
+                </div>
+                <div class="field">
+                  <label>希望日程</label>
+                  <textarea rows="3" placeholder="例：7月の土日で1泊2日を希望"></textarea>
+                </div>
+                <div class="field">
+                  <label>参加予定人数</label>
+                  <input placeholder="例：20名程度、未定 など" />
+                </div>
+                <div class="field">
+                  <label>相談内容</label>
+                  <textarea rows="5" placeholder="宿泊・交流試合・昼食など、ご希望をご記入ください。"></textarea>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" type="button" style="margin-top:14px;">送信する</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="screen" id="contact">
+          <p class="screen-label">お問い合わせ</p>
+          <div class="frame">
+            <div class="site-head">
+              <div class="brand">交流試合 予約</div>
+              <nav class="nav">
+                <a href="#calendar">開催日一覧</a>
+                <a href="#camp">合宿相談</a>
+              </nav>
+            </div>
+            <div class="main">
+              <h1 class="title">お問い合わせ</h1>
+              <p class="lead">ご不明点がある場合は、こちらからお問い合わせください。</p>
+
+              <div class="notice">
+                お急ぎの場合は、配布資料や案内に記載の連絡先をご利用ください。
+              </div>
+
+              <div class="card">
+                <div class="field">
+                  <label>お名前</label>
+                  <input />
+                </div>
+                <div class="field">
+                  <label>メールアドレス</label>
+                  <input type="email" />
+                </div>
+                <div class="field">
+                  <label>お問い合わせ内容</label>
+                  <textarea rows="5"></textarea>
+                </div>
+              </div>
+
+              <button class="btn btn-primary" type="button" style="margin-top:14px;">送信する</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

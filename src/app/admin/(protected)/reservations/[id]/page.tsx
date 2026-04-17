@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { LunchOrderSummary } from "@/app/reserve/_components/lunch-order-summary";
+
 import { ReservationDetailEditClient } from "../reservation-detail-edit-client";
 import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
+import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE =
@@ -116,6 +119,34 @@ export default async function AdminReservationDetailPage({
   }
   const day = dayRow as EventDayRow;
 
+  const { data: lunchRows } = await supabase
+    .from("reservation_lunch_items")
+    .select(
+      "menu_item_id, item_name_snapshot, unit_price_snapshot_tax_included, quantity, line_total, created_at"
+    )
+    .eq("reservation_id", row.id)
+    .order("created_at", { ascending: true });
+
+  const lunchLines: ReservationLunchLinePublic[] = (lunchRows ?? []).map(
+    (r) => {
+      const x = r as {
+        menu_item_id: string | null;
+        item_name_snapshot: string;
+        unit_price_snapshot_tax_included: number;
+        quantity: number;
+        line_total: number;
+      };
+      return {
+        menuItemId: x.menu_item_id,
+        itemName: x.item_name_snapshot,
+        unitPriceTaxIncluded: Number(x.unit_price_snapshot_tax_included),
+        quantity: Number(x.quantity),
+        lineTotal: Number(x.line_total),
+      };
+    }
+  );
+  const lunchTotal = lunchLines.reduce((s, x) => s + x.lineTotal, 0);
+
   let morningSlotLabel = "—";
   if (row.selected_morning_slot_id) {
     const { data: slot } = await supabase
@@ -190,6 +221,16 @@ export default async function AdminReservationDetailPage({
             <dd>{formatDateTimeTokyoWithWeekday(row.updated_at)}</dd>
           </div>
         </dl>
+      </section>
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">昼食（予約時スナップショット）</h2>
+        <p className="mt-1 text-xs text-zinc-500">
+          単価・メニュー名は予約時点の税込です。マスタの価格変更後もこの表示は変わりません。
+        </p>
+        <div className="mt-3">
+          <LunchOrderSummary lines={lunchLines} totalTaxIncluded={lunchTotal} />
+        </div>
       </section>
 
       <ReservationDetailEditClient

@@ -65,12 +65,12 @@ export async function buildDashboardEventDaySummaryPayload(
   let totalMeals = 0;
   const resIds = activeRows.map((r) => (r as { id: string }).id);
   if (resIds.length > 0) {
-    const { data: mealRows } = await supabase
-      .from("meal_orders")
-      .select("meal_count")
+    const { data: lunchRows } = await supabase
+      .from("reservation_lunch_items")
+      .select("quantity")
       .in("reservation_id", resIds);
-    totalMeals = (mealRows ?? []).reduce(
-      (s, m) => s + (Number((m as { meal_count: number }).meal_count) || 0),
+    totalMeals = (lunchRows ?? []).reduce(
+      (s, m) => s + (Number((m as { quantity: number }).quantity) || 0),
       0
     );
   }

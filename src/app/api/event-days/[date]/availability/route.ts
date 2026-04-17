@@ -81,7 +81,7 @@ export async function GET(
   const { data: resRows, error: resErr } = await supabase
     .from("reservations")
     .select(
-      "id, selected_morning_slot_id, created_at, teams ( team_name, strength_category )"
+      "id, selected_morning_slot_id, created_at, teams ( team_name, strength_category, representative_grade_year )"
     )
     .eq("event_day_id", day.id)
     .eq("status", "active")
@@ -97,7 +97,12 @@ export async function GET(
   const aggBySlot = new Map<string, SlotAgg>();
   const bookedBySlot = new Map<
     string,
-    Array<{ reservationId: string; teamName: string; strengthCategory: string }>
+    Array<{
+      reservationId: string;
+      teamName: string;
+      strengthCategory: string;
+      representativeGradeYear: number | null;
+    }>
   >();
   for (const s of slots ?? []) {
     aggBySlot.set(s.id, { strong: 0, potential: 0, unknown: 0, total: 0 });
@@ -117,11 +122,27 @@ export async function GET(
     if (!bucket) continue;
 
     const rawTeams = row.teams as
-      | { team_name: string; strength_category: StrengthCategory }
-      | { team_name: string; strength_category: StrengthCategory }[]
+      | {
+          team_name: string;
+          strength_category: StrengthCategory;
+          representative_grade_year?: number | null;
+        }
+      | {
+          team_name: string;
+          strength_category: StrengthCategory;
+          representative_grade_year?: number | null;
+        }[]
       | null;
     const team = Array.isArray(rawTeams) ? rawTeams[0] : rawTeams;
     const cat = team?.strength_category;
+    const gyRaw = team?.representative_grade_year;
+    const gradeYear =
+      typeof gyRaw === "number" &&
+      Number.isInteger(gyRaw) &&
+      gyRaw >= 1 &&
+      gyRaw <= 6
+        ? gyRaw
+        : null;
     bucket.total += 1;
     if (cat === "strong") bucket.strong += 1;
     else if (cat === "potential") bucket.potential += 1;
@@ -137,6 +158,7 @@ export async function GET(
           teamName: name,
           strengthCategory:
             cat === "strong" || cat === "potential" ? cat : "unknown",
+          representativeGradeYear: gradeYear,
         });
       }
     }

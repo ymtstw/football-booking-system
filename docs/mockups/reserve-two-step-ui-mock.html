@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UIモック — 予約前案内 / 予約フォーム（実装対応メモ付き）</title>
+    <style>
+      :root {
+        --teal-900: #0f3d3a;
+        --teal-800: #115e59;
+        --teal-700: #0f766e;
+        --mint-100: #ecfdf5;
+        --mint-200: #d1fae5;
+        --mint-300: #a7f3d0;
+        --ink: #18181b;
+        --muted: #52525b;
+        --line: #d4d4d8;
+        --white: #fff;
+        --radius: 12px;
+        --font: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--font);
+        color: var(--ink);
+        background: #f4f4f5;
+        line-height: 1.55;
+      }
+      .page-head {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 1.25rem 1rem 0.5rem;
+      }
+      .page-head h1 {
+        margin: 0 0 0.35rem;
+        font-size: 1.1rem;
+      }
+      .page-head p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .grid {
+        display: grid;
+        gap: 1.25rem;
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0.5rem 1rem 2rem;
+        grid-template-columns: 1fr;
+      }
+      @media (min-width: 900px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+          align-items: start;
+        }
+      }
+      .panel {
+        background: var(--white);
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        overflow: hidden;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+      }
+      .panel-tag {
+        display: inline-block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: var(--teal-800);
+        background: var(--mint-200);
+        padding: 0.2rem 0.5rem;
+        border-radius: 999px;
+        margin: 0 0 0.5rem;
+      }
+      .hero {
+        background: linear-gradient(135deg, var(--teal-800), var(--teal-700));
+        color: var(--white);
+        padding: 1.25rem 1.25rem 1.5rem;
+      }
+      .hero h2 {
+        margin: 0 0 0.35rem;
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+      .hero p {
+        margin: 0;
+        font-size: 0.8rem;
+        opacity: 0.95;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 0.65rem;
+        font-size: 0.72rem;
+        padding: 0.25rem 0.55rem;
+        border-radius: 6px;
+        background: rgb(255 255 255 / 0.18);
+        border: 1px solid rgb(255 255 255 / 0.35);
+      }
+      .body {
+        padding: 1rem 1.1rem 1.25rem;
+      }
+      .callout {
+        display: flex;
+        gap: 0.6rem;
+        align-items: flex-start;
+        background: var(--mint-100);
+        border: 1px solid var(--mint-300);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+        font-size: 0.78rem;
+        color: #14532d;
+        margin-bottom: 1rem;
+      }
+      .callout strong {
+        display: block;
+        margin-bottom: 0.15rem;
+      }
+      .flow {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin: 0 0 1rem;
+        padding: 0.6rem 0.75rem;
+        background: #fafafa;
+        border-radius: 8px;
+        border: 1px dashed var(--line);
+      }
+      ol.steps {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: s;
+      }
+      ol.steps li {
+        position: relative;
+        padding-left: 2.1rem;
+        margin-bottom: 0.85rem;
+        font-size: 0.8rem;
+        color: #3f3f46;
+      }
+      ol.steps li::before {
+        counter-increment: s;
+        content: counter(s);
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1.45rem;
+        height: 1.45rem;
+        border-radius: 999px;
+        background: var(--mint-200);
+        color: var(--teal-800);
+        font-size: 0.72rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn-primary {
+        display: block;
+        width: 100%;
+        margin-top: 0.5rem;
+        padding: 0.85rem 1rem;
+        border: none;
+        border-radius: 10px;
+        background: var(--teal-800);
+        color: var(--white);
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: default;
+      }
+      .subbar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1rem;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .back {
+        color: var(--teal-800);
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 1rem;
+      }
+      .check-block {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 0.75rem 0.85rem;
+        margin-bottom: 1rem;
+        background: #fafafa;
+      }
+      .check-block h3 {
+        margin: 0 0 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      label.row-check {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.45rem;
+        font-size: 0.75rem;
+        margin-bottom: 0.45rem;
+        cursor: default;
+      }
+      label.row-check:last-child {
+        margin-bottom: 0;
+      }
+      input[type="checkbox"] {
+        margin-top: 0.15rem;
+        accent-color: var(--teal-700);
+      }
+      h3.sec {
+        margin: 0 0 0.5rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .slots {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.45rem;
+        margin-bottom: 1rem;
+      }
+      .slot {
+        border-radius: 10px;
+        border: 2px solid var(--line);
+        padding: 0.55rem 0.35rem;
+        text-align: center;
+        font-size: 0.72rem;
+        background: #fafafa;
+        color: var(--muted);
+      }
+      .slot.full {
+        opacity: 0.55;
+      }
+      .slot.sel {
+        border-color: var(--teal-700);
+        background: var(--mint-100);
+        color: var(--teal-900);
+        font-weight: 600;
+      }
+      .field {
+        margin-bottom: 0.65rem;
+      }
+      .field label {
+        display: block;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #3f3f46;
+        margin-bottom: 0.2rem;
+      }
+      .field input,
+      .field select {
+        width: 100%;
+        padding: 0.5rem 0.55rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 0.8rem;
+      }
+      .seg {
+        display: flex;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+      }
+      .seg button {
+        flex: 1;
+        padding: 0.45rem;
+        border: none;
+        background: #fafafa;
+        font-size: 0.72rem;
+        cursor: default;
+      }
+      .seg button.on {
+        background: var(--teal-800);
+        color: var(--white);
+        font-weight: 600;
+      }
+      .row2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+      }
+      .estimate {
+        background: var(--mint-100);
+        border: 1px solid var(--mint-300);
+        border-radius: 10px;
+        padding: 0.65rem 0.75rem;
+        font-size: 0.72rem;
+        color: #14532d;
+        margin-bottom: 0.75rem;
+      }
+      .foot {
+        font-size: 0.65rem;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 0.35rem;
+      }
+      .impl {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 0 1rem 2rem;
+      }
+      .impl-inner {
+        background: #fffbeb;
+        border: 1px solid #fcd34d;
+        border-radius: 10px;
+        padding: 0.75rem 1rem;
+        font-size: 0.75rem;
+        color: #78350f;
+      }
+      .impl-inner ul {
+        margin: 0.4rem 0 0;
+        padding-left: 1.1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-head">
+      <h1>和歌山サッカー交流試合 — 予約フロー UIモック（静的）</h1>
+      <p>
+        参照イメージのトーン（ティール＋ミント）に寄せた<strong>提案レイアウト</strong>です。Next
+        実装には未接続。ブラウザでこの HTML を開いて確認できます。
+      </p>
+    </div>
+
+    <div class="grid">
+      <!-- ① 予約前案内 -->
+      <article class="panel" aria-label="予約前の案内ページ">
+        <div class="body" style="padding-bottom: 0.35rem">
+          <span class="panel-tag">① 予約前の案内</span>
+        </div>
+        <div class="hero">
+          <h2>小学生サッカー対戦予約</h2>
+          <p>芝1面・午前は枠予約で対戦確定／午後は自動編成（MVP仕様に準拠した案内文イメージ）</p>
+          <span class="badge">例: 2026/5/10（土）3・4年帯 — 受付中</span>
+        </div>
+        <div class="body">
+          <div class="callout">
+            <span aria-hidden="true">🍽</span>
+            <div>
+              <strong>昼食（SDGs・地域連携の注記イメージ）</strong>
+              当日は給食・食堂の運用に合わせた案内文をここに集約（持ち込み可否・支払い方法は運営文面で固定）。
+            </div>
+          </div>
+          <p class="flow">
+            当日の流れ（例）<br />
+            <strong>午前（1試合程度）</strong> → 昼食 → <strong>午後（複数試合の場合あり）</strong>
+          </p>
+          <ol class="steps">
+            <li>
+              <strong>対象学年帯</strong>は開催日ごとに決まります。フォームでは<strong>代表学年（1〜6年）</strong>を選択します（帯と整合しない学年は予約できません）。
+            </li>
+            <li>
+              午前は<strong>空き枠</strong>を選びます。枠が<strong>満枠</strong>の時間は選べません（実装: <code>availability</code> の
+              <code>full</code> / <code>bookable</code>）。
+            </li>
+            <li>
+              <strong>チームカテゴリ</strong>は「ハイレベル（strong）」「ポテンシャル（potential）」の2択（実装と同ラベルイメージ）。
+            </li>
+            <li>
+              雨天・中止の連絡は、前日メール・即時メール等の運用に従います（詳細は運営告知）。
+            </li>
+            <li>
+              <strong>予約の変更・取消</strong>は、開催日が <code>open</code> かつ<strong> Web 締切前</strong>のみ可能です。締切時刻は開催日ごとに
+              <code>reservation_deadline_at</code>（既定は<strong>開催2日前 15:00 JST</strong>）で表示します。
+            </li>
+            <li>
+              予約完了後は<strong>確認コード</strong>が必要です。メール未達時は運営窓口での案内を想定（現仕様の補足）。
+            </li>
+          </ol>
+          <button type="button" class="btn-primary">上記を確認して予約フォームへ</button>
+        </div>
+      </article>
+
+      <!-- ② 予約フォーム -->
+      <article class="panel" aria-label="予約フォーム">
+        <div class="subbar">
+          <a class="back" href="#" onclick="return false">←</a>
+          <span>例: 2026/5/10（土）予約フォーム</span>
+        </div>
+        <div class="body">
+          <span class="panel-tag">② 予約フォーム</span>
+
+          <div class="check-block">
+            <h3>以下を確認しました（必須）</h3>
+            <label class="row-check"
+              ><input type="checkbox" checked disabled /> 対象の学年帯・代表学年のルールを理解しました。</label
+            >
+            <label class="row-check"
+              ><input type="checkbox" checked disabled /> 午前枠の選び方（満枠不可）を理解しました。</label
+            >
+            <label class="row-check"
+              ><input type="checkbox" checked disabled /> 昼食・当日支払いなど現地ルールを理解しました。</label
+            >
+            <label class="row-check"
+              ><input type="checkbox" checked disabled />
+              締切前のみ Web での変更・取消ができることを理解しました。</label
+            >
+            <p style="margin: 0.5rem 0 0; font-size: 0.68rem; color: var(--muted)">
+              ※モック用の確認チェックです。<strong>現行実装</strong>ではこの4チェックは未表示（1画面に空き＋フォーム）。
+            </p>
+          </div>
+
+          <h3 class="sec">午前の枠を選択</h3>
+          <div class="slots">
+            <div class="slot full">9:00–10:00<br />満枠</div>
+            <div class="slot sel">10:00–11:00<br />選択中</div>
+            <div class="slot">11:00–12:00<br />空き</div>
+          </div>
+
+          <h3 class="sec">チーム・連絡先（実装と同項目）</h3>
+          <div class="field">
+            <label for="m-team">チーム名</label>
+            <input id="m-team" type="text" value="和歌山FC U-10" readonly />
+          </div>
+          <div class="field">
+            <label>チームカテゴリ</label>
+            <div class="seg">
+              <button type="button" class="on">ハイレベル（strong）</button>
+              <button type="button">ポテンシャル（potential）</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="m-grade">代表学年（開催日の学年帯に応じた選択肢）</label>
+            <select id="m-grade" disabled>
+              <option>小学3年</option>
+              <option selected>小学4年</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="m-name">チーム代表者名</label>
+            <input id="m-name" type="text" value="山田 太郎" readonly />
+          </div>
+          <div class="field">
+            <label for="m-mail">メールアドレス</label>
+            <input id="m-mail" type="email" value="sample@example.com" readonly />
+          </div>
+          <div class="field">
+            <label for="m-phone">電話番号（実装は数字のみ10〜15桁）</label>
+            <input id="m-phone" type="text" value="09000000000" readonly />
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label for="m-pc">参加人数</label>
+              <input id="m-pc" type="text" value="18" readonly />
+            </div>
+            <div class="field">
+              <label for="m-mc">昼食数 🍽</label>
+              <input id="m-mc" type="text" value="16" readonly />
+            </div>
+          </div>
+
+          <div class="estimate">
+            <strong>昼食の目安（任意表示のモック）</strong><br />
+            実装コードに単価定数はありません。運営が金額を決める場合は「16食 × 800円 = 12,800円」のような<strong>参考表示</strong>をここに載せるかは別途決定。
+          </div>
+
+          <button type="button" class="btn-primary">この内容で予約を確定する</button>
+          <p class="foot">締切までは Web から変更・取消可（開催日が open のとき）。確認コードは予約直後の画面・メールで案内。</p>
+        </div>
+      </article>
+    </div>
+
+    <div class="impl">
+      <div class="impl-inner">
+        <strong>実装との差分メモ（見直し用）</strong>
+        <ul>
+          <li>現状: <code>/reserve/[date]</code> は<strong>案内＋フォームが1ページ</strong>。本モックは<strong>2段に分割</strong>した提案。</li>
+          <li>現状: 必須の<strong>4チェックリストは無し</strong>。導入するなら送信バリデーション（未チェックなら disabled 解除など）を別途設計。</li>
+          <li>現状: 昼食の<strong>金額サマリー枠は無し</strong>（人数・昼食数のみ）。</li>
+          <li>締切文言: 画面上は API の <code>reservationDeadlineAt</code> を表示するのが実装と一致（モック本文は既定ルールに言及）。</li>
+        </ul>
+      </div>
+    </div>
+    <p style="text-align: center; font-size: 0.8rem; margin: 1rem 0 2rem">
+      <a href="index.html">モック一覧</a> · <a href="public-user-flow-ui-mock.html">利用者向け（仕様準拠）</a> ·
+      <a href="all-screens-mock.html">全画面モック</a>
+    </p>
+  </body>
+</html>

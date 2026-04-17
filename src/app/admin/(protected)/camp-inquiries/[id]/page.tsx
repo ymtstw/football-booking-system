@@ -97,10 +97,13 @@ export default async function AdminCampInquiryDetailPage({
       <div className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-zinc-900">受付内容</h2>
         <dl className="mt-4 divide-y divide-zinc-100">
-          {CAMP_INQUIRY_FIELD_DEFS.map((def) => {
+          {CAMP_INQUIRY_FIELD_DEFS.flatMap((def) => {
             const raw = answers[def.id] ?? "";
+            if (def.hiddenFromPublicForm && raw.trim() === "") {
+              return [];
+            }
             const shown = raw.trim() === "" ? "—" : displayFieldValue(def.id, raw);
-            return (
+            return [
               <div
                 key={def.id}
                 className="grid gap-1 py-3 sm:grid-cols-[minmax(0,12rem)_1fr] sm:gap-4"
@@ -114,8 +117,8 @@ export default async function AdminCampInquiryDetailPage({
                 <dd className="whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">
                   {shown}
                 </dd>
-              </div>
-            );
+              </div>,
+            ];
           })}
         </dl>
       </div>

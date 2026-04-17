@@ -26,7 +26,7 @@ function baseCreateRpcParams(
     p_contact_email: `integration-${eventDayId.slice(0, 8)}@example.test`,
     p_contact_phone: "09012345678",
     p_participant_count: 8,
-    p_meal_count: 0,
+    p_lunch_items: [],
     p_remarks: "",
     p_token_hash: tokenHash,
     p_representative_grade_year: 3,

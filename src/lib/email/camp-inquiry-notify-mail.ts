@@ -51,7 +51,7 @@ export async function sendCampInquiryNotifyEmail(params: {
   const structuredLines: [string, string][] = [
     ["受付日時", receivedJa],
     ["代表者名", a.contact_name ?? ""],
-    ["所属チーム名・団体名", a.team_name ?? ""],
+    ["所属チーム名", a.team_name ?? ""],
     ["メールアドレス", a.contact_email ?? ""],
     ["電話番号", a.contact_phone ?? ""],
     ["希望プラン", planLabel],
@@ -65,7 +65,7 @@ export async function sendCampInquiryNotifyEmail(params: {
     (row) =>
       ![
         "代表者名",
-        "所属チーム名・団体名",
+        "所属チーム名",
         "メールアドレス",
         "電話番号",
         "希望プラン",

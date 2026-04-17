@@ -12,7 +12,7 @@ import {
 } from "@/lib/camp-inquiry/camp-lodging-plans";
 
 /** DB に保存するスキーマ世代（answers の解釈に使用） */
-export const CAMP_INQUIRY_SCHEMA_VERSION = "v4" as const;
+export const CAMP_INQUIRY_SCHEMA_VERSION = "v5" as const;
 
 export type CampInquiryFieldType =
   | "text"
@@ -42,6 +42,10 @@ export type CampInquiryFieldDef = {
   maxLength?: number;
   rows?: number;
   numberMin?: number;
+  /**
+   * true のとき公開フォームでは出さない（値は空で送信可。プラン選択など将来再利用用に定義だけ残す）
+   */
+  hiddenFromPublicForm?: boolean;
 };
 
 function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
@@ -55,15 +59,16 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       type: "text",
       required: true,
       maxLength: 80,
+      placeholderJa: "例：山田 太郎",
     },
     {
       id: "team_name",
       section: "contact",
-      labelJa: "所属チーム名・団体名",
+      labelJa: "所属チーム名",
       type: "text",
       required: true,
       maxLength: 120,
-      placeholderJa: "例: ○○サッカークラブ",
+      placeholderJa: "例：○○サッカークラブ",
     },
     {
       id: "contact_email",
@@ -89,18 +94,22 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       labelJa: "希望プラン",
       descriptionJa: "案内ページの宿泊プランからお選びください。",
       type: "select",
-      required: true,
+      required: false,
       options: planOptions,
+      hiddenFromPublicForm: true,
     },
     {
       id: "preferred_dates",
       section: "consult",
       labelJa: "希望日程",
-      descriptionJa: "複数候補や「○月頃」など、わかる範囲でご記入ください。未確定でも構いません。",
+      descriptionJa:
+        "複数候補でも構いませんので、できるだけ具体的な日付でご記入ください。\n例：8月17日〜18日、8月22日から1泊2日 など\n日程がまだ決まっていない場合は、その旨をご記入ください。",
       type: "textarea",
       required: true,
       maxLength: 2000,
       rows: 3,
+      placeholderJa:
+        "例：8月17日〜18日／8月22日から1泊2日を検討中／8月24日・25日のいずれかを希望",
     },
     {
       id: "headcount",
@@ -109,21 +118,23 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       descriptionJa:
         "人数の目安や「未定」「10名前後」など、わかる範囲で構いません。",
       type: "text",
-      required: true,
+      required: false,
       maxLength: 120,
       placeholderJa: "例: 15名程度、未定、など",
+      hiddenFromPublicForm: true,
     },
     {
       id: "inquiry_message",
       section: "consult",
       labelJa: "ご相談内容",
       descriptionJa:
-        "受入可否の判断に必要なこと・ご質問をご記入ください。日帰りの交流試合もあわせて相談したい場合は、その旨もこちらに書いていただければ結構です（専用の追加項目は設けていません）。",
+        "宿泊に関するご希望をご記入ください。\n参加予定人数・チーム数・泊数・希望日など、分かる範囲でご記載ください。",
       type: "textarea",
       required: true,
       maxLength: 4000,
       rows: 5,
-      placeholderJa: "例: ○月の土日で前泊込みを検討中。試合もセットで相談したい、など",
+      placeholderJa:
+        "例：8月22日から1泊2日を検討中です。\n2チーム、30名程度を予定しています。\n宿泊を含めた合宿の相談をしたいです。",
     },
     {
       id: "grade_band_note",
@@ -133,6 +144,7 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       required: false,
       maxLength: 200,
       placeholderJa: "例: 小学3〜4年中心（未定でも可）",
+      hiddenFromPublicForm: true,
     },
     {
       id: "match_preference",
@@ -142,6 +154,7 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       required: false,
       maxLength: 2000,
       rows: 3,
+      hiddenFromPublicForm: true,
     },
     {
       id: "supplementary",
@@ -151,6 +164,7 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       required: false,
       maxLength: 2000,
       rows: 3,
+      hiddenFromPublicForm: true,
     },
   ];
 }
@@ -158,6 +172,10 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
 /** 表示順＝配列順（プラン選択肢は起動時点の `camp-lodging-plans` 反映） */
 export const CAMP_INQUIRY_FIELD_DEFS: readonly CampInquiryFieldDef[] =
   buildCampInquiryFieldDefs();
+
+/** 公開フォームに出す項目（将来用に `hiddenFromPublicForm` の定義だけ残している項目は除く） */
+export const CAMP_INQUIRY_PUBLIC_FIELD_DEFS: readonly CampInquiryFieldDef[] =
+  CAMP_INQUIRY_FIELD_DEFS.filter((d) => !d.hiddenFromPublicForm);
 
 const SIMPLE_EMAIL_RE =
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

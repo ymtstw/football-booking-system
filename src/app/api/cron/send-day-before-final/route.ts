@@ -10,8 +10,10 @@ import { type NextRequest, NextResponse } from "next/server";
 import { buildReservationScheduleLines } from "@/lib/day-before/reservation-schedule-lines";
 import {
   sendDayBeforeFinalEmailAndUpdateNotification,
+  TEMPLATE_DAY_BEFORE_FINAL,
   type DayBeforeFinalVariant,
 } from "@/lib/email/day-before-final-mail";
+import { sendOpsBatchFailureDigestEmail } from "@/lib/email/ops-batch-failure-notify";
 import { authorizeCronBearer, cronSecretConfigured } from "@/lib/cron/cron-auth";
 import { addDaysIsoDate, tokyoIsoDateToday } from "@/lib/dates/tokyo-calendar-grid";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -276,6 +278,19 @@ export async function GET(request: NextRequest) {
         .from("event_days")
         .update({ final_day_before_notice_completed_at: nowIso })
         .eq("id", eventDayId);
+    }
+
+    if (failed > 0) {
+      await sendOpsBatchFailureDigestEmail({
+        jobLabelJa: "前日最終案内（Cron JOB03）",
+        templateKey: TEMPLATE_DAY_BEFORE_FINAL,
+        eventDayId,
+        eventDateIso: eventDate,
+        gradeBand: (ed.grade_band as string) ?? null,
+        failedCount: failed,
+        sentCount: sent,
+        skippedCount: skipped,
+      });
     }
 
     summary.push({ eventDayId, eventDate, status, sent, skipped, failed });

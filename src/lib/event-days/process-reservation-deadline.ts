@@ -1,5 +1,6 @@
 import "server-only";
 
+import { sendOpsBatchFailureDigestEmail } from "@/lib/email/ops-batch-failure-notify";
 import {
   sendMinimumCancelNoticeEmailAndUpdateNotification,
   TEMPLATE_MINIMUM_CANCEL_NOTICE,
@@ -13,7 +14,9 @@ async function sendMinimumCancelNoticesForEventDay(
   eventDayId: string,
   eventDate: string,
   gradeBand: string | null
-): Promise<void> {
+): Promise<{ sent: number; skipped: number; failed: number }> {
+  const empty = { sent: 0, skipped: 0, failed: 0 };
+
   const { data: reservations, error: resErr } = await supabase
     .from("reservations")
     .select(
@@ -26,8 +29,12 @@ async function sendMinimumCancelNoticesForEventDay(
     .eq("status", "active");
 
   if (resErr || !reservations?.length) {
-    return;
+    return empty;
   }
+
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
 
   for (const r of reservations) {
     const reservationId = r.id as string;
@@ -47,6 +54,7 @@ async function sendMinimumCancelNoticesForEventDay(
         : "";
 
     if (!contactEmail) {
+      skipped += 1;
       continue;
     }
 
@@ -58,6 +66,7 @@ async function sendMinimumCancelNoticesForEventDay(
       .maybeSingle();
 
     if (existing?.status === "sent") {
+      skipped += 1;
       continue;
     }
 
@@ -71,6 +80,7 @@ async function sendMinimumCancelNoticesForEventDay(
         payload_summary: { event_date: eventDate },
       });
       if (nIns) {
+        failed += 1;
         continue;
       }
     } else if (existing.status === "failed") {
@@ -89,7 +99,33 @@ async function sendMinimumCancelNoticesForEventDay(
       eventDateIso: eventDate,
       gradeBand,
     });
+
+    const { data: after } = await supabase
+      .from("notifications")
+      .select("status")
+      .eq("reservation_id", reservationId)
+      .eq("template_key", TEMPLATE_MINIMUM_CANCEL_NOTICE)
+      .maybeSingle();
+
+    if (after?.status === "sent") sent += 1;
+    else if (after?.status === "failed") failed += 1;
+    else skipped += 1;
   }
+
+  if (failed > 0) {
+    await sendOpsBatchFailureDigestEmail({
+      jobLabelJa: "予約締切・最少催行中止の通知（Cron JOB01）",
+      templateKey: TEMPLATE_MINIMUM_CANCEL_NOTICE,
+      eventDayId,
+      eventDateIso: eventDate,
+      gradeBand,
+      failedCount: failed,
+      sentCount: sent,
+      skippedCount: skipped,
+    });
+  }
+
+  return { sent, skipped, failed };
 }
 
 /**
@@ -145,7 +181,12 @@ export async function processReservationDeadlinePassed(
 
       if (updated) {
         minimumCancelledIds.push(id);
-        await sendMinimumCancelNoticesForEventDay(supabase, id, eventDate, gradeBand);
+        await sendMinimumCancelNoticesForEventDay(
+          supabase,
+          id,
+          eventDate,
+          gradeBand
+        );
       }
     } else {
       const { data: updated } = await supabase

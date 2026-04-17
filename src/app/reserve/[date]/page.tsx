@@ -8,12 +8,19 @@ function isIsoDateOnly(s: string): boolean {
 
 export default async function ReserveByDatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ date: string }>;
+  searchParams?: Promise<{ morningSlot?: string | string[] }>;
 }) {
   const { date } = await params;
   const decoded = decodeURIComponent(date ?? "").trim();
   if (!isIsoDateOnly(decoded)) notFound();
 
-  return <ReserveDateClient eventDate={decoded} />;
+  const sp = searchParams ? await searchParams : {};
+  const raw = sp.morningSlot;
+  const morningSlot =
+    typeof raw === "string" && raw.trim().length > 0 ? raw.trim() : undefined;
+
+  return <ReserveDateClient eventDate={decoded} initialMorningSlotId={morningSlot} />;
 }

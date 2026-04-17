@@ -10,6 +10,7 @@ import {
   sendMatchingProposalEmailAndUpdateNotification,
   TEMPLATE_MATCHING_PROPOSAL,
 } from "@/lib/email/matching-proposal-mail";
+import { sendOpsBatchFailureDigestEmail } from "@/lib/email/ops-batch-failure-notify";
 import { authorizeCronBearer, cronSecretConfigured } from "@/lib/cron/cron-auth";
 import { addDaysIsoDate, tokyoIsoDateToday } from "@/lib/dates/tokyo-calendar-grid";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     const eventDate = ed.event_date as string;
     let sent = 0;
     let skipped = 0;
-    let failed = 0;
+    let emailFailed = 0;
 
     const { data: reservations, error: resErr } = await supabase
       .from("reservations")
@@ -128,7 +129,7 @@ export async function GET(request: NextRequest) {
           payload_summary: { event_date: eventDate },
         });
         if (insErr) {
-          failed += 1;
+          emailFailed += 1;
           continue;
         }
       } else if (existing.status === "failed") {
@@ -157,11 +158,12 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
 
       if (after?.status === "sent") sent += 1;
-      else if (after?.status === "failed") failed += 1;
+      else if (after?.status === "failed") emailFailed += 1;
       else skipped += 1;
     }
 
-    if (failed === 0) {
+    let stampFailed = false;
+    if (emailFailed === 0) {
       const { error: stampErr } = await supabase
         .from("event_days")
         .update({ matching_proposal_notice_sent_at: new Date().toISOString() })
@@ -169,8 +171,34 @@ export async function GET(request: NextRequest) {
         .is("matching_proposal_notice_sent_at", null);
 
       if (stampErr) {
-        failed += 1;
+        stampFailed = true;
       }
+    }
+
+    const failed = emailFailed + (stampFailed ? 1 : 0);
+
+    if (emailFailed > 0) {
+      await sendOpsBatchFailureDigestEmail({
+        jobLabelJa: "マッチング案内・開催2日前（Cron）",
+        templateKey: TEMPLATE_MATCHING_PROPOSAL,
+        eventDayId,
+        eventDateIso: eventDate,
+        gradeBand: (ed.grade_band as string) ?? null,
+        failedCount: emailFailed,
+        sentCount: sent,
+        skippedCount: skipped,
+      });
+    } else if (stampFailed) {
+      await sendOpsBatchFailureDigestEmail({
+        jobLabelJa: "マッチング案内済みフラグ更新（Cron）",
+        templateKey: "event_days.matching_proposal_notice_sent_at",
+        eventDayId,
+        eventDateIso: eventDate,
+        gradeBand: (ed.grade_band as string) ?? null,
+        failedCount: 1,
+        sentCount: sent,
+        skippedCount: skipped,
+      });
     }
 
     summary.push({ eventDayId, eventDate, sent, skipped, failed });

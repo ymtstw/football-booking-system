@@ -35,7 +35,7 @@ export function CampInquiryDetailManageClient({
 
   const mailtoHref =
     contactEmail.trim() !== ""
-      ? `mailto:${encodeURIComponent(contactEmail.trim())}?subject=${encodeURIComponent(`合宿相談: ${teamName || "（団体名なし）"}`)}`
+      ? `mailto:${encodeURIComponent(contactEmail.trim())}?subject=${encodeURIComponent(`合宿相談: ${teamName || "（チーム名なし）"}`)}`
       : null;
 
   async function saveStatus() {

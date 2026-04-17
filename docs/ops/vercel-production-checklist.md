@@ -32,6 +32,7 @@
 ## 3. Supabase（本番）
 
 - **本番プロジェクト**に migration を適用済みか（`supabase link` + `db push` または CI）
+- **DB バックアップ:** 自動バックアップの有無・保持期間を Dashboard で確認し、大きなマイグレーション前は手動スナップショットや `pg_dump` 等で退避する。**方針の正:** `docs/spec/design-mvp.md` **§1-6**
 - **Auth:** 管理者用ユーザーを 1 人以上作成
 - **`app_admins`:** そのユーザーの `auth.users.id` を `INSERT INTO public.app_admins (user_id) VALUES ('…');` で登録（Role: postgres / SQL Editor）。手順の詳細は `docs/progress.md` の「A. 運用・Supabase」または `docs/setup-staging-supabase.md` の Auth 周りを参照（Staging 用だが手順は同型）。
 
