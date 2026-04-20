@@ -74,6 +74,8 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       id: "contact_email",
       section: "contact",
       labelJa: "メールアドレス",
+      descriptionJa:
+        "返信先です。誤記に備え、下の電話番号も必ずご入力ください。",
       type: "email",
       required: true,
       maxLength: 254,

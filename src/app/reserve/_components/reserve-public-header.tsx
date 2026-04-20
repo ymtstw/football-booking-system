@@ -9,11 +9,15 @@ import { IconMenu, IconSoccerBall, IconX } from "./reserve-icons";
 const NAV = [
   {
     href: "/reserve",
-    label: "予約",
+    label: "イベント案内",
+    match: (p: string) => p === "/reserve" || p === "/reserve/",
+  },
+  {
+    href: "/reserve/calendar",
+    label: "予約する",
     match: (p: string) =>
-      p === "/reserve" ||
       p.startsWith("/reserve/calendar") ||
-      /^\/reserve\/\d{4}-\d{2}-\d{2}$/.test(p) ||
+      /^\/reserve\/\d{4}-\d{2}-\d{2}/.test(p) ||
       p === "/reserve/complete",
   },
   { href: "/reserve/manage", label: "予約の確認・キャンセル", match: (p: string) => p.startsWith("/reserve/manage") },
@@ -30,14 +34,16 @@ export function ReservePublicHeader() {
       <div className="mx-auto flex h-[72px] max-w-[1280px] items-center justify-between gap-4 px-6 md:px-8 lg:px-10">
         <Link
           href="/reserve"
-          className="flex min-w-0 items-center gap-3 text-green-700"
+          className="flex min-w-0 flex-col items-start gap-0.5 text-green-700 lg:flex-row lg:items-center lg:gap-3"
           onClick={() => setMenuOpen(false)}
         >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-4 border-green-700 bg-white text-green-700">
+          <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full border-4 border-green-700 bg-white text-green-700 lg:inline-flex">
             <IconSoccerBall className="h-5 w-5" />
           </span>
-          <span className="truncate text-xl font-extrabold tracking-tight text-green-700 sm:text-2xl md:text-3xl">
-            小学生サッカー対戦予約
+          <span className="min-w-0">
+            <span className="block truncate text-lg font-extrabold tracking-tight sm:text-xl md:text-2xl">
+              小学生サッカー対戦予約
+            </span>
           </span>
         </Link>
         <button

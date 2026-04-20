@@ -5,8 +5,6 @@ import {
 } from "@/lib/reservations/grade-year";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 
-import { IconSunMorning } from "./reserve-icons";
-import { ReserveHeadingWithIcon } from "./ui/reserve-heading-with-icon";
 
 export type MorningSlotSelectRow = {
   id: string;
@@ -53,14 +51,9 @@ export function MorningSlotsSelect({
 }) {
   return (
     <section className="min-w-0 rounded-[20px] border border-green-200 bg-white p-4 shadow-sm sm:p-5">
-      <ReserveHeadingWithIcon
-        as="h2"
-        shell="green"
-        icon={<IconSunMorning className="h-5 w-5 sm:h-6 sm:w-6" />}
-        textClassName="text-lg font-bold text-green-800 sm:text-xl"
-      >
+      <h2 className="text-lg font-bold text-green-800 sm:text-xl">
         午前の対戦枠（選択可）
-      </ReserveHeadingWithIcon>
+      </h2>
       <p className="mt-1 text-sm text-slate-600">{subheading}</p>
       {showCategoryLegend ? (
         <ul className="mt-2 space-y-1 text-xs leading-snug text-slate-600 sm:text-sm">
@@ -92,6 +85,7 @@ export function MorningSlotsSelect({
       <ul className="mt-4 space-y-3">
         {morningSlots.map((s) => {
           const disabled = !s.bookable || !acceptingReservations;
+          const isFull = s.full;
           const teams = s.bookedTeams ?? [];
           const remain = Math.max(0, s.capacity - s.activeCount);
           const slotHeadline = s.full
@@ -100,25 +94,34 @@ export function MorningSlotsSelect({
           return (
             <li key={s.id}>
               <label
-                className={`flex min-h-12 cursor-pointer items-start gap-3 rounded-[16px] border-2 p-3.5 transition-colors sm:p-4 ${
+                className={`flex min-h-12 items-start gap-3 rounded-[16px] border-2 p-3.5 transition-colors sm:p-4 ${
                   disabled
-                    ? "border-slate-200 bg-slate-100 text-slate-500"
-                    : selectedSlotId === s.id
-                      ? "border-green-600 bg-green-50 shadow-sm ring-2 ring-green-600/20"
-                      : "border-slate-200 bg-white hover:border-green-200"
+                    ? isFull
+                      ? "cursor-not-allowed border-slate-300 bg-slate-300/90 text-slate-700"
+                      : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
+                    : "cursor-pointer " +
+                      (selectedSlotId === s.id
+                        ? "border-green-600 bg-green-50 shadow-sm ring-2 ring-green-600/20"
+                        : "border-slate-200 bg-white hover:border-green-200")
                 }`}
               >
                 <input
                   type="radio"
                   name="morning-slot"
                   value={s.id}
-                  className="mt-1 h-4 w-4 shrink-0 accent-green-600 sm:mt-1.5"
+                  className={
+                    disabled && isFull
+                      ? "mt-1 h-4 w-4 shrink-0 cursor-not-allowed appearance-none rounded-full border-2 border-slate-600 bg-zinc-900 sm:mt-1.5"
+                      : "mt-1 h-4 w-4 shrink-0 accent-green-600 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-1.5"
+                  }
                   checked={selectedSlotId === s.id}
                   disabled={disabled}
                   onChange={() => onSelectSlot(s.id)}
                 />
                 <div className="min-w-0 flex-1 space-y-2 text-sm">
-                  <div className="font-semibold text-slate-900">
+                  <div
+                    className={`font-semibold ${disabled ? "text-slate-700" : "text-slate-900"}`}
+                  >
                     {slotHeadline}
                     {s.isLocked ? (
                       <span className="ml-1 text-xs font-normal text-amber-800">・ロック中</span>

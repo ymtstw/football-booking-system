@@ -1,6 +1,13 @@
 "use client";
 
 import { NotificationFailedRetryTable } from "@/components/admin/notification-failed-retry-table";
+import {
+  assignmentTypeLabelJa,
+  eventSlotLabelJa,
+  formatAdminIdListTails,
+  formatAdminIdTail,
+} from "@/lib/admin/operator-display";
+import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { PreDayAdjustPanel } from "./pre-day-adjust-panel";
@@ -102,11 +109,11 @@ function formatWarnings(w: unknown): string {
 }
 
 function teamLabel(s: SideJson): string {
-  return s.teamName ?? s.displayName ?? s.reservationId.slice(0, 8) + "…";
+  return s.teamName ?? s.displayName ?? formatAdminIdTail(s.reservationId);
 }
 
 function occupantLabel(o: SlotOccupantJson): string {
-  return o.teamName ?? o.displayName ?? o.reservationId.slice(0, 8) + "…";
+  return o.teamName ?? o.displayName ?? formatAdminIdTail(o.reservationId);
 }
 
 function occupantCellText(o: SlotOccupantJson): string {
@@ -114,6 +121,57 @@ function occupantCellText(o: SlotOccupantJson): string {
   const cat = o.strengthCategory ? ` (${o.strengthCategory})` : "";
   const note = o.morningMatchNote ? ` — ${o.morningMatchNote}` : "";
   return `${base}${cat}${note}`;
+}
+
+type UnifiedSlotRow = {
+  slot: SlotOverviewJson;
+  typeStr: string;
+  aStr: string;
+  bStr: string;
+  refStr: string;
+  warnStr: string;
+};
+
+function buildUnifiedSlotRows(
+  slotsOverview: SlotOverviewJson[],
+  assignmentBySlotId: Map<string, AssignmentJson>
+): UnifiedSlotRow[] {
+  return slotsOverview.map((slot) => {
+    const asg = assignmentBySlotId.get(slot.slotId);
+    let typeStr = "—";
+    let aStr = "—";
+    let bStr = "—";
+    let refStr = "—";
+    let warnStr = "—";
+
+    if (asg) {
+      typeStr = assignmentTypeLabelJa(asg.assignmentType);
+      aStr = `${teamLabel(asg.sideA)}${asg.sideA.strengthCategory ? ` (${asg.sideA.strengthCategory})` : ""}`;
+      bStr = `${teamLabel(asg.sideB)}${asg.sideB.strengthCategory ? ` (${asg.sideB.strengthCategory})` : ""}`;
+      refStr = asg.referee ? teamLabel(asg.referee) : "—";
+      warnStr = formatWarnings(asg.warningJson);
+    } else if (slot.phase === "morning") {
+      const occ = slot.morningOccupants;
+      if (occ.length === 0) {
+        typeStr = "—";
+      } else {
+        typeStr = "予約のみ";
+        aStr = occ[0] ? occupantCellText(occ[0]) : "—";
+        if (occ.length === 1) {
+          bStr = "—";
+        } else {
+          bStr = occ[1] ? occupantCellText(occ[1]) : "—";
+          if (occ.length > 2) {
+            bStr = `${bStr}（ほか${occ.length - 2}件）`;
+          }
+        }
+      }
+    } else {
+      typeStr = "未編成";
+    }
+
+    return { slot, typeStr, aStr, bStr, refStr, warnStr };
+  });
 }
 
 /** 全日の枠を時間順の1表にし、種別・A/B・審判・警告をまとめて表示 */
@@ -132,6 +190,11 @@ function UnifiedSlotsTable({
     return m;
   }, [assignments]);
 
+  const slotRows = useMemo(
+    () => buildUnifiedSlotRows(slotsOverview, assignmentBySlotId),
+    [slotsOverview, assignmentBySlotId]
+  );
+
   if (slotsOverview.length === 0) {
     return (
       <div className="min-w-0 rounded-lg border border-zinc-200 bg-white p-4 text-sm text-zinc-500 sm:p-5">
@@ -147,10 +210,57 @@ function UnifiedSlotsTable({
       <p className="mt-1 text-xs text-zinc-500">
         午前・午後の全枠を1表にしています。試合行がある枠は種別・審判・警告を表示し、午前で行がないときは希望枠の予約をチーム列に出します（試合が別枠のときは注記を付けます）。
       </p>
-      <p className="mt-2 text-xs text-zinc-500 sm:hidden">
-        表は横にスクロールできます。
-      </p>
-      <div className="mt-3 min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+
+      <div className="mt-3 space-y-3 md:hidden">
+        {slotRows.map(({ slot, typeStr, aStr, bStr, refStr, warnStr }) => (
+          <article
+            key={slot.slotId}
+            className="rounded-xl border border-zinc-200/90 bg-zinc-50/40 p-3.5 shadow-sm ring-1 ring-zinc-100/80"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-200/80 pb-2">
+              <p className="text-sm font-semibold text-zinc-900">
+                {eventSlotLabelJa(slot.slotCode, slot.phase)}
+                <span className="ml-2 text-xs font-normal text-zinc-500">
+                  {slot.startTime?.slice(0, 5) ?? ""}–{slot.endTime?.slice(0, 5) ?? ""}
+                </span>
+              </p>
+              {slot.isActive === false ? (
+                <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-600">
+                  無効
+                </span>
+              ) : (
+                <span className="text-xs text-zinc-500">有効</span>
+              )}
+            </div>
+            <dl className="mt-3 space-y-2 text-sm text-zinc-800">
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">種別</dt>
+                <dd className="mt-0.5 wrap-break-word">{typeStr}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">チームA</dt>
+                <dd className="mt-0.5 wrap-break-word">{aStr}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">チームB</dt>
+                <dd className="mt-0.5 wrap-break-word">{bStr}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">審判</dt>
+                <dd className="mt-0.5 wrap-break-word text-zinc-700">{refStr}</dd>
+              </div>
+              {warnStr !== "—" ? (
+                <div>
+                  <dt className="text-xs font-medium text-amber-800">警告</dt>
+                  <dd className="mt-0.5 wrap-break-word text-xs text-amber-900">{warnStr}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </article>
+        ))}
+      </div>
+
+      <div className="mt-3 hidden min-w-0 max-w-full overflow-x-auto overscroll-x-contain md:block [-webkit-overflow-scrolling:touch]">
         <table className="w-full min-w-176 border-separate border-spacing-0 text-left text-sm text-zinc-800">
           <thead>
             <tr className="border-b border-zinc-200 text-xs font-medium tracking-wide text-zinc-500">
@@ -164,96 +274,46 @@ function UnifiedSlotsTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {slotsOverview.map((slot) => {
-              const asg = assignmentBySlotId.get(slot.slotId);
-              let typeStr = "—";
-              let aStr = "—";
-              let bStr = "—";
-              let refStr = "—";
-              let warnStr = "—";
-
-              if (asg) {
-                typeStr = asg.assignmentType;
-                aStr = `${teamLabel(asg.sideA)}${asg.sideA.strengthCategory ? ` (${asg.sideA.strengthCategory})` : ""}`;
-                bStr = `${teamLabel(asg.sideB)}${asg.sideB.strengthCategory ? ` (${asg.sideB.strengthCategory})` : ""}`;
-                refStr = asg.referee ? teamLabel(asg.referee) : "—";
-                warnStr = formatWarnings(asg.warningJson);
-              } else if (slot.phase === "morning") {
-                const occ = slot.morningOccupants;
-                if (occ.length === 0) {
-                  typeStr = "—";
-                } else {
-                  typeStr = "予約のみ";
-                  aStr = occ[0] ? occupantCellText(occ[0]) : "—";
-                  if (occ.length === 1) {
-                    bStr = "—";
-                  } else {
-                    bStr = occ[1] ? occupantCellText(occ[1]) : "—";
-                    if (occ.length > 2) {
-                      bStr = `${bStr}（ほか${occ.length - 2}件）`;
-                    }
-                  }
-                }
-              } else {
-                typeStr = "未編成";
-              }
-
-              return (
-                <tr key={slot.slotId} className="align-top">
-                  <td className="whitespace-nowrap py-2 pr-3 align-top text-zinc-600">
-                    {slot.phase === "morning" ? "午前" : "午後"} {slot.slotCode}
-                    <br />
-                    <span className="text-xs text-zinc-400">
-                      {slot.startTime?.slice(0, 5) ?? ""}–{slot.endTime?.slice(0, 5) ?? ""}
+            {slotRows.map(({ slot, typeStr, aStr, bStr, refStr, warnStr }) => (
+              <tr key={slot.slotId} className="align-top">
+                <td className="whitespace-nowrap py-2 pr-3 align-top text-zinc-600">
+                  {eventSlotLabelJa(slot.slotCode, slot.phase)}
+                  <br />
+                  <span className="text-xs text-zinc-400">
+                    {slot.startTime?.slice(0, 5) ?? ""}–{slot.endTime?.slice(0, 5) ?? ""}
+                  </span>
+                </td>
+                <td className="whitespace-nowrap py-2 pr-3 align-top text-xs">
+                  {slot.isActive === false ? (
+                    <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-zinc-600">
+                      無効
                     </span>
-                  </td>
-                  <td className="whitespace-nowrap py-2 pr-3 align-top text-xs">
-                    {slot.isActive === false ? (
-                      <span className="rounded border border-zinc-300 bg-zinc-100 px-1.5 py-0.5 text-zinc-600">
-                        無効
-                      </span>
-                    ) : (
-                      <span className="text-zinc-500">有効</span>
-                    )}
-                  </td>
-                  <td className="whitespace-nowrap py-2 pr-3 align-top font-mono text-xs text-zinc-700">
-                    {typeStr}
-                  </td>
-                  <td className="min-w-0 max-w-44 py-2 pr-3 align-top wrap-break-word sm:max-w-56 lg:max-w-72">
-                    {aStr}
-                  </td>
-                  <td className="min-w-0 max-w-44 py-2 pr-3 align-top wrap-break-word sm:max-w-56 lg:max-w-72">
-                    {bStr}
-                  </td>
-                  <td className="min-w-0 max-w-36 py-2 pr-3 align-top wrap-break-word text-zinc-700 sm:max-w-48">
-                    {refStr}
-                  </td>
-                  <td className="min-w-0 max-w-40 py-2 pr-1 align-top wrap-break-word text-xs text-amber-800 sm:max-w-56">
-                    {warnStr}
-                  </td>
-                </tr>
-              );
-            })}
+                  ) : (
+                    <span className="text-zinc-500">有効</span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap py-2 pr-3 align-top text-xs text-zinc-700">
+                  {typeStr}
+                </td>
+                <td className="min-w-0 max-w-44 py-2 pr-3 align-top wrap-break-word sm:max-w-56 lg:max-w-72">
+                  {aStr}
+                </td>
+                <td className="min-w-0 max-w-44 py-2 pr-3 align-top wrap-break-word sm:max-w-56 lg:max-w-72">
+                  {bStr}
+                </td>
+                <td className="min-w-0 max-w-36 py-2 pr-3 align-top wrap-break-word text-zinc-700 sm:max-w-48">
+                  {refStr}
+                </td>
+                <td className="min-w-0 max-w-40 py-2 pr-1 align-top wrap-break-word text-xs text-amber-800 sm:max-w-56">
+                  {warnStr}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
     </div>
   );
-}
-
-/** DB の event_days.status → 表示用 */
-const EVENT_STATUS_JA: Record<string, string> = {
-  draft: "下書き",
-  open: "予約受付中",
-  locked: "締切後（自動編成の実行可）",
-  confirmed: "編成確定済み",
-  cancelled_weather: "中止（天候）",
-  cancelled_operational: "中止（運営都合）",
-  cancelled_minimum: "中止（最少催行）",
-};
-
-function eventStatusJa(status: string): string {
-  return EVENT_STATUS_JA[status] ?? status;
 }
 
 function statusBadgeClass(status: string): string {
@@ -388,14 +448,14 @@ export function PreDayResultsClient({
         (a) => a.matchPhase === "morning" && a.assignmentType === "morning_fill"
       ).length ?? 0;
     const confirmBody = [
-      "自動編成で付けた「午前の補完（morning_fill）」と「午後の自動割当（afternoon_auto）」を削除します。",
-      "予約データ・午前で2枠埋まって確定した試合（morning_fixed）は消えません（審判だけクリアされます）。",
+      "自動編成で付けた「午前の補完」と「午後の自動割当」を削除します。",
+      "午前で2枠埋まって確定した試合の行は残ります（審判だけクリアされます）。",
       "",
       afternoonListed > 0 || morningFillListed > 0
-        ? `（一覧では morning_fill ${morningFillListed} 件・午後 ${afternoonListed} 件表示中です）`
+        ? `（一覧では午前の補完 ${morningFillListed} 件・午後 ${afternoonListed} 件を表示中です）`
         : "（一覧に行がなくても、確定済みの該当データは削除対象です）",
       "",
-      "・開催日は「締切後（locked）」に戻ります＝自動編成前に近い状態で、公開の新規予約はまだできません",
+      "・開催日は「締切済み」に戻ります（自動編成前に近い状態で、一般からの新規予約はまだできません）",
       "",
       "よろしいですか？",
     ].join("\n");
@@ -426,10 +486,10 @@ export function PreDayResultsClient({
       const refCleared = json.clearedMorningFixedRefereeCount ?? 0;
       const refPart =
         refCleared > 0
-          ? ` morning_fixed の審判を ${refCleared} 件クリアしました。`
+          ? ` 午前・確定試合の審判を ${refCleared} 件クリアしました。`
           : "";
       setActionMessage(
-        `自動編成の巻き戻し: morning_fill ${json.deletedMorningFillCount ?? 0} 件・午後 ${json.deletedAfternoonCount ?? 0} 件を削除し、締切後（locked）へ戻しました。${refPart}予約の再受付にはなっていません。`
+        `自動編成を巻き戻しました。午前の補完 ${json.deletedMorningFillCount ?? 0} 件・午後 ${json.deletedAfternoonCount ?? 0} 件を削除し、締切済みに戻しました。${refPart}一般からの予約の再受付にはなっていません。`
       );
       await loadMatches();
     } catch {
@@ -449,20 +509,17 @@ export function PreDayResultsClient({
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <p className="text-xs font-medium text-zinc-500">SCR-11 / 試合一覧・自動編成 · SCR-12 補正</p>
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">前日確定</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           試合一覧では、
           <strong className="font-medium">
             開催日の初期値は東京の「今日以降で最も近い登録開催日」
           </strong>
-          （当日があれば当日）とし、開いたときに一覧を読み込みます（
-          <code className="rounded bg-zinc-100 px-1 font-mono text-[11px]">?date=</code>{" "}
-          で上書き可）。
-          <strong className="font-medium"> locked </strong>
-          の日だけ自動編成を実行できます。確定済み（
-          <strong className="font-medium">confirmed</strong>
-          ）は巻き戻しで締切後に戻してから再実行できます（希望枠は予約のまま）。
+          （当日があれば当日）とし、開いたときに一覧を読み込みます。URLで日付を指定して別の開催日を開くこともできます。
+          <strong className="font-medium"> 締切済み</strong>
+          の日だけ自動編成を実行できます。
+          <strong className="font-medium"> 確定</strong>
+          済みは巻き戻しで締切済みに戻してから再実行できます（希望枠は予約のまま）。
         </p>
       </div>
 
@@ -536,7 +593,7 @@ export function PreDayResultsClient({
           aria-labelledby="failed-notif-title"
         >
           <h2 id="failed-notif-title" className="text-sm font-semibold text-red-950">
-            この開催日の通知 failed
+            この開催日の送信失敗
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/80">
             宛先・エラーを確認のうえ「再送」できます。全体一覧は{" "}
@@ -577,21 +634,19 @@ export function PreDayResultsClient({
                 <span
                   className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(data.eventDay.status)}`}
                 >
-                  {eventStatusJa(data.eventDay.status)}
+                  {eventDayStatusLabelJa(data.eventDay.status)}
                 </span>
-                <span className="font-mono text-xs text-zinc-500">{data.eventDay.status}</span>
               </div>
               {data.eventDay.status === "confirmed" ? (
                 <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-600">
-                  下の「巻き戻し」で<strong className="font-medium text-zinc-800">締切後（locked）</strong>
+                  下の「巻き戻し」で<strong className="font-medium text-zinc-800">締切済み</strong>
                   に戻せます。消えるのは自動で付いた
-                  <strong className="font-medium text-zinc-800"> morning_fill と午後（afternoon_auto）</strong>
+                  <strong className="font-medium text-zinc-800">午前の補完と午後の自動割当</strong>
                   だけです（
-                  <strong className="font-medium text-zinc-800">morning_fixed</strong>
+                  <strong className="font-medium text-zinc-800">午前・確定試合</strong>
                   の審判は巻き戻しでクリアされます）。
                   <strong className="font-medium text-zinc-800"> 予約の午前希望枠</strong>
-                  は <code className="rounded bg-zinc-100 px-1 font-mono text-[11px]">reservations</code>{" "}
-                  のまま変わりません（一覧は試合行と希望の両方を参照します）。
+                  は変わりません（一覧は試合行と希望の両方を参照します）。
                 </p>
               ) : null}
             </div>
@@ -605,13 +660,13 @@ export function PreDayResultsClient({
                 <dd className="font-medium tabular-nums text-zinc-900">{afternoonRows.length} 件</dd>
               </div>
               <div className="col-span-2">
-                <dt className="text-zinc-500">matching_run</dt>
+                <dt className="text-zinc-500">最後の自動編成</dt>
                 <dd className="text-zinc-800">
                   {data.matchingRun ? (
                     <>
-                      あり · 警告 {data.matchingRun.warningCount} 件 ·{" "}
+                      記録あり · 警告 {data.matchingRun.warningCount} 件 · 照会{" "}
                       <span className="font-mono text-xs" title={data.matchingRun.id}>
-                        {data.matchingRun.id.slice(0, 8)}…
+                        {formatAdminIdTail(data.matchingRun.id)}
                       </span>
                     </>
                   ) : (
@@ -626,17 +681,16 @@ export function PreDayResultsClient({
             <p className="font-medium text-zinc-800">この画面でできること</p>
             <ul className="mt-1 list-inside list-disc space-y-0.5">
               {status === "locked" ? (
-                <li>自動編成で午後を組み、開催日を確定（confirmed）にします。</li>
+                <li>自動編成で午後を組み、開催日を確定にします。</li>
               ) : null}
               {status === "confirmed" ? (
                 <li>
                   <strong className="font-medium">自動編成の巻き戻し</strong>
-                  で morning_fill と午後だけを消し「締切後（locked）」に戻せます。morning_fixed
-                  は残りますが審判はクリアされます。希望枠は予約データのままです。
+                  で午前の補完と午後だけを消し「締切済み」に戻せます。午前・確定試合は残りますが審判はクリアされます。希望枠は予約データのままです。
                 </li>
               ) : null}
               {status !== "locked" && status !== "confirmed" ? (
-                <li>自動編成・巻き戻しは、locked / confirmed のときのみ利用できます。</li>
+                <li>自動編成・巻き戻しは、締切済みまたは確定のときのみ利用できます。</li>
               ) : null}
             </ul>
           </div>
@@ -646,7 +700,7 @@ export function PreDayResultsClient({
               type="button"
               onClick={() => void runMatching()}
               disabled={!canRun || actionBusy !== null}
-              title={!canRun ? "locked のときのみ実行できます" : undefined}
+              title={!canRun ? "締切済みのときのみ実行できます" : undefined}
               className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
               {actionBusy === "run" ? "実行中…" : "自動編成を実行"}
@@ -657,8 +711,8 @@ export function PreDayResultsClient({
               disabled={!canUndo || actionBusy !== null}
               title={
                 !canUndo
-                  ? "confirmed のときのみ利用できます"
-                  : "morning_fill と afternoon_auto を削除し locked に戻します。morning_fixed は残しますが審判はクリアします。予約（午前希望枠）は変更しません。"
+                  ? "確定のときのみ利用できます"
+                  : "午前の補完と午後の自動割当を削除し締切済みに戻します。午前・確定試合は残しますが審判はクリアします。予約（午前希望枠）は変更しません。"
               }
               className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-700 bg-white px-4 text-sm font-medium text-amber-900 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
@@ -669,7 +723,7 @@ export function PreDayResultsClient({
           </div>
           {!canRun && !canUndo ? (
             <p className="mt-2 text-xs text-zinc-600">
-              このステータスでは自動実行・巻き戻しボタンは無効です（locked / confirmed を想定）。
+              この状態では自動実行・巻き戻しボタンは無効です（締切済みまたは確定を想定）。
             </p>
           ) : null}
         </div>
@@ -683,36 +737,32 @@ export function PreDayResultsClient({
 
       {lastMeta ? (
         <div className="rounded-lg border border-zinc-200 bg-white p-4 text-sm sm:p-5">
-          <h2 className="text-sm font-medium text-zinc-800">直近の編成メタ（meta）</h2>
+          <h2 className="text-sm font-medium text-zinc-800">直近の編成の詳細</h2>
           <div className="mt-3 space-y-3 text-zinc-700">
             <div>
-              <p className="text-xs font-medium text-zinc-500">午前未ペア（予約ID）</p>
-              <p className="mt-1 font-mono text-xs break-all">
-                {lastMeta.unfilledMorningReservationIds.length
-                  ? lastMeta.unfilledMorningReservationIds.join(", ")
-                  : "なし"}
+              <p className="text-xs font-medium text-zinc-500">午前・未ペア（照会番号・末尾）</p>
+              <p className="mt-1 text-xs break-all text-zinc-800">
+                {formatAdminIdListTails(lastMeta.unfilledMorningReservationIds)}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium text-zinc-500">午後未割当（予約ID）</p>
-              <p className="mt-1 font-mono text-xs break-all">
-                {lastMeta.unfilledAfternoonReservationIds.length
-                  ? lastMeta.unfilledAfternoonReservationIds.join(", ")
-                  : "なし"}
+              <p className="text-xs font-medium text-zinc-500">午後・未割当（照会番号・末尾）</p>
+              <p className="mt-1 text-xs break-all text-zinc-800">
+                {formatAdminIdListTails(lastMeta.unfilledAfternoonReservationIds)}
               </p>
             </div>
             <div>
               <p className="text-xs font-medium text-zinc-500">
-                全日 target 未達（予約ID）
+                1日の試合数が足りない可能性（照会番号・末尾）
               </p>
-              <p className="mt-1 font-mono text-xs break-all">
+              <p className="mt-1 text-xs break-all text-zinc-800">
                 {lastMeta.targetPlayShortfallReservationIds?.length
-                  ? lastMeta.targetPlayShortfallReservationIds.join(", ")
+                  ? formatAdminIdListTails(lastMeta.targetPlayShortfallReservationIds)
                   : "なし"}
               </p>
             </div>
             <div>
-              <p className="text-xs font-medium text-zinc-500">notes</p>
+              <p className="text-xs font-medium text-zinc-500">メモ</p>
               <ul className="mt-1 list-inside list-disc text-sm">
                 {lastMeta.notes.length ? (
                   lastMeta.notes.map((n, i) => <li key={i}>{n}</li>)

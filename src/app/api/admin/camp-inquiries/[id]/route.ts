@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";
-import { isCampInquiryStatus } from "@/lib/camp-inquiry/camp-inquiry-status";
+import {
+  CAMP_INQUIRY_STATUS_VALUES_HINT,
+  isCampInquiryStatus,
+} from "@/lib/camp-inquiry/camp-inquiry-status";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const UUID_RE =
@@ -31,7 +34,7 @@ export async function PATCH(
   const status = (body as { status?: unknown }).status;
   if (typeof status !== "string" || !isCampInquiryStatus(status)) {
     return NextResponse.json(
-      { error: "status は new / in_progress / done のいずれかです" },
+      { error: `status は次のいずれかです: ${CAMP_INQUIRY_STATUS_VALUES_HINT}` },
       { status: 422 }
     );
   }

@@ -40,19 +40,21 @@ export default async function AdminEventDayWeatherPage({
           枠・時刻
         </Link>
         {" · "}
-        <Link
-          href={`/admin/event-days/${id}/operational-cancel`}
-          className="font-medium text-rose-800 underline decoration-rose-600/60 underline-offset-2"
-        >
-          緊急中止（運営）
-        </Link>
+        <span className="font-medium text-sky-800">雨天判断</span>
       </p>
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">雨天判断</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
         事前に go / cancel を登録できます。原則、参加者向けの最終文面は{" "}
-        <strong>前日 17:00</strong> の一括メール（JOB03）に反映されます。荒天など例外的に早く伝える必要があるときは、中止で「即時確定＋即時メール」または「前日17:00に雨天中止文面を送る予約」を選べます。
+        <strong>前日 17:00</strong> の一括メールに反映されます。荒天など例外的に早く伝える必要があるときは、中止で「即時確定＋即時メール」または「前日17:00に雨天中止文面を送る予約」を選べます。
         <span className="mt-2 block text-xs text-zinc-500">
-          天候以外の中止は「緊急中止（運営）」から登録してください（上のリンク）。
+          天候以外の中止は{" "}
+          <Link
+            href={`/admin/event-days/${id}/operational-cancel`}
+            className="font-medium text-rose-800 underline decoration-rose-600/60 underline-offset-2"
+          >
+            緊急中止（運営）
+          </Link>{" "}
+          から登録してください。
         </span>
       </p>
       {eventDay.status === "cancelled_minimum" || eventDay.status === "cancelled_operational" ? (

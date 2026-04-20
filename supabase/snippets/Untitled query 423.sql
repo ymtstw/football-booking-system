@@ -1,0 +1,1 @@
+curl.exe -s -H "Authorization: Bearer 0c06bfc5eb7cf4d5da7baa66928e2d3605a389a6421d66f2c948310dbe641e6a" "http://localhost:3000/api/cron/lock-event-days"

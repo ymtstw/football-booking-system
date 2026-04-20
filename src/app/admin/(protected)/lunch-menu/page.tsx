@@ -7,7 +7,7 @@ export default function AdminLunchMenuPage() {
       <div>
         <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">昼食メニュー</h1>
         <p className="mt-2 text-sm text-zinc-600">
-          予約画面に出る昼食のマスタです。予約済みの金額は明細のスナップショットで固定されます。
+          予約画面に表示する昼食の一覧です。一度予約に入ったメニュー名・金額は、その予約の記録として残り、マスタを変えても過去の予約だけは書き換わりません。
         </p>
       </div>
       <LunchMenuAdminClient />

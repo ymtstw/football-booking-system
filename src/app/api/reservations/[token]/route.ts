@@ -285,6 +285,18 @@ export async function PATCH(
     );
   }
 
+  if (
+    parsed.lunchItems.length > 0 &&
+    parsed.lunchItems.every((item) => item.quantity === 0)
+  ) {
+    return NextResponse.json(
+      {
+        error: "昼食は、必ずご予約が必要です。",
+      },
+      { status: 422 }
+    );
+  }
+
   const tokenHash = hashReservationTokenPlain(token);
   const supabase = createServiceRoleClient();
 

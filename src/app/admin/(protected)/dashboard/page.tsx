@@ -38,7 +38,7 @@ export default async function AdminDashboardPage() {
   if (dayErr) {
     return (
       <div className="min-w-0 space-y-4">
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">ダッシュボード</h1>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">運営ダッシュボード</h1>
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
           開催日の取得に失敗しました: {dayErr.message}
         </p>
@@ -54,20 +54,26 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="min-w-0 space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">ダッシュボード</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-600">
-          今日（東京）以降で最も近い開催日を<strong className="font-medium">1件</strong>
-          表示し、来場チーム数・昼食・参加人数・状態を確認できます。
-          <strong className="font-medium">「次の開催日を読み込む」</strong>
-          で、その次に登録されている開催日を同じ形式で足していけます（数日分の昼食数の把握用）。一覧や別日は開催日管理・前日確定を利用してください。
-        </p>
-      </div>
+      <header className="relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-md ring-1 ring-zinc-100 sm:p-6">
+        <div
+          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-emerald-500 to-emerald-700"
+          aria-hidden
+        />
+        <div className="relative pl-4 sm:pl-5">
+          <p className="text-xs font-semibold tracking-wide text-emerald-800">運営</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
+            ダッシュボード
+          </h1>
+          <p className="mt-2 max-w-2xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
+            今日（東京）以降で最も早い開催日を1件表示します。「次の開催日を読み込む」で続きを同形式で追加できます。
+          </p>
+        </div>
+      </header>
 
       {!nextEventDay || !initialSummary ? (
         <section
           aria-labelledby="dash-no-upcoming"
-          className="rounded-lg border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-700"
+          className="rounded-xl border border-zinc-200/90 bg-white px-4 py-6 text-sm text-zinc-700 shadow-sm ring-1 ring-zinc-100 sm:px-6"
         >
           <h2 id="dash-no-upcoming" className="text-sm font-semibold text-zinc-900">
             直近の開催
@@ -79,7 +85,7 @@ export default async function AdminDashboardPage() {
             href="/admin/event-days"
             className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
           >
-            開催日管理へ
+            開催日へ
           </Link>
         </section>
       ) : (
@@ -89,14 +95,6 @@ export default async function AdminDashboardPage() {
           initialDay={initialSummary}
         />
       )}
-
-      <footer className="border-t border-zinc-200 pt-6 text-xs leading-relaxed text-zinc-500">
-        運用手順:{" "}
-        <span className="font-mono text-[11px]">docs/ops/mvp-day-before-runbook.md</span>
-        {" · "}
-        本番チェック:{" "}
-        <span className="font-mono text-[11px]">docs/ops/vercel-production-checklist.md</span>
-      </footer>
     </div>
   );
 }

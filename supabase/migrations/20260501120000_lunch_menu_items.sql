@@ -144,7 +144,8 @@ DECLARE
   v_strength public.strength_category;
   v_name text := trim(p_team_name);
   v_email text := lower(trim(p_contact_email));
-  elem jsonb;
+  v_lunch_elem jsonb;
+  v_arr_len int;
   v_qty int;
   v_mid uuid;
   v_menu public.lunch_menu_items%ROWTYPE;
@@ -173,20 +174,27 @@ BEGIN
   IF EXISTS (
     SELECT 1
     FROM (
-      SELECT NULLIF(BTRIM(elem->>'menu_item_id'), '') AS mid_key
-      FROM jsonb_array_elements(p_lunch_items) AS t(elem)
-      WHERE (
-        CASE
-          WHEN jsonb_typeof(elem->'quantity') = 'number'
-            AND (elem->'quantity')::text ~ '^-?[0-9]+(\.[0-9]+)?$'
-            THEN FLOOR((elem->'quantity')::numeric)::int
-          WHEN jsonb_typeof(elem->'quantity') = 'string'
-            THEN COALESCE(NULLIF(BTRIM(elem->>'quantity'), '')::int, 0)
-          ELSE 0
-        END
-      ) > 0
-      GROUP BY mid_key
-      HAVING COUNT(*) > 1 AND mid_key IS NOT NULL
+      SELECT 1
+      FROM (
+        SELECT NULLIF(BTRIM((p_lunch_items->(gs.i))->>'menu_item_id'), '') AS mid_key
+        FROM generate_series(
+          0,
+          COALESCE(jsonb_array_length(p_lunch_items), 0) - 1
+        ) AS gs(i)
+        WHERE (
+          CASE
+            WHEN jsonb_typeof((p_lunch_items->(gs.i))->'quantity') = 'number'
+              AND ((p_lunch_items->(gs.i))->'quantity')::text ~ '^-?[0-9]+(\.[0-9]+)?$'
+              THEN FLOOR(((p_lunch_items->(gs.i))->'quantity')::numeric)::int
+            WHEN jsonb_typeof((p_lunch_items->(gs.i))->'quantity') = 'string'
+              THEN COALESCE(NULLIF(BTRIM((p_lunch_items->(gs.i))->>'quantity'), '')::int, 0)
+            ELSE 0
+          END
+        ) > 0
+      ) raw
+      WHERE raw.mid_key IS NOT NULL
+      GROUP BY raw.mid_key
+      HAVING COUNT(*) > 1
     ) d
   ) THEN
     RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch_duplicate');
@@ -315,13 +323,14 @@ BEGIN
   )
   RETURNING id INTO v_res_id;
 
-  FOR elem IN SELECT elem FROM jsonb_array_elements(p_lunch_items) AS t(elem)
-  LOOP
+  v_arr_len := COALESCE(jsonb_array_length(p_lunch_items), 0);
+  FOR v_lunch_idx IN 0 .. v_arr_len - 1 LOOP
+    v_lunch_elem := p_lunch_items->v_lunch_idx;
     BEGIN
-      IF jsonb_typeof(elem->'quantity') = 'number' THEN
-        v_qty := FLOOR((elem->'quantity')::numeric)::int;
+      IF jsonb_typeof(v_lunch_elem->'quantity') = 'number' THEN
+        v_qty := FLOOR((v_lunch_elem->'quantity')::numeric)::int;
       ELSE
-        v_qty := COALESCE(NULLIF(BTRIM(elem->>'quantity'), '')::int, 0);
+        v_qty := COALESCE(NULLIF(BTRIM(v_lunch_elem->>'quantity'), '')::int, 0);
       END IF;
     EXCEPTION WHEN invalid_text_representation THEN
       RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch qty');
@@ -336,7 +345,7 @@ BEGIN
     END IF;
 
     BEGIN
-      v_mid := (NULLIF(BTRIM(elem->>'menu_item_id'), ''))::uuid;
+      v_mid := (NULLIF(BTRIM(v_lunch_elem->>'menu_item_id'), ''))::uuid;
     EXCEPTION WHEN invalid_text_representation THEN
       RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch menu id');
     END;

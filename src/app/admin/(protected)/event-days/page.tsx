@@ -127,9 +127,9 @@ export default async function AdminEventDaysPage({
         開催日管理
       </h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
-        公開前のまま作成後、「公開」にすると一般向けカレンダー（GET /api/event-days）に載ります。締切後・確定後も日付は表示されます（新規予約は open のみ）。
+        公開前のまま作成後、「公開」にすると一般向けの予約カレンダーに載ります。締切後・確定後も日付は表示されます（新規の予約受付は「公開済み」のときのみ）。
         誤って作った公開前の開催日は「削除」から削除できます（確認のあと、予約が無い場合のみ）。
-        締切ロック（<code className="text-xs">locked</code>）は運用では自動ジョブで行う想定のため、ここには手動ボタンを出していません。
+        締切（締切済みへの移行）は運用では自動のため、ここには手動ボタンを出していません。
       </p>
 
       <CreateEventDayForm />
@@ -231,7 +231,7 @@ export default async function AdminEventDaysPage({
               <p className="mb-2 text-xs text-zinc-500 lg:hidden">
                 表がはみ出す場合は横にスクロールできます。
               </p>
-              <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-zinc-200 bg-white pb-1 [-webkit-overflow-scrolling:touch]">
+              <div className="max-w-full min-w-0 overflow-x-auto overscroll-x-contain rounded-lg border border-zinc-200 bg-white pb-1 [-webkit-overflow-scrolling:touch]">
                 <div className="inline-block min-w-full align-middle">
                   <table className="w-full min-w-xl text-left text-sm">
                     <thead className="border-b border-zinc-200 bg-zinc-50">

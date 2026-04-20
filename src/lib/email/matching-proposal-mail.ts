@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const TEMPLATE_MATCHING_PROPOSAL = "matching_proposal";
@@ -61,7 +62,7 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
   const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
-  const subject = "【交流試合】マッチング案内（確認中・変更の可能性あり）";
+  const subject = `${MAIL_SUBJECT_BRAND_USER}対戦・枠の案内（確定前・変更の可能性あり）`;
 
   const scheduleBlock =
     scheduleLines.length > 0
@@ -71,7 +72,8 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
   const text = [
     `${contactName} 様`,
     "",
-    "自動編成に基づくマッチング案をお知らせします。開催前日 17:00 に最終案内を送るまで、運営側で内容を確認・微修正する場合があります。",
+    `「${MAIL_BODY_SERVICE_NAME}」より、締切後の自動編成に基づく対戦・枠の案内です。`,
+    "開催前日の最終案内（17:00 頃）まで、運営側で内容を確認・変更する場合があります。",
     "",
     `チーム名: ${teamName}`,
     `開催日: ${eventLine}`,
@@ -90,7 +92,8 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
-<p>自動編成に基づく<strong>マッチング案</strong>です。開催前日 17:00 の最終案内まで、運営で変更がある場合があります。</p>
+<p>「${escaped(MAIL_BODY_SERVICE_NAME)}」より、締切後の自動編成に基づく<strong>対戦・枠の案内</strong>です。<br/>
+開催前日の最終案内（17:00 頃）まで、運営で変更がある場合があります。</p>
 <ul>
 <li>チーム名: ${escaped(teamName)}</li>
 <li>開催日: ${escaped(eventLine)}</li>

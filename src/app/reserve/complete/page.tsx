@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { LunchOrderSummary } from "../_components/lunch-order-summary";
-import { IconCheck, IconClipboard, IconCopy } from "../_components/reserve-icons";
 import { ReserveStepper } from "../_components/reserve-stepper";
-import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-icon";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
@@ -143,24 +141,24 @@ export default function ReserveCompletePage() {
   if (!stored) {
     return (
       <div className="space-y-4">
-        <ReserveStepper current={1} />
-        <ReserveHeadingWithIcon
-          as="h1"
-          shell="navy"
-          icon={<IconCheck className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={2.25} />}
-          textClassName="text-lg font-bold text-rp-navy sm:text-xl"
-        >
-          予約完了
-        </ReserveHeadingWithIcon>
+        <h1 className="text-lg font-bold text-rp-navy sm:text-xl">予約完了</h1>
         <p className="text-sm leading-relaxed text-zinc-600">
           表示できる予約情報がありません。予約直後の画面のみ表示されます。
         </p>
-        <Link
-          href="/reserve"
-          className="inline-flex min-h-11 items-center font-semibold text-rp-brand underline"
-        >
-          予約トップへ
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Link
+            href="/reserve/calendar"
+            className="inline-flex min-h-11 items-center font-semibold text-rp-brand underline"
+          >
+            予約手続き（開催日選択）へ
+          </Link>
+          <Link
+            href="/reserve"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-zinc-600 underline decoration-zinc-400"
+          >
+            イベント案内へ
+          </Link>
+        </div>
       </div>
     );
   }
@@ -170,15 +168,9 @@ export default function ReserveCompletePage() {
       <ReserveStepper current={4} />
 
       <div className="flex flex-col items-center text-center">
-        <ReserveHeadingWithIcon
-          as="h1"
-          shell="navy"
-          icon={<IconCheck className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={2.25} />}
-          className="justify-center"
-          textClassName="text-center text-xl font-bold text-rp-navy sm:text-2xl"
-        >
+        <h1 className="text-center text-xl font-bold text-rp-navy sm:text-2xl">
           予約が完了しました
-        </ReserveHeadingWithIcon>
+        </h1>
         <p className="mt-2 max-w-lg text-sm leading-relaxed text-zinc-600">
           ご予約いただき、ありがとうございます。以下の内容で予約を受け付けました。
         </p>
@@ -186,8 +178,7 @@ export default function ReserveCompletePage() {
 
       {detail ? (
         <div className="overflow-hidden rounded-2xl border border-rp-mint-2 bg-white shadow-sm">
-          <div className="flex items-center justify-center gap-2 bg-rp-navy px-4 py-3 text-center text-sm font-semibold text-white sm:text-base">
-            <IconClipboard className="h-5 w-5 shrink-0 opacity-90" />
+          <div className="flex items-center justify-center bg-rp-navy px-4 py-3 text-center text-sm font-semibold text-white sm:text-base">
             ご予約内容
           </div>
           <div className="grid gap-0 sm:grid-cols-2">
@@ -283,16 +274,9 @@ export default function ReserveCompletePage() {
         <button
           type="button"
           onClick={() => void copyConfirmationCode()}
-          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white hover:bg-rp-brand-hover sm:w-auto"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-rp-brand px-6 text-sm font-semibold text-white hover:bg-rp-brand-hover sm:w-auto"
         >
-          {copied ? (
-            "コピーしました"
-          ) : (
-            <>
-              <IconCopy className="h-4 w-4 shrink-0" />
-              確認コードをコピー
-            </>
-          )}
+          {copied ? "コピーしました" : "確認コードをコピー"}
         </button>
       </div>
 
@@ -313,18 +297,25 @@ export default function ReserveCompletePage() {
         <button
           type="button"
           onClick={clearAndGoManage}
-          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-md hover:bg-rp-brand-hover sm:max-w-xs"
+          className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-md hover:bg-rp-brand-hover sm:max-w-xs"
         >
-          <IconClipboard className="h-5 w-5 shrink-0 opacity-95" strokeWidth={1.65} />
           予約内容を確認・キャンセルする
         </button>
         <Link
-          href="/reserve"
+          href="/reserve/calendar"
           className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border-2 border-rp-brand bg-white px-6 text-sm font-semibold text-rp-brand hover:bg-rp-mint/40 sm:max-w-xs"
         >
-          開催日一覧へ戻る
+          別の開催日を予約する
         </Link>
       </div>
+      <p className="text-center">
+        <Link
+          href="/reserve"
+          className="text-sm font-semibold text-zinc-600 underline decoration-zinc-400 hover:text-rp-navy"
+        >
+          イベント案内を読む
+        </Link>
+      </p>
     </div>
   );
 }

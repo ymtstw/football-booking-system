@@ -1,6 +1,7 @@
 "use client";
 
 import { NotificationFailedRetryTable } from "@/components/admin/notification-failed-retry-table";
+import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -88,51 +89,51 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dd>{data.gradeBand}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">予約数（active）</dt>
+            <dt className="text-zinc-500">有効な予約数</dt>
             <dd className="font-semibold">{data.activeReservationCount}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">開催日 status</dt>
-            <dd>{data.status}</dd>
+            <dt className="text-zinc-500">開催日の状態</dt>
+            <dd>{eventDayStatusLabelJa(data.status)}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">天候フラグ</dt>
+            <dt className="text-zinc-500">天候の登録</dt>
             <dd>{data.weatherStatus ?? "—"}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">予約締切（DB）</dt>
-            <dd className="break-words text-xs">{data.reservationDeadlineAt}</dd>
+            <dt className="text-zinc-500">予約締切</dt>
+            <dd className="wrap-break-word text-xs">{data.reservationDeadlineAt}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">前日17:00 雨天中止予約</dt>
-            <dd>{data.weatherDayBeforeRainScheduled ? "オン" : "オフ"}</dd>
+            <dt className="text-zinc-500">前日17:00 雨天中止の予約送信</dt>
+            <dd>{data.weatherDayBeforeRainScheduled ? "あり" : "なし"}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">マッチング案内送信（16:30 Cron）</dt>
+            <dt className="text-zinc-500">マッチング案内メール（定時）</dt>
             <dd>{data.matchingProposalNoticeSentAt ? "送信済" : "未"}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-zinc-500">最終通知（前日17:00 Cron・完了フラグ）</dt>
+            <dt className="text-zinc-500">前日17:00 最終メール</dt>
             <dd>{data.finalDayBeforeNoticeCompletedAt ? "完了記録あり" : "未完了"}</dd>
           </div>
           <div className="sm:col-span-2 border-t border-zinc-100 pt-3">
-            <dt className="mb-2 font-medium text-zinc-800">notifications 集計（sent / 未送信系）</dt>
+            <dt className="mb-2 font-medium text-zinc-800">メール送信の件数</dt>
             <dd className="space-y-1 text-xs text-zinc-700">
               <p>
-                最少催行中止: {data.notifications.minimumCancelNotice.sent} 送信 /{" "}
-                {data.notifications.minimumCancelNotice.pendingOrFailed} pending・failed
+                最少催行中止: 送信 {data.notifications.minimumCancelNotice.sent} 件 / 未送信・失敗{" "}
+                {data.notifications.minimumCancelNotice.pendingOrFailed} 件
               </p>
               <p>
-                マッチング案内: {data.notifications.matchingProposal.sent} /{" "}
-                {data.notifications.matchingProposal.pendingOrFailed}
+                マッチング案内: 送信 {data.notifications.matchingProposal.sent} 件 / 未送信・失敗{" "}
+                {data.notifications.matchingProposal.pendingOrFailed} 件
               </p>
               <p>
-                雨天即時: {data.notifications.weatherCancelImmediate.sent} /{" "}
-                {data.notifications.weatherCancelImmediate.pendingOrFailed}
+                雨天即時: 送信 {data.notifications.weatherCancelImmediate.sent} 件 / 未送信・失敗{" "}
+                {data.notifications.weatherCancelImmediate.pendingOrFailed} 件
               </p>
               <p>
-                前日最終: {data.notifications.dayBeforeFinal.sent} /{" "}
-                {data.notifications.dayBeforeFinal.pendingOrFailed}
+                前日最終: 送信 {data.notifications.dayBeforeFinal.sent} 件 / 未送信・失敗{" "}
+                {data.notifications.dayBeforeFinal.pendingOrFailed} 件
               </p>
             </dd>
           </div>
@@ -143,7 +144,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
 
       {data ? (
         <section className="rounded-lg border border-red-200/80 bg-red-50/30 px-4 py-4">
-          <h2 className="text-sm font-semibold text-red-950">この開催日の送信失敗（failed）</h2>
+          <h2 className="text-sm font-semibold text-red-950">この開催日の送信失敗</h2>
           <p className="mt-1 text-xs text-red-900/85">
             宛先・テンプレ・エラー内容を確認し、問題が解消したら「再送」を押してください。
           </p>

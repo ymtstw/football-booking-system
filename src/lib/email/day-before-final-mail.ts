@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const TEMPLATE_DAY_BEFORE_FINAL = "day_before_final";
@@ -38,15 +39,15 @@ export type DayBeforeFinalVariant =
 
 function subjectForDayBeforeFinal(variant: DayBeforeFinalVariant): string {
   if (variant === "weather_cancel") {
-    return "【交流試合】明日のご連絡（雨天中止・最終案内）";
+    return `${MAIL_SUBJECT_BRAND_USER}明日のご連絡（雨天中止・最終案内）`;
   }
   if (variant === "operational_cancel") {
-    return "【交流試合】明日のご連絡（運営中止・最終案内）";
+    return `${MAIL_SUBJECT_BRAND_USER}明日のご連絡（運営中止・最終案内）`;
   }
   if (variant === "pending_matching") {
-    return "【交流試合】明日のご連絡（編成確定前・ご確認ください）";
+    return `${MAIL_SUBJECT_BRAND_USER}明日のご連絡（編成確定前・ご確認ください）`;
   }
-  return "【交流試合】明日のご連絡（開催確定・最終案内）";
+  return `${MAIL_SUBJECT_BRAND_USER}明日のご連絡（開催確定・最終案内）`;
 }
 
 function headlineForVariant(variant: DayBeforeFinalVariant): string {
@@ -133,6 +134,8 @@ export async function sendDayBeforeFinalEmailAndUpdateNotification(params: {
   const text = [
     `${contactName} 様`,
     "",
+    `「${MAIL_BODY_SERVICE_NAME}」より、開催前日のご連絡です。`,
+    "",
     headline,
     "",
     `チーム名: ${teamName}`,
@@ -155,6 +158,7 @@ export async function sendDayBeforeFinalEmailAndUpdateNotification(params: {
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
+<p style="color:#52525b">「${escaped(MAIL_BODY_SERVICE_NAME)}」より、開催前日のご連絡です。</p>
 <p>${escaped(headline)}</p>
 <ul>
 <li>チーム名: ${escaped(teamName)}</li>
@@ -249,10 +253,12 @@ export async function sendWeatherCancelImmediateEmailAndUpdateNotification(param
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
   const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
-  const subject = "【交流試合】雨天（天候）により開催中止のお知らせ";
+  const subject = `${MAIL_SUBJECT_BRAND_USER}雨天のため開催中止のお知らせ`;
 
   const text = [
     `${contactName} 様`,
+    "",
+    `「${MAIL_BODY_SERVICE_NAME}」のご予約について、緊急のご連絡です。`,
     "",
     "雨天（天候）のため、当該開催日は中止とします。至急のご連絡となり失礼します。",
     "",
@@ -266,6 +272,7 @@ export async function sendWeatherCancelImmediateEmailAndUpdateNotification(param
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
+<p style="color:#52525b">「${escaped(MAIL_BODY_SERVICE_NAME)}」のご予約について、緊急のご連絡です。</p>
 <p>雨天（天候）のため、当該開催日は<strong>中止</strong>とします。至急のご連絡となり失礼します。</p>
 <ul>
 <li>チーム名: ${escaped(teamName)}</li>
@@ -357,11 +364,13 @@ export async function sendOperationalCancelImmediateEmailAndUpdateNotification(p
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
   const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
-  const subject = "【交流試合】運営の都合により開催中止のお知らせ";
+  const subject = `${MAIL_SUBJECT_BRAND_USER}運営都合により開催中止のお知らせ`;
   const body = operationalNotice.trim();
 
   const text = [
     `${contactName} 様`,
+    "",
+    `「${MAIL_BODY_SERVICE_NAME}」のご予約について、緊急のご連絡です。`,
     "",
     "運営の都合により、当該開催日は中止とします。至急のご連絡となり失礼します。",
     "",
@@ -377,6 +386,7 @@ export async function sendOperationalCancelImmediateEmailAndUpdateNotification(p
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
+<p style="color:#52525b">「${escaped(MAIL_BODY_SERVICE_NAME)}」のご予約について、緊急のご連絡です。</p>
 <p>運営の都合により、当該開催日は<strong>中止</strong>とします。至急のご連絡となり失礼します。</p>
 <p style="margin-top:12px;font-size:14px"><strong>お知らせ（運営から）</strong><br/>${escaped(body)}</p>
 <ul>

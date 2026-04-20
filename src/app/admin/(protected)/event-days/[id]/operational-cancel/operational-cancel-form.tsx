@@ -89,7 +89,7 @@ export function OperationalCancelForm({
           参加者向けのお知らせ文（必須）
         </label>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          前日 17:00 の一括メール（JOB03）および、下の即時送信にそのまま載ります。電話番号・集合場所の変更など、ユーザーが取れる行動を書いてください。
+          前日 17:00 の一括メールおよび、下の即時送信にそのまま載ります。電話番号・集合場所の変更など、ユーザーが取れる行動を書いてください。
         </p>
         <textarea
           id="op-notice"

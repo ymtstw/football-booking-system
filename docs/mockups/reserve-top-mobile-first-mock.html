@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>予約トップ モバイル改善案 — UIモック</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --green-50: #f0fdf4;
+        --green-100: #dcfce7;
+        --green-600: #16a34a;
+        --green-700: #15803d;
+        --green-800: #166534;
+      }
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans",
+          "Noto Sans JP", sans-serif;
+        background: #e4e4e7;
+      }
+      /* モック並置用ビューア枠 */
+      .viewer-row {
+        display: flex;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+        justify-content: center;
+        padding: 2rem 1rem 4rem;
+      }
+      .viewer {
+        background: #ffffff;
+        border-radius: 1.5rem;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        overflow: hidden;
+        border: 1px solid #d4d4d8;
+      }
+      .viewer-mobile {
+        width: 390px;
+        height: 780px;
+        overflow-y: auto;
+        position: relative;
+      }
+      .viewer-desktop {
+        width: 1024px;
+        max-width: 100%;
+        height: 780px;
+        overflow-y: auto;
+      }
+      .viewer-label {
+        display: block;
+        text-align: center;
+        font-size: 0.75rem;
+        color: #52525b;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+      }
+      /* アコーディオンアニメ */
+      details[open] summary .chev {
+        transform: rotate(180deg);
+      }
+      .chev {
+        transition: transform 0.2s;
+      }
+      /* スティッキーCTAの影 */
+      .sticky-cta {
+        box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+      }
+    </style>
+  </head>
+  <body class="text-slate-900">
+    <header class="bg-emerald-900 text-white py-6 px-5">
+      <div class="max-w-5xl mx-auto">
+        <h1 class="text-xl font-bold">予約トップ モバイル改善案</h1>
+        <p class="text-sm opacity-90 mt-1">
+          目的: モバイルで「開催日を確認する」まで到達するスクロール量を削減。ファーストビュー内にCTA
+          + スティッキー下部CTA + 詳細アコーディオンの3点改善。
+        </p>
+      </div>
+    </header>
+
+    <div class="viewer-row">
+      <!-- ====== モバイル ====== -->
+      <div>
+        <span class="viewer-label">モバイル（390px）改善案</span>
+        <div class="viewer viewer-mobile">
+          <!-- サイトヘッダー -->
+          <div
+            class="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-white sticky top-0 z-30"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                class="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-green-700 text-green-700 text-xs font-bold"
+                >⚽</span
+              >
+              <span class="font-bold text-sm truncate">小学生サッカー対戦…</span>
+            </div>
+            <button
+              class="h-9 w-9 rounded-lg border border-slate-200 grid place-items-center"
+              aria-label="メニュー"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 6h16M4 12h16M4 18h16"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <!-- ステッパー（コンパクト化: スマホは現在位置のみ強調） -->
+          <div class="px-4 pt-3 pb-2 bg-white">
+            <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
+              <span
+                class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-green-600 text-white font-bold"
+                >1</span
+              >
+              <span class="font-semibold text-slate-900">予約</span>
+              <span class="text-slate-300">›</span>
+              <span>開催日</span>
+              <span class="text-slate-300">›</span>
+              <span>情報入力</span>
+              <span class="text-slate-300">›</span>
+              <span>完了</span>
+            </div>
+          </div>
+
+          <!-- ヒーロー + 即CTA（ファーストビュー） -->
+          <section class="px-4 pt-3 pb-5 bg-white">
+            <h1 class="text-xl font-bold leading-snug">
+              小学生サッカー対戦予約
+              <span class="text-slate-500 text-sm font-semibold">（日帰り）</span>
+            </h1>
+            <div
+              class="mt-3 rounded-xl bg-gradient-to-br from-green-50 to-emerald-100 border border-green-200 p-4 flex items-center gap-3"
+            >
+              <div
+                class="h-14 w-14 shrink-0 rounded-full bg-white grid place-items-center text-2xl border-2 border-green-300"
+              >
+                🏟️
+              </div>
+              <div>
+                <div class="text-[11px] font-semibold text-green-700">
+                  人工芝グラウンド
+                </div>
+                <div class="text-lg font-extrabold text-green-800 leading-tight">
+                  無料開放イベント
+                </div>
+                <div class="text-[11px] text-slate-600 mt-0.5">
+                  日帰り / 1日通しで利用
+                </div>
+              </div>
+            </div>
+
+            <!-- メインCTA（ファーストビュー内） -->
+            <a
+              href="#"
+              class="mt-4 flex items-center justify-center gap-2 h-14 rounded-xl bg-green-600 text-white font-bold text-base shadow-md active:scale-[0.98] transition"
+            >
+              開催日を確認する
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12h14m0 0-5-5m5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
+            <p class="text-[11px] text-slate-500 text-center mt-2">
+              空き状況のカレンダーを開きます
+            </p>
+          </section>
+
+          <!-- 重要: 予約締切 小バナー（常時表示） -->
+          <section class="px-4 mt-2">
+            <div
+              class="rounded-xl border border-amber-200 bg-amber-50 p-3 flex gap-2.5"
+            >
+              <div class="text-amber-600 text-lg leading-none">⏰</div>
+              <div class="text-[12.5px] leading-relaxed">
+                <p class="font-bold text-amber-900">
+                  予約締切: 開催日の2日前 15:00
+                </p>
+                <p class="text-amber-800">
+                  当日スケジュールは締切日16:30にメール送付
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- 情報カード 2x2 アイコン化 -->
+          <section class="px-4 mt-5">
+            <h2 class="text-sm font-bold text-slate-800 mb-2">このイベントについて</h2>
+            <div class="grid grid-cols-2 gap-2.5">
+              <div
+                class="rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <div class="text-xl">🟩</div>
+                <div class="mt-1 text-[12.5px] font-bold leading-snug">
+                  人工芝のみ対象
+                </div>
+                <div class="text-[11px] text-slate-600 mt-0.5">
+                  土グラウンドは対象外
+                </div>
+              </div>
+              <div
+                class="rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <div class="text-xl">🕙</div>
+                <div class="mt-1 text-[12.5px] font-bold leading-snug">
+                  1日通し利用
+                </div>
+                <div class="text-[11px] text-slate-600 mt-0.5">
+                  午前・午後のみ不可
+                </div>
+              </div>
+              <div
+                class="rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <div class="text-xl">🤝</div>
+                <div class="mt-1 text-[12.5px] font-bold leading-snug">
+                  対戦成立は保証外
+                </div>
+                <div class="text-[11px] text-slate-600 mt-0.5">
+                  参加数で可変
+                </div>
+              </div>
+              <div
+                class="rounded-xl border border-slate-200 bg-white p-3"
+              >
+                <div class="text-xl">☔</div>
+                <div class="mt-1 text-[12.5px] font-bold leading-snug">
+                  悪天候の判断
+                </div>
+                <div class="text-[11px] text-slate-600 mt-0.5">
+                  前日17:00までに連絡
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 昼食について（常時表示・目立つカード） -->
+          <section class="px-4 mt-5">
+            <div
+              class="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 overflow-hidden"
+            >
+              <!-- ヘッダー帯 -->
+              <div
+                class="flex items-center justify-between px-4 py-3 bg-orange-100/70 border-b border-orange-200"
+              >
+                <div class="flex items-center gap-2">
+                  <div
+                    class="h-9 w-9 rounded-full bg-white grid place-items-center text-lg border border-orange-200"
+                  >
+                    🍱
+                  </div>
+                  <div>
+                    <div class="text-sm font-bold text-orange-900">昼食について</div>
+                    <div class="text-[10.5px] text-orange-700">
+                      ご参加前に必ずご確認ください
+                    </div>
+                  </div>
+                </div>
+                <span
+                  class="text-[10px] font-bold text-white bg-orange-500 rounded-full px-2 py-0.5"
+                  >要確認</span
+                >
+              </div>
+
+              <!-- 要点を視覚的に（○×記号で可否を明示） -->
+              <div class="p-3 space-y-2">
+                <div
+                  class="flex items-start gap-2.5 rounded-lg bg-white border border-orange-100 p-2.5"
+                >
+                  <span
+                    class="shrink-0 h-6 w-6 rounded-full bg-green-100 text-green-700 grid place-items-center text-sm font-bold"
+                    >✓</span
+                  >
+                  <div class="text-[12.5px] leading-snug">
+                    <strong class="text-slate-900">昼食のご注文をお願いしています</strong>
+                    <div class="text-[11px] text-slate-600 mt-0.5">
+                      ご参加チームは全員対象です
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex items-start gap-2.5 rounded-lg bg-white border border-orange-100 p-2.5"
+                >
+                  <span
+                    class="shrink-0 h-6 w-6 rounded-full bg-rose-100 text-rose-700 grid place-items-center text-sm font-bold"
+                    >×</span
+                  >
+                  <div class="text-[12.5px] leading-snug">
+                    <strong class="text-slate-900">飲食物の持ち込みは禁止</strong>
+                    <div class="text-[11px] text-slate-600 mt-0.5">
+                      ※アレルギー対策等、やむを得ない場合のみ一部可
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex items-start gap-2.5 rounded-lg bg-white border border-orange-100 p-2.5"
+                >
+                  <span
+                    class="shrink-0 h-6 w-6 rounded-full bg-blue-100 text-blue-700 grid place-items-center text-sm"
+                    >☕</span
+                  >
+                  <div class="text-[12.5px] leading-snug">
+                    <strong class="text-slate-900">申し込まない場合は施設カフェ利用可</strong>
+                    <div class="text-[11px] text-slate-600 mt-0.5">
+                      昼食なしでの参加もOK
+                    </div>
+                  </div>
+                </div>
+                <div
+                  class="flex items-start gap-2.5 rounded-lg bg-white border border-orange-100 p-2.5"
+                >
+                  <span
+                    class="shrink-0 h-6 w-6 rounded-full bg-amber-100 text-amber-700 grid place-items-center text-sm"
+                    >💴</span
+                  >
+                  <div class="text-[12.5px] leading-snug">
+                    <strong class="text-slate-900">代表者がまとめて現地で支払い</strong>
+                    <div class="text-[11px] text-slate-600 mt-0.5">
+                      事前決済は不要
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- その他詳細はアコーディオン -->
+          <section class="px-4 mt-5 space-y-2.5">
+            <details
+              class="rounded-xl border border-slate-200 bg-white overflow-hidden"
+            >
+              <summary
+                class="flex items-center justify-between px-4 py-3 cursor-pointer list-none"
+              >
+                <span class="flex items-center gap-2 text-sm font-bold">
+                  <span>📋</span>予約ルール・注意事項
+                </span>
+                <svg
+                  class="chev"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="m6 9 6 6 6-6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </summary>
+              <div
+                class="px-4 pb-4 pt-1 text-[12.5px] leading-6 text-slate-700 space-y-2"
+              >
+                <p>
+                  予約締切は原則開催日2日前15:00。当日の試合スケジュールは締切日16:30に登録メールアドレス宛送付。
+                </p>
+                <p>
+                  雨天等の悪天候による開催可否は前日17:00までに連絡。天気予報次第で中止判断が早まる場合あり。
+                </p>
+              </div>
+            </details>
+
+            <details
+              class="rounded-xl border border-slate-200 bg-white overflow-hidden"
+            >
+              <summary
+                class="flex items-center justify-between px-4 py-3 cursor-pointer list-none"
+              >
+                <span class="flex items-center gap-2 text-sm font-bold">
+                  <span>🏨</span>合宿・宿泊のご相談
+                </span>
+                <svg
+                  class="chev"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    d="m6 9 6 6 6-6"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </summary>
+              <div class="px-4 pb-4 pt-1 text-[12.5px] leading-6 text-slate-700">
+                <p>宿泊を伴うご希望は専用フォームから。</p>
+                <a
+                  href="#"
+                  class="inline-block mt-2 text-green-700 font-semibold underline underline-offset-2"
+                  >合宿のご相談へ →</a
+                >
+              </div>
+            </details>
+          </section>
+
+          <!-- フッター連絡先（コンパクト） -->
+          <section class="px-4 mt-5 mb-28">
+            <div class="rounded-xl bg-slate-50 border border-slate-200 p-4">
+              <div class="text-[11px] font-semibold text-slate-500">
+                お問い合わせ
+              </div>
+              <a
+                href="tel:0412345678"
+                class="mt-1 block text-lg font-bold text-green-800"
+                >📞 04-1234-5678</a
+              >
+              <div class="text-[11px] text-slate-500">
+                平日 9:00〜17:00（祝日除く）
+              </div>
+            </div>
+          </section>
+
+          <!-- スティッキー下部CTA（スクロール中常時表示） -->
+          <div
+            class="sticky-cta absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-4 py-3"
+          >
+            <a
+              href="#"
+              class="flex items-center justify-center gap-2 h-12 rounded-xl bg-green-600 text-white font-bold text-sm active:scale-[0.98] transition"
+            >
+              開催日を確認する
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 12h14m0 0-5-5m5 5-5 5"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== デスクトップ ====== -->
+      <div>
+        <span class="viewer-label">デスクトップ（1024px）改善案</span>
+        <div class="viewer viewer-desktop">
+          <!-- サイトヘッダー -->
+          <div
+            class="flex items-center justify-between px-8 py-4 border-b border-slate-200 bg-white"
+          >
+            <div class="flex items-center gap-2">
+              <span
+                class="inline-flex h-9 w-9 items-center justify-center rounded-full border-2 border-green-700 text-green-700 font-bold"
+                >⚽</span
+              >
+              <span class="font-bold">小学生サッカー対戦予約</span>
+            </div>
+            <nav class="flex gap-6 text-sm font-semibold text-slate-700">
+              <span class="text-green-700 border-b-2 border-green-700 pb-1"
+                >予約</span
+              >
+              <span>予約の確認・キャンセル</span>
+              <span>合宿のご相談</span>
+              <span>お問い合わせ</span>
+            </nav>
+          </div>
+
+          <!-- ステッパー -->
+          <div class="px-8 py-4 bg-white">
+            <div class="flex items-center gap-2 max-w-3xl mx-auto">
+              <span
+                class="inline-flex h-7 px-3 items-center rounded-full bg-green-600 text-white text-xs font-bold gap-1.5"
+                ><span
+                  class="h-5 w-5 grid place-items-center rounded-full bg-white text-green-700"
+                  >1</span
+                >予約</span
+              >
+              <span class="flex-1 h-px bg-slate-200"></span>
+              <span class="text-xs text-slate-500">② 開催日を選ぶ</span>
+              <span class="flex-1 h-px bg-slate-200"></span>
+              <span class="text-xs text-slate-500">③ 予約情報の入力</span>
+              <span class="flex-1 h-px bg-slate-200"></span>
+              <span class="text-xs text-slate-500">④ 完了</span>
+            </div>
+          </div>
+
+          <!-- 2カラムヒーロー: 左=タイトル+CTA、右=情報カード集約 -->
+          <section class="px-8 py-8 bg-gradient-to-b from-green-50/60 to-white">
+            <div class="max-w-5xl mx-auto grid grid-cols-12 gap-6 items-start">
+              <div class="col-span-7">
+                <div
+                  class="inline-block rounded-full bg-green-100 text-green-800 text-xs font-bold px-3 py-1"
+                >
+                  人工芝グラウンド 無料開放
+                </div>
+                <h1 class="mt-3 text-3xl font-extrabold leading-tight">
+                  小学生サッカー対戦予約<br />
+                  <span class="text-slate-500 text-xl font-bold">（日帰り）</span>
+                </h1>
+                <p class="mt-3 text-slate-700">
+                  人工芝グラウンドを無料で貸し出すイベントの予約ページです。1日を通してご利用いただけます。
+                </p>
+
+                <!-- メインCTA -->
+                <div class="mt-5 flex items-center gap-4">
+                  <a
+                    href="#"
+                    class="inline-flex items-center gap-2 h-14 px-7 rounded-xl bg-green-600 text-white font-bold shadow-md hover:bg-green-700 transition"
+                  >
+                    開催日を確認する
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path
+                        d="M5 12h14m0 0-5-5m5 5-5 5"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      />
+                    </svg>
+                  </a>
+                  <span class="text-xs text-slate-500"
+                    >空き状況のカレンダーを開きます</span
+                  >
+                </div>
+
+                <!-- 締切バナー -->
+                <div
+                  class="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-3 flex gap-3"
+                >
+                  <div class="text-amber-600 text-xl">⏰</div>
+                  <div class="text-sm">
+                    <p class="font-bold text-amber-900">
+                      予約締切: 開催日の2日前15:00
+                      <span class="font-normal text-amber-800"
+                        >／ 悪天候判断: 前日17:00まで</span
+                      >
+                    </p>
+                    <p class="text-amber-800 text-xs mt-0.5">
+                      当日スケジュールは締切日16:30にメール送付
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 右: 要点カード 2x2 -->
+              <div class="col-span-5 grid grid-cols-2 gap-3">
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                  <div class="text-2xl">🟩</div>
+                  <div class="mt-1.5 text-sm font-bold">人工芝のみ対象</div>
+                  <div class="text-xs text-slate-600 mt-0.5">
+                    土グラウンドは対象外
+                  </div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                  <div class="text-2xl">🕙</div>
+                  <div class="mt-1.5 text-sm font-bold">1日通し利用</div>
+                  <div class="text-xs text-slate-600 mt-0.5">
+                    午前・午後のみ不可
+                  </div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                  <div class="text-2xl">🤝</div>
+                  <div class="mt-1.5 text-sm font-bold">対戦成立は保証外</div>
+                  <div class="text-xs text-slate-600 mt-0.5">
+                    参加数で試合数変動
+                  </div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-4">
+                  <div class="text-2xl">☔</div>
+                  <div class="mt-1.5 text-sm font-bold">悪天候の判断</div>
+                  <div class="text-xs text-slate-600 mt-0.5">
+                    前日17:00までに連絡
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 詳細情報 -->
+          <section class="px-8 py-8 max-w-5xl mx-auto">
+            <div class="grid grid-cols-2 gap-5">
+              <!-- 昼食カード（デスクトップ: 横並びで視認性アップ） -->
+              <div
+                class="rounded-2xl border border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50 overflow-hidden"
+              >
+                <div
+                  class="flex items-center justify-between px-5 py-3.5 bg-orange-100/70 border-b border-orange-200"
+                >
+                  <div class="flex items-center gap-2.5">
+                    <div
+                      class="h-10 w-10 rounded-full bg-white grid place-items-center text-xl border border-orange-200"
+                    >
+                      🍱
+                    </div>
+                    <div>
+                      <div class="font-bold text-orange-900">昼食について</div>
+                      <div class="text-xs text-orange-700">
+                        ご参加前に必ずご確認ください
+                      </div>
+                    </div>
+                  </div>
+                  <span
+                    class="text-[10px] font-bold text-white bg-orange-500 rounded-full px-2.5 py-1"
+                    >要確認</span
+                  >
+                </div>
+                <div class="p-4 space-y-2">
+                  <div
+                    class="flex items-start gap-3 rounded-lg bg-white border border-orange-100 p-3"
+                  >
+                    <span
+                      class="shrink-0 h-7 w-7 rounded-full bg-green-100 text-green-700 grid place-items-center font-bold"
+                      >✓</span
+                    >
+                    <div class="text-sm leading-snug">
+                      <strong>昼食のご注文をお願いしています</strong>
+                      <div class="text-xs text-slate-600 mt-0.5">
+                        ご参加チームは全員対象です
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-start gap-3 rounded-lg bg-white border border-orange-100 p-3"
+                  >
+                    <span
+                      class="shrink-0 h-7 w-7 rounded-full bg-rose-100 text-rose-700 grid place-items-center font-bold"
+                      >×</span
+                    >
+                    <div class="text-sm leading-snug">
+                      <strong>飲食物の持ち込みは禁止</strong>
+                      <div class="text-xs text-slate-600 mt-0.5">
+                        ※アレルギー対策等、やむを得ない場合のみ一部可
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-start gap-3 rounded-lg bg-white border border-orange-100 p-3"
+                  >
+                    <span
+                      class="shrink-0 h-7 w-7 rounded-full bg-blue-100 text-blue-700 grid place-items-center"
+                      >☕</span
+                    >
+                    <div class="text-sm leading-snug">
+                      <strong>申し込まない場合は施設カフェ利用可</strong>
+                      <div class="text-xs text-slate-600 mt-0.5">
+                        昼食なしでの参加もOK
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    class="flex items-start gap-3 rounded-lg bg-white border border-orange-100 p-3"
+                  >
+                    <span
+                      class="shrink-0 h-7 w-7 rounded-full bg-amber-100 text-amber-700 grid place-items-center"
+                      >💴</span
+                    >
+                    <div class="text-sm leading-snug">
+                      <strong>代表者がまとめて現地で支払い</strong>
+                      <div class="text-xs text-slate-600 mt-0.5">
+                        事前決済は不要
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="space-y-5">
+                <div class="rounded-xl border border-slate-200 bg-white p-5">
+                  <h2 class="font-bold flex items-center gap-2">
+                    <span>📞</span>お問い合わせ
+                  </h2>
+                  <a
+                    href="tel:0412345678"
+                    class="mt-2 block text-2xl font-bold text-green-800"
+                    >04-1234-5678</a
+                  >
+                  <div class="text-xs text-slate-500">
+                    平日 9:00〜17:00（祝日除く）
+                  </div>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-white p-5">
+                  <h2 class="font-bold flex items-center gap-2">
+                    <span>🏨</span>合宿のご相談
+                  </h2>
+                  <p class="mt-2 text-sm text-slate-700">
+                    宿泊を伴うご希望は専用フォームからお問い合わせください。
+                  </p>
+                  <a
+                    href="#"
+                    class="inline-block mt-2 text-green-700 font-semibold underline underline-offset-2 text-sm"
+                    >合宿のご相談へ →</a
+                  >
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <!-- 解説 -->
+    <section class="max-w-5xl mx-auto bg-white rounded-2xl p-6 mx-4 mb-12 shadow">
+      <h2 class="text-lg font-bold border-b pb-2 mb-3">改善ポイント一覧</h2>
+      <ol class="list-decimal pl-5 space-y-2 text-sm leading-7 text-slate-800">
+        <li>
+          <strong>ファーストビュー内にメインCTA配置:</strong>
+          ヒーロー（無料開放バナー）直下に「開催日を確認する」を配置。スマホでもスクロールほぼ不要で到達可能。
+        </li>
+        <li>
+          <strong>スティッキー下部CTA（モバイルのみ）:</strong>
+          スクロール中も画面下部にCTAを固定表示。どの位置からでもワンタップで遷移可能。
+        </li>
+        <li>
+          <strong>情報カード 2×2 グリッド + アイコン化:</strong>
+          4枚の情報カードをスマホで縦4枚積みではなく2×2に圧縮。要点を一目で把握可能。
+        </li>
+        <li>
+          <strong>昼食セクションを "要確認カード" として常時表示:</strong>
+          重要度が高いためアコーディオンに隠さず、○×アイコン付きの視覚的な項目リストで瞬時に把握できるデザインに。箇条書きを独立カードに分割することで、1行ずつスキャンしやすい。
+        </li>
+        <li>
+          <strong>予約ルール・合宿相談はアコーディオン化:</strong>
+          初回判断に必須ではない情報だけ折りたたみ、必要な人だけ開く。
+        </li>
+        <li>
+          <strong>予約締切はコンパクトな警告バナー:</strong>
+          大きなコールアウトをやめ、1〜2行の amber バナーに集約。最も重要な情報を見落とさずに短く伝達。
+        </li>
+        <li>
+          <strong>スマホ用ステッパーの簡素化:</strong>
+          4段フル表示をやめ、現在位置を強調したブレッドクラム型に。縦幅を約半分に削減。
+        </li>
+      </ol>
+      <div class="mt-4 rounded-lg bg-slate-50 border p-3 text-xs text-slate-600">
+        参考: スマホで CTA 到達までに必要な「指の動き（スクロール量）」は、現状比でおよそ
+        <strong class="text-green-700">1/4〜1/5</strong>
+        に削減される想定です（当ビューア内でのスクロールテスト）。
+      </div>
+    </section>
+  </body>
+</html>

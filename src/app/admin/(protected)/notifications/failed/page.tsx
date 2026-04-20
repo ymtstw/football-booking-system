@@ -4,7 +4,7 @@ import { NotificationFailedRetryTable } from "@/components/admin/notification-fa
 
 export default function AdminNotificationsFailedPage() {
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto min-w-0 max-w-6xl">
       <p className="mb-2 text-xs text-zinc-500">
         <Link href="/admin/dashboard" className="text-emerald-800 underline underline-offset-2">
           ダッシュボード

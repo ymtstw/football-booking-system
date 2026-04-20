@@ -123,7 +123,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           <p className="font-medium">雨天中止は取り消せません</p>
           <p className="mt-1 text-xs leading-relaxed">
-            編成確定（confirmed）後に雨天中止したため、画面からは元に戻せません。必要ならデータ修正や別連絡で対応してください。
+            試合編成が確定したあとに雨天中止したため、画面からは元に戻せません。必要ならデータ修正や別連絡で対応してください。
           </p>
         </div>
       ) : null}

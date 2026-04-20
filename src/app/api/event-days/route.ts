@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { sumMorningRemainingVacanciesByEventDay } from "@/lib/event-days/morning-remaining-vacancies";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 /**
@@ -34,11 +35,20 @@ export async function GET() {
 
   const now = Date.now();
   const rows = data ?? [];
+  const eventDayIds = rows.map((r) => String(r.id));
+  const vacancyMap = await sumMorningRemainingVacanciesByEventDay(supabase, eventDayIds);
+
   const eventDays = rows.map((row) => {
     const t = new Date(row.reservation_deadline_at).getTime();
     const acceptingReservations =
       row.status === "open" && Number.isFinite(t) && t > now;
-    return { ...row, acceptingReservations };
+    return {
+      ...row,
+      acceptingReservations,
+      morningRemainingVacancies: acceptingReservations
+        ? (vacancyMap.get(String(row.id)) ?? 0)
+        : null,
+    };
   });
 
   return NextResponse.json({ eventDays });

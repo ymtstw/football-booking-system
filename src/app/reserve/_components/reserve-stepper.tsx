@@ -1,29 +1,78 @@
 import { IconCheck } from "./reserve-icons";
 
-/** 予約フロー用ステッパー（仕様 3-2: 丸数字 + ラベル + 横ライン） */
+/** 予約手続きフロー用（案内ページとは別。開催日選択が起点） */
 export type ReserveFlowStep = 1 | 2 | 3 | 4;
 
-const STEPS: { step: ReserveFlowStep; label: string }[] = [
-  { step: 1, label: "予約" },
-  { step: 2, label: "開催日を選ぶ" },
-  { step: 3, label: "予約情報の入力" },
-  { step: 4, label: "完了" },
+const STEPS: { step: ReserveFlowStep; label: string; shortLabel: string }[] = [
+  { step: 1, label: "開催日を選ぶ", shortLabel: "開催日" },
+  { step: 2, label: "予約情報の入力", shortLabel: "入力" },
+  { step: 3, label: "内容の確認", shortLabel: "確認" },
+  { step: 4, label: "完了", shortLabel: "完了" },
 ];
 
+const STEP_TOTAL = STEPS.length;
+
 export function ReserveStepper({ current }: { current: ReserveFlowStep }) {
+  const currentStep = STEPS.find((s) => s.step === current) ?? STEPS[0];
+
   return (
-    <nav aria-label="予約の進行状況" className="mb-8 sm:mb-10">
-      <ol className="mx-auto flex max-w-4xl flex-wrap items-center justify-center gap-x-2 gap-y-2.5 sm:flex-nowrap sm:justify-center sm:gap-x-0 sm:gap-y-0">
+    <nav aria-label="予約手続きの進行状況" className="mb-4 sm:mb-8">
+      <div className="sm:hidden">
+        <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-tight">
+          {STEPS.map(({ step, shortLabel }, i) => {
+            const done = step < current;
+            const active = step === current;
+            return (
+              <li key={step} className="flex items-center gap-1">
+                <span
+                  className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                    active
+                      ? "bg-green-600 text-white"
+                      : done
+                        ? "bg-green-100 text-green-700"
+                        : "bg-slate-100 text-slate-400"
+                  }`}
+                  aria-hidden
+                >
+                  {done ? (
+                    <IconCheck className="h-2.5 w-2.5" strokeWidth={3} />
+                  ) : (
+                    step
+                  )}
+                </span>
+                <span
+                  className={`${
+                    active
+                      ? "font-bold text-slate-900"
+                      : done
+                        ? "text-slate-600"
+                        : "text-slate-400"
+                  }`}
+                >
+                  {shortLabel}
+                </span>
+                {i < STEPS.length - 1 ? (
+                  <span className="text-slate-300" aria-hidden>
+                    ›
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="sr-only">
+          ステップ {current}/{STEP_TOTAL}: {currentStep.label}
+        </p>
+      </div>
+
+      <ol className="mx-auto hidden max-w-4xl flex-nowrap items-center justify-center gap-0.5 sm:flex">
         {STEPS.map(({ step, label }, i) => {
           const done = step < current;
           const active = step === current;
           return (
-            <li
-              key={step}
-              className="flex max-w-full flex-none items-center sm:min-w-0 sm:flex-1"
-            >
+            <li key={step} className="flex min-w-0 flex-1 items-center">
               <div
-                className={`inline-flex max-w-[min(100vw-2rem,20rem)] flex-row items-center gap-2 rounded-full border-2 px-3 py-2 sm:max-w-none sm:px-4 sm:py-2.5 ${
+                className={`inline-flex min-w-0 flex-1 flex-row items-center gap-1.5 rounded-full border-2 px-2.5 py-2 sm:gap-2 sm:px-3 sm:py-2.5 ${
                   active
                     ? "border-green-600 bg-green-600 text-white shadow-sm"
                     : done
@@ -32,7 +81,7 @@ export function ReserveStepper({ current }: { current: ReserveFlowStep }) {
                 }`}
               >
                 <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-extrabold sm:h-9 sm:w-9 ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-extrabold sm:h-9 sm:w-9 sm:text-sm ${
                     active
                       ? "bg-white/25 text-white"
                       : done
@@ -47,13 +96,13 @@ export function ReserveStepper({ current }: { current: ReserveFlowStep }) {
                     step
                   )}
                 </span>
-                <span className="min-w-0 text-xs font-bold leading-snug break-keep sm:shrink-0 sm:whitespace-nowrap sm:text-sm">
+                <span className="min-w-0 truncate text-[11px] font-bold leading-snug sm:text-sm">
                   {label}
                 </span>
               </div>
               {i < STEPS.length - 1 ? (
                 <span
-                  className={`mx-1 hidden h-0.5 min-w-2 shrink-0 sm:block sm:min-w-0 sm:flex-1 ${
+                  className={`mx-0.5 h-0.5 min-w-1.5 shrink-0 flex-1 sm:mx-1 ${
                     done ? "bg-green-600" : "bg-slate-300"
                   }`}
                   aria-hidden

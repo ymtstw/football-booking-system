@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { MAIL_SUBJECT_OPS_SYSTEM } from "@/lib/email/mail-brand";
 
 /** 現場の運営アドレス未確定時のテスト用既定（`OPS_NOTIFY_EMAIL` で上書き可） */
 export const DEFAULT_OPS_NOTIFY_EMAIL = "ymtstwdev@gmail.com";
@@ -101,7 +102,7 @@ export async function sendOpsBatchFailureDigestEmail(
   if (failedListUrl) linkLines.push(`失敗一覧: ${failedListUrl}`);
   if (eventNotificationsUrl) linkLines.push(`当該開催日の通知: ${eventNotificationsUrl}`);
 
-  const subject = `【交流試合・運営】メール送信失敗あり（${jobLabelJa}）`;
+  const subject = `${MAIL_SUBJECT_OPS_SYSTEM}メール送信失敗あり（${jobLabelJa}）`;
 
   const text = [
     "自動バッチで参加者向けメールの送信に失敗した予約があります。",

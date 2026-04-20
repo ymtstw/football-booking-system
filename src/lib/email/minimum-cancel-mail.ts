@@ -3,6 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const TEMPLATE_MINIMUM_CANCEL_NOTICE = "minimum_cancel_notice";
@@ -59,12 +60,14 @@ export async function sendMinimumCancelNoticeEmailAndUpdateNotification(params: 
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
   const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
-  const subject = "【交流試合】最少催行に満たず開催中止のお知らせ";
+  const subject = `${MAIL_SUBJECT_BRAND_USER}最少催行に満たず開催中止のお知らせ`;
 
   const text = [
     `${contactName} 様`,
     "",
-    "予約締切時点の参加チーム数が最少催行に満たなかったため、当該開催日は中止とします。",
+    `「${MAIL_BODY_SERVICE_NAME}」をご利用いただきありがとうございます。`,
+    "",
+    "予約締切時点の参加チーム数が最少催行に満たなかったため、当該開催日は開催中止となりました。",
     "",
     `チーム名: ${teamName}`,
     `開催日: ${eventLine}`,
@@ -75,7 +78,8 @@ export async function sendMinimumCancelNoticeEmailAndUpdateNotification(params: 
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
-<p>予約締切時点の参加チーム数が最少催行に満たなかったため、当該開催日は<strong>中止</strong>とします。</p>
+<p>「${escaped(MAIL_BODY_SERVICE_NAME)}」をご利用いただきありがとうございます。</p>
+<p>予約締切時点の参加チーム数が最少催行に満たなかったため、当該開催日は<strong>開催中止</strong>となりました。</p>
 <ul>
 <li>チーム名: ${escaped(teamName)}</li>
 <li>開催日: ${escaped(eventLine)}</li>

@@ -1,5 +1,11 @@
 "use client";
 
+import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
+import {
+  assignmentTypeLabelJa,
+  eventSlotLabelJa,
+  formatAdminIdTail,
+} from "@/lib/admin/operator-display";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type ActiveReservationJson = {
@@ -60,20 +66,19 @@ type MatchesPayload = {
 };
 
 function resLabel(r: ActiveReservationJson): string {
-  const name = r.teamName ?? r.displayName ?? r.id.slice(0, 8);
+  const name = r.teamName ?? r.displayName ?? formatAdminIdTail(r.id);
   const cat = r.strengthCategory ? ` (${r.strengthCategory})` : "";
   return `${name}${cat}`;
 }
 
 function sideShort(s: SideJson): string {
-  return s.teamName ?? s.displayName ?? s.reservationId.slice(0, 8) + "…";
+  return s.teamName ?? s.displayName ?? formatAdminIdTail(s.reservationId);
 }
 
 function slotRowLabel(slot: SlotOverviewJson): string {
-  const ph = slot.phase === "morning" ? "午前" : "午後";
   const t0 = slot.startTime?.slice(0, 5) ?? "";
   const t1 = slot.endTime?.slice(0, 5) ?? "";
-  return `${ph} ${slot.slotCode}（${t0}–${t1}）`;
+  return `${eventSlotLabelJa(slot.slotCode, slot.phase)}（${t0}–${t1}）`;
 }
 
 type SlotRowDisplay = {
@@ -99,19 +104,19 @@ function getSlotRowDisplay(
   let bStr = "—";
   let refStr = "—";
   if (asn) {
-    typeStr = asn.assignmentType;
+    typeStr = assignmentTypeLabelJa(asn.assignmentType);
     aStr = sideShort(asn.sideA);
     bStr = sideShort(asn.sideB);
     refStr = asn.referee ? sideShort(asn.referee) : "—";
   } else if (slot.phase === "morning" && occ.length > 0) {
     typeStr = "予約のみ";
     aStr = occ[0]
-      ? occ[0].teamName ?? occ[0].displayName ?? occ[0].reservationId.slice(0, 8) + "…"
+      ? occ[0].teamName ?? occ[0].displayName ?? formatAdminIdTail(occ[0].reservationId)
       : "—";
     const second = occ[1];
     bStr =
       occ.length > 1 && second
-        ? second.teamName ?? second.displayName ?? second.reservationId.slice(0, 8) + "…"
+        ? second.teamName ?? second.displayName ?? formatAdminIdTail(second.reservationId)
         : "—";
   } else if (slot.phase === "afternoon") {
     typeStr = "未編成";
@@ -119,7 +124,7 @@ function getSlotRowDisplay(
   return { selectable, isSelected, typeStr, aStr, bStr, refStr };
 }
 
-/** SCR-12 確定補正（試合行の予約差し替え・午後枠移動・審判） */
+/** 確定後の補正（試合行の予約差し替え・午後枠移動・審判） */
 export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
   const [data, setData] = useState<MatchesPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -223,7 +228,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
       return;
     }
     if (!canPatch) {
-      setActionMessage("locked / confirmed の開催日のみ補正できます");
+      setActionMessage("締切済みまたは確定の開催日のみ補正できます");
       return;
     }
     setSaving(true);
@@ -264,7 +269,6 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <p className="text-xs font-medium text-zinc-500">SCR-12 / 確定補正</p>
         <h2 className="mt-1 text-lg font-semibold text-zinc-900">確定の補正</h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 wrap-break-word">
           開催日は試合一覧タブと同じ日付（
@@ -286,11 +290,13 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
         </button>
         {data?.eventDay ? (
           <span className="min-w-0 text-xs leading-relaxed text-zinc-600 sm:inline-flex sm:items-center">
-            開催日ステータス:{" "}
-            <span className="ml-1 font-mono">{data.eventDay.status}</span>
+            開催日の状態:{" "}
+            <span className="ml-1 font-medium text-zinc-800">
+              {eventDayStatusLabelJa(data.eventDay.status)}
+            </span>
             {!canPatch ? (
               <span className="mt-1 block text-amber-800 sm:mt-0 sm:ml-2 sm:inline">
-                （補正は locked / confirmed のみ）
+                （補正は締切済みまたは確定のみ）
               </span>
             ) : null}
           </span>
@@ -305,7 +311,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
 
       {!data?.matchingRun ? (
         <p className="rounded-lg border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-600">
-          current の matching_run が無いため、補正対象の試合行がありません（先に自動編成を実行してください）。
+          自動編成の記録がまだないため、補正対象の試合行がありません（先に自動編成を実行してください）。
         </p>
       ) : data.assignments.length === 0 ? (
         <p className="rounded-lg border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-600">
@@ -368,7 +374,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
                     </div>
                     <dl className="mt-2 grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1.5 text-xs sm:grid-cols-[5rem_1fr]">
                       <dt className="text-zinc-500">種別</dt>
-                      <dd className="min-w-0 wrap-break-word font-mono text-zinc-800">{row.typeStr}</dd>
+                      <dd className="min-w-0 wrap-break-word text-zinc-800">{row.typeStr}</dd>
                       <dt className="text-zinc-500">チームA</dt>
                       <dd className="min-w-0 wrap-break-word text-zinc-800">{row.aStr}</dd>
                       <dt className="text-zinc-500">チームB</dt>
@@ -382,7 +388,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             </div>
 
             {/* 768px以上: 表（横スクロール） */}
-            <div className="mt-3 hidden min-w-0 overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] md:block">
+            <div className="mt-3 hidden min-w-0 max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] md:block">
               <table className="w-full min-w-176 border-separate border-spacing-0 text-left text-sm text-zinc-800">
                 <thead>
                   <tr className="border-b border-zinc-200 text-xs font-medium text-zinc-500">
@@ -433,7 +439,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
                             <span className="text-zinc-500">有効</span>
                           )}
                         </td>
-                        <td className="max-w-40 py-2 pr-3 font-mono text-xs wrap-break-word whitespace-normal text-zinc-700">
+                        <td className="max-w-40 py-2 pr-3 text-xs wrap-break-word whitespace-normal text-zinc-700">
                           {row.typeStr}
                         </td>
                         <td className="min-w-0 py-2 pr-3 wrap-break-word">{row.aStr}</td>
@@ -447,7 +453,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             </div>
             {!canPatch ? (
               <p className="mt-2 text-xs text-amber-800 wrap-break-word">
-                open 等のため行を選択できません。locked / confirmed になってから補正してください。
+                締切前などのため行を選択できません。締切済みまたは確定になってから補正してください。
               </p>
             ) : (
               <p className="mt-2 text-xs text-zinc-500 wrap-break-word">

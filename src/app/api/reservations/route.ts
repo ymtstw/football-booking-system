@@ -207,6 +207,18 @@ export async function POST(request: Request) {
     );
   }
 
+  if (
+    lunchItems.length > 0 &&
+    lunchItems.every((item) => item.quantity === 0)
+  ) {
+    return NextResponse.json(
+      {
+        error: "昼食は、必ずご予約が必要です。",
+      },
+      { status: 422 }
+    );
+  }
+
   const phoneDigits = normalizeContactPhoneDigits(team.contactPhone!.trim());
   if (!isContactPhoneDigitsValid(phoneDigits)) {
     return NextResponse.json(

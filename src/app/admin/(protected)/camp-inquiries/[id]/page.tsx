@@ -6,6 +6,12 @@ import { CAMP_INQUIRY_FIELD_DEFS } from "@/lib/camp-inquiry/camp-inquiry-field-r
 import { campInquiryStatusLabelJa } from "@/lib/camp-inquiry/camp-inquiry-status";
 import { getLodgingPlanLabelJa } from "@/lib/camp-inquiry/camp-lodging-plans";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
+import {
+  buildInquiryComposeBundleLimited,
+  formatCampInquiryMailDraft,
+  formatInquiryReplyClipboardBlock,
+} from "@/lib/admin/inquiry-mailto-draft";
+import { formatAdminIdTail } from "@/lib/admin/operator-display";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE =
@@ -64,6 +70,24 @@ export default async function AdminCampInquiryDetailPage({
 
   const row = data as Row;
   const answers = normalizeAnswers(row.answers);
+  const teamName = (answers.team_name ?? "").trim();
+  const toEmail = (answers.contact_email ?? "").trim();
+  const mailDraft = formatCampInquiryMailDraft(answers, {
+    inquiryId: row.id,
+    createdAtIso: row.created_at,
+    schemaVersion: row.schema_version,
+  });
+  const replySubject = `【合宿相談】${teamName || "（チーム名なし）"}への返信`;
+  const compose = buildInquiryComposeBundleLimited({
+    toEmail,
+    subject: replySubject,
+    body: mailDraft,
+  });
+  const replyClipboardText = formatInquiryReplyClipboardBlock({
+    toEmail,
+    subject: replySubject,
+    bodyFull: mailDraft,
+  });
 
   return (
     <div className="min-w-0 space-y-6">
@@ -83,7 +107,10 @@ export default async function AdminCampInquiryDetailPage({
         <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
           合宿相談の詳細
         </h1>
-        <p className="mt-1 font-mono text-xs text-zinc-500 sm:text-sm">{row.id}</p>
+        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
+          照会番号（末尾）:{" "}
+          <span className="font-mono text-zinc-700">{formatAdminIdTail(row.id)}</span>
+        </p>
       </div>
 
       <CampInquiryDetailManageClient
@@ -91,7 +118,10 @@ export default async function AdminCampInquiryDetailPage({
         initialStatus={row.status}
         contactEmail={answers.contact_email ?? ""}
         contactPhone={answers.contact_phone ?? ""}
-        teamName={answers.team_name ?? ""}
+        outlookWebHref={compose.outlookWebHref}
+        mailtoHref={compose.mailtoHref}
+        mailtoTruncated={compose.truncated}
+        replyClipboardText={replyClipboardText}
       />
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">

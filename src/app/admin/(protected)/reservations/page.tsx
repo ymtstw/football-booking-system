@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
 import { getNearestUpcomingEventDateIso } from "@/lib/admin/nearest-upcoming-event-date";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
@@ -154,7 +155,7 @@ export default async function AdminReservationsPage({
         method="get"
         className="flex flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end"
       >
-        <label className="block min-w-[12rem] flex-1 text-sm">
+        <label className="block min-w-0 w-full flex-1 text-sm sm:min-w-[12rem]">
           <span className="font-medium text-zinc-800">開催日</span>
           {dateChoicesSorted.length > 0 ? (
             <select
@@ -177,7 +178,7 @@ export default async function AdminReservationsPage({
             />
           )}
         </label>
-        <label className="block min-w-[10rem] flex-1 text-sm">
+        <label className="block min-w-0 w-full flex-1 text-sm sm:min-w-[10rem]">
           <span className="font-medium text-zinc-800">チーム名（部分一致）</span>
           <input
             name="team"
@@ -187,7 +188,7 @@ export default async function AdminReservationsPage({
             className="mt-1 min-h-10 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
           />
         </label>
-        <label className="block min-w-[10rem] flex-1 text-sm">
+        <label className="block min-w-0 w-full flex-1 text-sm sm:min-w-[10rem]">
           <span className="font-medium text-zinc-800">メール（部分一致）</span>
           <input
             name="email"
@@ -228,73 +229,144 @@ export default async function AdminReservationsPage({
             <span className="font-medium text-zinc-900">開催の学年帯:</span>{" "}
             {day.grade_band}
             <span className="mx-2 text-zinc-400">|</span>
-            <span className="font-medium text-zinc-900">開催日状態:</span>{" "}
-            {day.status}
+            <span className="font-medium text-zinc-900">開催日の状態:</span>{" "}
+            {eventDayStatusLabelJa(day.status)}
           </p>
           {rows.length === 0 ? (
             <p className="text-sm text-zinc-600">
               この条件に該当する予約がありません。
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-              <table className="min-w-[56rem] w-full border-collapse text-left text-sm">
-                <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-600 sm:text-sm">
-                  <tr>
-                    <th className="px-3 py-2.5 sm:px-4">開催日</th>
-                    <th className="px-3 py-2.5 sm:px-4">チーム名</th>
-                    <th className="px-3 py-2.5 sm:px-4">申込者名</th>
-                    <th className="px-3 py-2.5 sm:px-4">メール</th>
-                    <th className="px-3 py-2.5 sm:px-4">代表学年</th>
-                    <th className="px-3 py-2.5 sm:px-4">人数</th>
-                    <th className="px-3 py-2.5 sm:px-4">予約状態</th>
-                    <th className="px-3 py-2.5 sm:px-4">作成日時</th>
-                    <th className="px-3 py-2.5 sm:px-4">操作</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {rows.map((r) => {
-                    const t = singleTeam(r.teams);
-                    if (!t) return null;
-                    return (
-                      <tr key={r.id} className="align-top">
-                        <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                          {formatIsoDateWithWeekdayJa(day.event_date)}
-                        </td>
-                        <td className="max-w-[12rem] truncate px-3 py-2.5 sm:px-4">
-                          {t.team_name}
-                        </td>
-                        <td className="max-w-[8rem] truncate px-3 py-2.5 sm:px-4">
-                          {t.contact_name}
-                        </td>
-                        <td className="max-w-[14rem] truncate px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
-                          {t.contact_email}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                          {t.representative_grade_year == null
-                            ? "—"
-                            : `${t.representative_grade_year}年`}
-                        </td>
-                        <td className="px-3 py-2.5 sm:px-4">{r.participant_count}</td>
-                        <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                          {reservationStatusLabelJa(r.status)}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
-                          {formatDateTimeTokyoWithWeekday(r.created_at)}
-                        </td>
-                        <td className="px-3 py-2.5 sm:px-4">
-                          <Link
-                            href={`/admin/reservations/${r.id}`}
-                            className="font-medium text-sky-800 underline underline-offset-2"
-                          >
-                            詳細・編集
-                          </Link>
-                        </td>
+            <>
+              <div className="space-y-3 md:hidden">
+                {rows.map((r) => {
+                  const t = singleTeam(r.teams);
+                  if (!t) return null;
+                  return (
+                    <article
+                      key={r.id}
+                      className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-100/80"
+                    >
+                      <dl className="space-y-2.5 text-sm text-zinc-800">
+                        <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-100 pb-2">
+                          <dt className="text-xs font-medium text-zinc-500">開催日</dt>
+                          <dd className="font-semibold text-zinc-900">
+                            {formatIsoDateWithWeekdayJa(day.event_date)}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-zinc-500">チーム名</dt>
+                          <dd className="mt-0.5 wrap-break-word font-medium">{t.team_name}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-zinc-500">申込者名</dt>
+                          <dd className="mt-0.5 wrap-break-word">{t.contact_name}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-xs font-medium text-zinc-500">メール</dt>
+                          <dd className="mt-0.5 wrap-break-word text-xs sm:text-sm">{t.contact_email}</dd>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 pt-2">
+                          <div>
+                            <dt className="text-xs font-medium text-zinc-500">代表学年</dt>
+                            <dd className="mt-0.5 tabular-nums">
+                              {t.representative_grade_year == null
+                                ? "—"
+                                : `${t.representative_grade_year}年`}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-zinc-500">人数</dt>
+                            <dd className="mt-0.5 tabular-nums">{r.participant_count}</dd>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 border-t border-zinc-100 pt-2 sm:grid-cols-2">
+                          <div>
+                            <dt className="text-xs font-medium text-zinc-500">予約状態</dt>
+                            <dd className="mt-0.5">{reservationStatusLabelJa(r.status)}</dd>
+                          </div>
+                          <div>
+                            <dt className="text-xs font-medium text-zinc-500">作成日時</dt>
+                            <dd className="mt-0.5 wrap-break-word text-xs leading-snug">
+                              {formatDateTimeTokyoWithWeekday(r.created_at)}
+                            </dd>
+                          </div>
+                        </div>
+                      </dl>
+                      <div className="mt-4 border-t border-zinc-100 pt-3">
+                        <Link
+                          href={`/admin/reservations/${r.id}`}
+                          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
+                        >
+                          詳細・編集
+                        </Link>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="hidden min-w-0 max-w-full md:block">
+                <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-zinc-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
+                  <table className="min-w-[56rem] w-full border-collapse text-left text-sm">
+                    <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-600 sm:text-sm">
+                      <tr>
+                        <th className="px-3 py-2.5 sm:px-4">開催日</th>
+                        <th className="px-3 py-2.5 sm:px-4">チーム名</th>
+                        <th className="px-3 py-2.5 sm:px-4">申込者名</th>
+                        <th className="px-3 py-2.5 sm:px-4">メール</th>
+                        <th className="px-3 py-2.5 sm:px-4">代表学年</th>
+                        <th className="px-3 py-2.5 sm:px-4">人数</th>
+                        <th className="px-3 py-2.5 sm:px-4">予約状態</th>
+                        <th className="px-3 py-2.5 sm:px-4">作成日時</th>
+                        <th className="px-3 py-2.5 sm:px-4">操作</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {rows.map((r) => {
+                        const t = singleTeam(r.teams);
+                        if (!t) return null;
+                        return (
+                          <tr key={r.id} className="align-top">
+                            <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                              {formatIsoDateWithWeekdayJa(day.event_date)}
+                            </td>
+                            <td className="max-w-[12rem] truncate px-3 py-2.5 sm:px-4">
+                              {t.team_name}
+                            </td>
+                            <td className="max-w-[8rem] truncate px-3 py-2.5 sm:px-4">
+                              {t.contact_name}
+                            </td>
+                            <td className="max-w-[14rem] truncate px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
+                              {t.contact_email}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                              {t.representative_grade_year == null
+                                ? "—"
+                                : `${t.representative_grade_year}年`}
+                            </td>
+                            <td className="px-3 py-2.5 sm:px-4">{r.participant_count}</td>
+                            <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                              {reservationStatusLabelJa(r.status)}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
+                              {formatDateTimeTokyoWithWeekday(r.created_at)}
+                            </td>
+                            <td className="px-3 py-2.5 sm:px-4">
+                              <Link
+                                href={`/admin/reservations/${r.id}`}
+                                className="font-medium text-sky-800 underline underline-offset-2"
+                              >
+                                詳細・編集
+                              </Link>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}

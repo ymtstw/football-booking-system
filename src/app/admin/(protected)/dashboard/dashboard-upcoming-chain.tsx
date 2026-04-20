@@ -22,70 +22,78 @@ function EventDayCard(props: {
   const preDayFailedHref = `${preDayBase}&notifications=failed#notifications-failed`;
 
   return (
-    <article className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm">
-      <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 sm:px-5">
-        <p className="text-xs font-medium text-zinc-500">
-          {variant === "nearest" ? "直近の開催（1件）" : "次の開催日"}
-        </p>
-        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3">
-          <span className="text-lg font-semibold text-zinc-900">
-            {formatIsoDateWithWeekdayJa(summary.event_date)}
-          </span>
-          <span className="text-sm text-zinc-600">学年帯 {summary.grade_band}</span>
-          <span className="inline-flex w-fit rounded-md bg-zinc-200/80 px-2 py-0.5 text-xs font-medium text-zinc-800">
-            {eventDayStatusLabelJa(summary.status)}
-          </span>
+    <article className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-md ring-1 ring-zinc-100/80">
+      <div className="relative border-b border-zinc-200/80 bg-gradient-to-r from-emerald-50/90 via-white to-zinc-50/90 px-4 py-4 sm:px-5">
+        <div
+          className="absolute inset-y-3 left-0 w-1 rounded-full bg-gradient-to-b from-emerald-500 to-emerald-700"
+          aria-hidden
+        />
+        <div className="pl-4">
+          <p className="text-xs font-semibold tracking-wide text-emerald-800">
+            {variant === "nearest" ? "直近の開催（1件）" : "次の開催日"}
+          </p>
+          <div className="mt-1.5 flex flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-3">
+            <span className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">
+              {formatIsoDateWithWeekdayJa(summary.event_date)}
+            </span>
+            <span className="text-sm font-medium text-zinc-600">学年帯 {summary.grade_band}</span>
+            <span className="inline-flex w-fit rounded-full border border-zinc-200/80 bg-white px-2.5 py-0.5 text-xs font-semibold text-zinc-800 shadow-sm">
+              {eventDayStatusLabelJa(summary.status)}
+            </span>
+          </div>
+          {variant === "nearest" ? (
+            <>
+              {summary.event_date === todayTokyo ? (
+                <p className="mt-2 text-xs text-zinc-500">本日の開催日として表示しています。</p>
+              ) : summary.event_date > tomorrowTokyo ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  明日より先の、登録済みでいちばん近い開催日です。
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-2 text-xs text-zinc-500">直前のカードより後の、登録済みでいちばん近い日です。</p>
+          )}
         </div>
-        {variant === "nearest" ? (
-          <>
-            {summary.event_date === todayTokyo ? (
-              <p className="mt-2 text-xs text-zinc-500">本日の開催日として表示しています。</p>
-            ) : summary.event_date > tomorrowTokyo ? (
-              <p className="mt-2 text-xs text-zinc-500">
-                明日より先の、登録済みでいちばん近い開催日です。
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="mt-2 text-xs text-zinc-500">直前のカードより後の、登録済みでいちばん近い日です。</p>
-        )}
       </div>
 
-      <div className="grid gap-4 px-4 py-4 sm:grid-cols-2 sm:px-5">
-        <dl className="space-y-2 text-sm">
-          <div className="flex justify-between gap-3 border-b border-zinc-100 pb-2">
+      <div className="grid gap-5 px-4 py-5 sm:grid-cols-2 sm:px-6 sm:py-6">
+        <dl className="divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50/40 text-sm shadow-inner">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">active 予約チーム数</dt>
             <dd className="font-semibold tabular-nums text-zinc-900">{summary.activeTeamCount}</dd>
           </div>
-          <div className="flex justify-between gap-3 border-b border-zinc-100 pb-2">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">合計昼食（食数）</dt>
             <dd className="font-semibold tabular-nums text-zinc-900">{summary.totalMeals}</dd>
           </div>
-          <div className="flex justify-between gap-3 border-b border-zinc-100 pb-2">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">合計参加人数</dt>
             <dd className="font-semibold tabular-nums text-zinc-900">{summary.totalParticipants}</dd>
           </div>
-          <div className="flex justify-between gap-3 border-b border-zinc-100 pb-2">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">雨天状態</dt>
-            <dd className="text-right text-zinc-800">
+            <dd className="text-right font-medium text-zinc-800">
               {weatherSummaryJa(summary.status, summary.weather_status)}
             </dd>
           </div>
-          <div className="flex justify-between gap-3 border-b border-zinc-100 pb-2">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">前日確定（編成確定）</dt>
-            <dd className="font-medium text-zinc-900">{preDayConfirmedJa(summary.status)}</dd>
+            <dd className="font-semibold text-zinc-900">{preDayConfirmedJa(summary.status)}</dd>
           </div>
-          <div className="flex justify-between gap-3 border-b border-zinc-100 pb-2">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">編成 warning</dt>
-            <dd className="font-medium text-zinc-900">
+            <dd className="font-semibold text-zinc-900">
               {summary.warningCount != null && summary.warningCount > 0 ? (
-                <span className="text-amber-800">あり（{summary.warningCount}）</span>
+                <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-amber-900">
+                  あり（{summary.warningCount}）
+                </span>
               ) : (
                 <span className="text-zinc-600">なし</span>
               )}
             </dd>
           </div>
-          <div className="flex justify-between gap-3">
+          <div className="flex justify-between gap-3 px-3 py-2.5 sm:px-3.5">
             <dt className="text-zinc-500">通知 failed</dt>
             <dd>
               {summary.failedForDay > 0 ? (
@@ -102,22 +110,22 @@ function EventDayCard(props: {
           </div>
         </dl>
 
-        <div className="flex flex-col justify-end gap-2 sm:items-start">
+        <div className="flex flex-col justify-end gap-2.5 rounded-xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50/80 to-white p-4 shadow-sm sm:items-stretch">
           <Link
             href={preDayBase}
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white hover:bg-emerald-900 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-gradient-to-r from-emerald-700 to-emerald-800 px-4 text-sm font-semibold text-white shadow-md ring-1 ring-emerald-900/20 hover:from-emerald-800 hover:to-emerald-900"
           >
             前日確定へ
           </Link>
           <Link
             href="/admin/event-days"
-            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 shadow-sm hover:border-zinc-400 hover:bg-zinc-50"
           >
-            開催日管理へ
+            開催日へ
           </Link>
           <Link
             href={`/admin/event-days/${summary.id}/weather`}
-            className="inline-flex min-h-10 w-full items-center justify-center text-sm font-medium text-sky-800 underline decoration-sky-600/50 underline-offset-2 hover:text-sky-950 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-sky-200 bg-sky-50 px-4 text-sm font-semibold text-sky-900 shadow-sm hover:border-sky-300 hover:bg-sky-100/80"
           >
             雨天判断へ
           </Link>
@@ -187,7 +195,7 @@ export function DashboardUpcomingChain(props: {
           type="button"
           onClick={() => void loadNext()}
           disabled={loading || exhausted}
-          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-800 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 shadow-sm hover:border-zinc-400 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
         >
           {loading ? "読み込み中…" : "次の開催日を読み込む"}
         </button>

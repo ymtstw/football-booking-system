@@ -9,6 +9,8 @@ import {
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
 import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
+import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
+import { formatAdminIdTail } from "@/lib/admin/operator-display";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE =
@@ -157,7 +159,9 @@ export default async function AdminReservationDetailPage({
     if (slot) {
       const st = String(slot.start_time ?? "").slice(0, 5);
       const et = String(slot.end_time ?? "").slice(0, 5);
-      morningSlotLabel = `${slot.slot_code}（${st}〜${et}）`;
+      const orderNum =
+        String(slot.slot_code ?? "").match(/(\d+)\s*$/)?.[1] ?? "";
+      morningSlotLabel = `午前${orderNum}（${st}〜${et}）`;
     }
   }
 
@@ -176,7 +180,10 @@ export default async function AdminReservationDetailPage({
 
       <div>
         <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">予約詳細</h1>
-        <p className="mt-1 font-mono text-xs text-zinc-500 sm:text-sm">{row.id}</p>
+        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
+          照会番号（末尾）:{" "}
+          <span className="font-mono text-zinc-700">{formatAdminIdTail(row.id)}</span>
+        </p>
       </div>
 
       <div className="rounded-lg border border-zinc-200 bg-zinc-50/90 px-4 py-3 text-sm text-zinc-800">
@@ -202,7 +209,7 @@ export default async function AdminReservationDetailPage({
           </div>
           <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
             <dt className="text-zinc-500">開催日ステータス</dt>
-            <dd>{day.status}</dd>
+            <dd>{eventDayStatusLabelJa(day.status)}</dd>
           </div>
           <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
             <dt className="text-zinc-500">午前枠（選択中）</dt>
@@ -224,9 +231,9 @@ export default async function AdminReservationDetailPage({
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">昼食（予約時スナップショット）</h2>
+        <h2 className="text-sm font-semibold text-zinc-900">昼食（予約したときの内容）</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          単価・メニュー名は予約時点の税込です。マスタの価格変更後もこの表示は変わりません。
+          単価・メニュー名は、予約した時点の税込です。あとからマスタを変えても、この予約の表示は変わりません。
         </p>
         <div className="mt-3">
           <LunchOrderSummary lines={lunchLines} totalTaxIncluded={lunchTotal} />

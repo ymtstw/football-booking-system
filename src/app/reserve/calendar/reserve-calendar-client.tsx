@@ -14,7 +14,6 @@ import { MorningSlotsSelect } from "../_components/morning-slots-select";
 import type { MorningSlotSelectRow } from "../_components/morning-slots-select";
 import {
   allPreChecksOk,
-  PRE_CHECKLIST_COUNT,
   ReservePreChecklist,
 } from "../_components/reserve-pre-checklist";
 import { ReserveStepper } from "../_components/reserve-stepper";
@@ -23,7 +22,6 @@ import {
   ReserveCallout,
   ReserveOutlineRoundLink,
   ReservePrimaryCtaButton,
-  ReserveSoftGreenLink,
   ReserveSubPanel,
 } from "../_components/ui";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
@@ -47,22 +45,19 @@ type AvailabilityJson = {
 
 export function ReserveCalendarClient() {
   const router = useRouter();
-  const [checked, setChecked] = useState<boolean[]>(() =>
-    Array.from({ length: PRE_CHECKLIST_COUNT }, () => false)
-  );
+  const [checked, setChecked] = useState<boolean>(false);
   const [days, setDays] = useState<EventDayPublic[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(null);
   const [availability, setAvailability] = useState<AvailabilityJson | null>(null);
   const [availLoading, setAvailLoading] = useState(false);
   const [selectedSlotId, setSelectedSlotId] = useState("");
+  /** 確認チェック未同意のまま進もうとしたとき、主CTA付近に表示 */
+  const [agreementHint, setAgreementHint] = useState<string | null>(null);
 
-  const toggleCheck = useCallback((index: number, value: boolean) => {
-    setChecked((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+  const toggleCheck = useCallback((value: boolean) => {
+    setChecked(value);
+    if (value) setAgreementHint(null);
   }, []);
 
   useEffect(() => {
@@ -132,15 +127,15 @@ export function ReserveCalendarClient() {
   }, [selectedIsoDate]);
 
   const checksOk = allPreChecksOk(checked);
-  const canProceed =
-    checksOk &&
+  /** 日付・枠・受付可否のみでボタン活性を決める（確認チェックはクリック時に検証） */
+  const selectionReady =
     Boolean(selectedIsoDate) &&
     Boolean(selectedSlotId) &&
-    availability?.acceptingReservations;
+    Boolean(availability?.acceptingReservations);
 
   return (
     <div className="space-y-8 sm:space-y-10">
-      <ReserveStepper current={2} />
+      <ReserveStepper current={1} />
 
       <div className="grid gap-8 lg:grid-cols-2 lg:gap-10">
         <ReservePreChecklist checked={checked} onToggle={toggleCheck} />
@@ -213,19 +208,30 @@ export function ReserveCalendarClient() {
       </div>
 
       <div className="flex flex-col gap-4 border-t border-slate-200 pt-8 lg:flex-row lg:items-center lg:justify-between">
-        <ReserveOutlineRoundLink href="/reserve">予約に戻る</ReserveOutlineRoundLink>
-        <ReserveSoftGreenLink href="/reserve/camp">合宿のご相談</ReserveSoftGreenLink>
-        <ReservePrimaryCtaButton
-          disabled={!canProceed}
-          onClick={() => {
-            if (!selectedIsoDate || !selectedSlotId) return;
-            router.push(
-              `/reserve/${selectedIsoDate}?morningSlot=${encodeURIComponent(selectedSlotId)}`
-            );
-          }}
-        >
-          この日程で予約情報を入力する
-        </ReservePrimaryCtaButton>
+        <div className="flex w-full min-w-0 flex-col gap-2 lg:w-auto">
+          {agreementHint ? (
+            <p className="text-sm font-medium text-red-600" role="alert">
+              {agreementHint}
+            </p>
+          ) : null}
+          <ReservePrimaryCtaButton
+            disabled={!selectionReady}
+            onClick={() => {
+              if (!selectionReady || !selectedIsoDate || !selectedSlotId) return;
+              if (!checksOk) {
+                setAgreementHint("確認事項をご覧になり、同意してください。");
+                return;
+              }
+              setAgreementHint(null);
+              router.push(
+                `/reserve/${selectedIsoDate}?morningSlot=${encodeURIComponent(selectedSlotId)}`
+              );
+            }}
+          >
+            この日程で予約情報を入力する
+          </ReservePrimaryCtaButton>
+        </div>
+        <ReserveOutlineRoundLink href="/reserve">イベント案内に戻る</ReserveOutlineRoundLink>
       </div>
     </div>
   );

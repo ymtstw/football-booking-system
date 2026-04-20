@@ -89,6 +89,8 @@ export default async function AdminCampInquiriesPage({
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">
           新着は{" "}
           <code className="text-xs">CAMP_INQUIRY_NOTIFY_EMAIL</code>{" "}
+          または{" "}
+          <code className="text-xs">OPS_NOTIFY_EMAIL</code>{" "}
           設定時に通知メールでも届きます（再通知は MVP 対象外）。
         </p>
       </div>
@@ -116,6 +118,13 @@ export default async function AdminCampInquiriesPage({
           対応中
         </Link>
         <Link
+          href="/admin/camp-inquiries?status=follow_up"
+          className={tabClass(statusFilter === "follow_up")}
+          aria-current={statusFilter === "follow_up" ? "page" : undefined}
+        >
+          要再対応
+        </Link>
+        <Link
           href="/admin/camp-inquiries?status=done"
           className={tabClass(statusFilter === "done")}
           aria-current={statusFilter === "done" ? "page" : undefined}
@@ -135,74 +144,133 @@ export default async function AdminCampInquiriesPage({
             : "まだ相談の受付がありません。"}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white shadow-sm">
-          <table className="min-w-[56rem] w-full border-collapse text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-600 sm:text-sm">
-              <tr>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">受付日時</th>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">代表者名</th>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                  所属チーム名
-                </th>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">希望プラン</th>
-                <th className="min-w-[10rem] px-3 py-2.5 sm:px-4">希望日程</th>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">概算人数</th>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">ステータス</th>
-                <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">操作</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {rows.map((row) => {
-                const a = normalizeAnswers(row.answers);
-                const planId = a.preferred_plan?.trim() ?? "";
-                const planLabel =
-                  planId === ""
-                    ? "—"
-                    : getLodgingPlanLabelJa(planId) ?? planId;
-                const dates = a.preferred_dates?.trim() ?? "—";
-                const headcount = a.headcount?.trim() ?? "—";
-                return (
-                  <tr key={row.id} className="align-top text-zinc-900">
-                    <td className="whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
-                      {formatDateTimeTokyoWithWeekday(row.created_at)}
-                    </td>
-                    <td className="max-w-[10rem] truncate px-3 py-2.5 sm:px-4">
-                      {a.contact_name?.trim() || "—"}
-                    </td>
-                    <td className="max-w-[12rem] truncate px-3 py-2.5 sm:px-4">
-                      {a.team_name?.trim() || "—"}
-                    </td>
-                    <td className="max-w-[10rem] truncate px-3 py-2.5 sm:px-4">
-                      {planLabel}
-                    </td>
-                    <td
-                      className="max-w-xs px-3 py-2.5 text-xs leading-snug sm:px-4 sm:text-sm"
-                      title={dates === "—" ? undefined : dates}
-                    >
-                      <span className="line-clamp-2 whitespace-pre-wrap">
+        <>
+          <div className="space-y-3 md:hidden">
+            {rows.map((row) => {
+              const a = normalizeAnswers(row.answers);
+              const planId = a.preferred_plan?.trim() ?? "";
+              const planLabel =
+                planId === "" ? "—" : getLodgingPlanLabelJa(planId) ?? planId;
+              const dates = a.preferred_dates?.trim() ?? "—";
+              const headcount = a.headcount?.trim() ?? "—";
+              return (
+                <article
+                  key={row.id}
+                  className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-100/80"
+                >
+                  <p className="text-xs text-zinc-500">
+                    <span className="font-medium text-zinc-700">受付</span>{" "}
+                    {formatDateTimeTokyoWithWeekday(row.created_at)}
+                  </p>
+                  <dl className="mt-3 space-y-2.5 text-sm text-zinc-900">
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500">代表者名</dt>
+                      <dd className="mt-0.5 wrap-break-word">{a.contact_name?.trim() || "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500">所属チーム名</dt>
+                      <dd className="mt-0.5 wrap-break-word">{a.team_name?.trim() || "—"}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500">希望プラン</dt>
+                      <dd className="mt-0.5 wrap-break-word">{planLabel}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500">希望日程</dt>
+                      <dd className="mt-0.5 wrap-break-word text-xs leading-relaxed whitespace-pre-wrap">
                         {dates}
-                      </span>
-                    </td>
-                    <td className="max-w-[8rem] truncate px-3 py-2.5 sm:px-4">
-                      {headcount}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                      {campInquiryStatusLabelJa(row.status)}
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                      <Link
-                        href={`/admin/camp-inquiries/${row.id}`}
-                        className="font-medium text-sky-800 underline underline-offset-2 hover:text-sky-950"
-                      >
-                        詳細
-                      </Link>
-                    </td>
+                      </dd>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2">
+                      <div>
+                        <dt className="text-xs font-medium text-zinc-500">概算人数</dt>
+                        <dd className="mt-0.5">{headcount}</dd>
+                      </div>
+                      <div className="text-right">
+                        <dt className="text-xs font-medium text-zinc-500">ステータス</dt>
+                        <dd className="mt-0.5 font-medium">{campInquiryStatusLabelJa(row.status)}</dd>
+                      </div>
+                    </div>
+                  </dl>
+                  <div className="mt-4 border-t border-zinc-100 pt-3">
+                    <Link
+                      href={`/admin/camp-inquiries/${row.id}`}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800"
+                    >
+                      詳細
+                    </Link>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="hidden min-w-0 max-w-full md:block">
+            <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-zinc-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
+              <table className="min-w-[56rem] w-full border-collapse text-left text-sm">
+                <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-600 sm:text-sm">
+                  <tr>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">受付日時</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">代表者名</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">所属チーム名</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">希望プラン</th>
+                    <th className="min-w-[10rem] px-3 py-2.5 sm:px-4">希望日程</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">概算人数</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">ステータス</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">操作</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody className="divide-y divide-zinc-100">
+                  {rows.map((row) => {
+                    const a = normalizeAnswers(row.answers);
+                    const planId = a.preferred_plan?.trim() ?? "";
+                    const planLabel =
+                      planId === ""
+                        ? "—"
+                        : getLodgingPlanLabelJa(planId) ?? planId;
+                    const dates = a.preferred_dates?.trim() ?? "—";
+                    const headcount = a.headcount?.trim() ?? "—";
+                    return (
+                      <tr key={row.id} className="align-top text-zinc-900">
+                        <td className="whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
+                          {formatDateTimeTokyoWithWeekday(row.created_at)}
+                        </td>
+                        <td className="max-w-[10rem] truncate px-3 py-2.5 sm:px-4">
+                          {a.contact_name?.trim() || "—"}
+                        </td>
+                        <td className="max-w-[12rem] truncate px-3 py-2.5 sm:px-4">
+                          {a.team_name?.trim() || "—"}
+                        </td>
+                        <td className="max-w-[10rem] truncate px-3 py-2.5 sm:px-4">
+                          {planLabel}
+                        </td>
+                        <td
+                          className="max-w-xs px-3 py-2.5 text-xs leading-snug sm:px-4 sm:text-sm"
+                          title={dates === "—" ? undefined : dates}
+                        >
+                          <span className="line-clamp-2 whitespace-pre-wrap">{dates}</span>
+                        </td>
+                        <td className="max-w-[8rem] truncate px-3 py-2.5 sm:px-4">
+                          {headcount}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                          {campInquiryStatusLabelJa(row.status)}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                          <Link
+                            href={`/admin/camp-inquiries/${row.id}`}
+                            className="font-medium text-sky-800 underline underline-offset-2 hover:text-sky-950"
+                          >
+                            詳細
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

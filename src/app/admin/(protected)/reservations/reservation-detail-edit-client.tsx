@@ -195,14 +195,41 @@ export function ReservationDetailEditClient({ reservationId, initial }: Props) {
       </div>
 
       {error ? (
-        <p className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
-          {error}
-        </p>
+        <div
+          className="relative overflow-hidden rounded-lg border border-red-200 bg-red-50 px-4 py-3 shadow-sm"
+          role="alert"
+        >
+          <div className="absolute inset-x-0 top-0 h-1 bg-red-500" aria-hidden />
+          <div className="pt-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-800">
+              保存できませんでした
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-red-900">{error}</p>
+          </div>
+        </div>
       ) : null}
       {message ? (
-        <p className="text-sm text-emerald-800" role="status">
-          {message}
-        </p>
+        <div
+          className="relative overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50/95 px-4 py-3 shadow-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="absolute inset-x-0 top-0 h-1 bg-emerald-500" aria-hidden />
+          <div className="flex items-start gap-3 pt-1">
+            <span
+              className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white"
+              aria-hidden
+            >
+              ✓
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-emerald-950">{message}</p>
+              <p className="mt-1 text-xs leading-relaxed text-emerald-900/90">
+                予約・チーム情報を反映しました。この内容で前日確定・通知などに利用されます。
+              </p>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <button

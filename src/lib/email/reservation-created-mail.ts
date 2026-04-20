@@ -3,12 +3,19 @@ import "server-only";
 import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import {
+  MAIL_BODY_SERVICE_NAME,
+  MAIL_SUBJECT_BRAND_USER,
+  MAIL_SUBJECT_OPS_SYSTEM,
+} from "@/lib/email/mail-brand";
+import { resolveOpsNotifyEmail } from "@/lib/email/ops-batch-failure-notify";
 import { gradeYearLabelJa } from "@/lib/reservations/grade-year";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const TEMPLATE_KEY = "reservation_created";
 const ERROR_MESSAGE_MAX = 2000;
+const SIMPLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function truncateErrorMessage(msg: string): string {
   const t = msg.trim();
@@ -20,6 +27,107 @@ function managePageUrl(): string | null {
   const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
   if (!base) return null;
   return `${base}/reserve/manage`;
+}
+
+function reserveContactPageUrl(): string | null {
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (!base) return null;
+  return `${base}/reserve/contact`;
+}
+
+function escapeHtmlLite(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * 予約完了メールが利用者宛に送れなかったとき、運営宛（OPS_NOTIFY_EMAIL）に 1 通。
+ * テスト用 Resend では利用者宛が拒否されても、運営メールなら同一キーで届くことが多い。
+ * 確認コードは含めない。
+ */
+async function notifyOpsReservationCreatedDeliveryFailed(params: {
+  reservationId: string;
+  teamName: string;
+  intendedTo: string;
+  resendError: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.RESEND_FROM?.trim();
+  const to = resolveOpsNotifyEmail().trim();
+  if (!apiKey || !from || !to || !SIMPLE_EMAIL_RE.test(to)) {
+    return;
+  }
+
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "") ?? "";
+  const adminResUrl = base
+    ? `${base}/admin/reservations/${params.reservationId}`
+    : `(管理) /admin/reservations/${params.reservationId}`;
+  const failedListUrl = base
+    ? `${base}/admin/notifications/failed`
+    : "/admin/notifications/failed";
+
+  const subject = `${MAIL_SUBJECT_OPS_SYSTEM}予約完了メール送信失敗`;
+  const errShort = truncateErrorMessage(params.resendError);
+  const text = [
+    "参加者向け「予約完了メール」の送信が Resend で失敗し、notifications を failed に更新しました。",
+    "",
+    `予約ID: ${params.reservationId}`,
+    `チーム名: ${params.teamName}`,
+    `失敗した宛先（代表メール）: ${params.intendedTo}`,
+    "",
+    "Resend のエラー:",
+    errShort,
+    "",
+    "次の確認: 宛先の誤記、Resend のドメイン検証・テストモードの宛先制限など。",
+    `予約の管理: ${adminResUrl}`,
+    `送信失敗一覧: ${failedListUrl}`,
+    "",
+    "（確認コードはこの通知には含めていません）",
+  ].join("\n");
+
+  const adminHref = base
+    ? `${base}/admin/reservations/${params.reservationId}`
+    : "";
+  const failedHref = base ? `${base}/admin/notifications/failed` : "";
+  const adminFailedLinksHtml =
+    adminHref && failedHref
+      ? `<p><a href="${escapeHtmlLite(adminHref)}">予約を管理画面で開く</a> · <a href="${escapeHtmlLite(failedHref)}">送信失敗一覧</a></p>`
+      : `<p>管理画面パス: <code>${escapeHtmlLite(`/admin/reservations/${params.reservationId}`)}</code> / <code>/admin/notifications/failed</code>（<code>NEXT_PUBLIC_SITE_URL</code> 未設定時はリンク省略）</p>`;
+
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
+<p>参加者向け「予約完了メール」の送信が Resend で失敗し、<code>notifications</code> を <strong>failed</strong> に更新しました。</p>
+<ul>
+<li><strong>予約ID:</strong> ${escapeHtmlLite(params.reservationId)}</li>
+<li><strong>チーム名:</strong> ${escapeHtmlLite(params.teamName)}</li>
+<li><strong>失敗した宛先（代表メール）:</strong> ${escapeHtmlLite(params.intendedTo)}</li>
+</ul>
+<p><strong>Resend のエラー</strong></p>
+<pre style="white-space:pre-wrap;font-size:12px;background:#f4f4f5;padding:12px;border-radius:8px">${escapeHtmlLite(errShort)}</pre>
+${adminFailedLinksHtml}
+<p style="font-size:12px;color:#71717a">確認コードはこの通知には含めていません。</p>
+</body></html>`;
+
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from,
+      to: [to],
+      subject,
+      text,
+      html,
+    });
+    if (error) {
+      console.warn(
+        "[reservation email] ops failure notify resend error:",
+        error.message
+      );
+    }
+  } catch (e) {
+    console.warn("[reservation email] ops failure notify exception", e);
+  }
 }
 
 /**
@@ -71,6 +179,8 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   const manageLine = manageUrl
     ? `予約の確認・変更（締切前）・キャンセル（締切前）:\n${manageUrl}`
     : "予約の確認・変更は、サイトの「予約確認・キャンセル」から行えます。";
+
+  const contactUrl = reserveContactPageUrl();
 
   const escaped = (s: string) =>
     s
@@ -140,26 +250,41 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
           .join("")}</ul><p><strong>昼食合計:</strong> ${escaped(formatTaxIncludedYen(lunchTotal))}</p><p>${escaped("昼食代は、各チームの代表者が現地でまとめてお支払いください。")}</p>`
       : `<p><strong>昼食</strong></p><p>今回の予約では昼食の申込はありません。</p>`;
 
-  const subject = "【交流試合】予約が完了しました（確認コードをご確認ください）";
+  const subject = `${MAIL_SUBJECT_BRAND_USER}予約を受け付けました`;
+
+  const emailNotReceivedLines = [
+    "",
+    "▼ メールが届かないとき",
+    "・迷惑メールフォルダ（除外・迷惑メール等）も必ずご確認ください。",
+    "・それでも見つからない場合は、ご登録のメールアドレスに誤りがある場合がございます。",
+    contactUrl
+      ? `・お手数ですが、次のお問い合わせフォームに、予約日・チーム名・電話番号をご記入のうえご連絡ください。\n${contactUrl}`
+      : "・お手数ですが、サイトの「お問い合わせ」フォームから、予約日・チーム名・電話番号をご記入のうえご連絡ください。（公開サイトのメニューからお進みください）",
+    "",
+  ];
 
   const text = [
     `${contactName} 様`,
     "",
-    "このたびはお申し込みありがとうございます。予約が完了しました。",
+    `「${MAIL_BODY_SERVICE_NAME}」にお申し込みいただき、ありがとうございます。`,
+    "日帰りの交流試合について、以下の内容でお申し込みを受け付けました。",
     "",
+    "▼ まずお願いしたいこと",
+    "・「予約確認コード」は他人に教えず、紛失しないよう保管してください（照会・変更・キャンセルに必要です）。",
+    "・締切前であれば、次のページから予約内容の確認やキャンセルができます。",
+    "",
+    manageLine,
+    "",
+    "▼ お申し込み内容",
     `チーム名: ${teamName}`,
     `開催日: ${eventLine}`,
     ...(gradeLine ? [gradeLine] : []),
     repYearLine,
     ...lunchBlockText,
     "",
-    "▼ 予約確認コード（厳重に保管してください）",
-    "第三者に見せると、予約の確認や操作ができる可能性があります。",
-    "",
+    "▼ 予約確認コード",
     reservationTokenPlain,
-    "",
-    manageLine,
-    "",
+    ...emailNotReceivedLines,
     "本メールに心当たりがない場合は、お手数ですが破棄してください。",
   ].join("\n");
 
@@ -168,9 +293,28 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     ? `<p><a href="${escaped(manageUrl)}">予約の確認・キャンセルページを開く</a></p>`
     : `<p>サイトの「予約確認・キャンセル」から操作できます。</p>`;
 
+  const emailNotReceivedHtml = `<p style="margin-top:20px;font-size:15px"><strong>メールが届かないとき</strong></p>
+<ul style="margin-top:8px;font-size:14px">
+<li>迷惑メールフォルダ（除外・迷惑メール等）も<strong>必ず</strong>ご確認ください。</li>
+<li>それでも見つからない場合は、ご登録のメールアドレスに誤りがある場合がございます。</li>
+<li>お手数ですが、${
+    contactUrl
+      ? `<a href="${escaped(contactUrl)}">お問い合わせフォーム</a>から、`
+      : `サイトの「お問い合わせ」から、`
+  }予約日・チーム名・電話番号をご記入のうえご連絡ください。</li>
+</ul>`;
+
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
-<p>このたびはお申し込みありがとうございます。予約が完了しました。</p>
+<p>「${escaped(MAIL_BODY_SERVICE_NAME)}」にお申し込みいただき、ありがとうございます。<br/>
+日帰りの交流試合について、以下の内容で<strong>お申し込みを受け付けました</strong>。</p>
+<p style="margin-top:16px;font-size:15px"><strong>まずお願いしたいこと</strong></p>
+<ul style="margin-top:8px">
+<li>「予約確認コード」は他人に教えず、紛失しないよう保管してください（照会・変更・キャンセルに必要です）。</li>
+<li>締切前であれば、次のページから予約内容の確認やキャンセルができます。</li>
+</ul>
+${manageHtml}
+<p style="margin-top:20px;font-size:15px"><strong>お申し込み内容</strong></p>
 <ul>
 <li>チーム名: ${escaped(teamName)}</li>
 <li>開催日: ${escaped(eventLine)}</li>
@@ -182,10 +326,10 @@ ${
 <li>代表学年: ${escaped(gradeYearLabelJa(representativeGradeYear))}</li>
 </ul>
 ${lunchBlockHtml}
-<p><strong>予約確認コード</strong>（厳重に保管してください。第三者に共有しないでください。）</p>
+<p style="margin-top:20px"><strong>予約確認コード</strong></p>
 ${tokenHtml}
-${manageHtml}
-<p style="font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
+${emailNotReceivedHtml}
+<p style="margin-top:16px;font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
 </body></html>`;
 
   const resend = new Resend(apiKey);
@@ -209,6 +353,12 @@ ${manageHtml}
         .eq("reservation_id", reservationId)
         .eq("template_key", TEMPLATE_KEY)
         .eq("status", "pending");
+      await notifyOpsReservationCreatedDeliveryFailed({
+        reservationId,
+        teamName,
+        intendedTo: to,
+        resendError: msg,
+      });
       return;
     }
 
@@ -228,5 +378,11 @@ ${manageHtml}
       .eq("reservation_id", reservationId)
       .eq("template_key", TEMPLATE_KEY)
       .eq("status", "pending");
+    await notifyOpsReservationCreatedDeliveryFailed({
+      reservationId,
+      teamName,
+      intendedTo: to,
+      resendError: msg,
+    });
   }
 }

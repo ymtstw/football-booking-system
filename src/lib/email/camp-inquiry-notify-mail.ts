@@ -9,6 +9,7 @@ import {
 } from "@/lib/camp-inquiry/camp-inquiry-field-registry";
 import { getLodgingPlanLabelJa } from "@/lib/camp-inquiry/camp-lodging-plans";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
+import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_OPS_CAMP } from "@/lib/email/mail-brand";
 
 function escapeHtml(s: string): string {
   return s
@@ -23,19 +24,24 @@ const SIMPLE_EMAIL_RE =
 
 /**
  * 運営向け: 合宿相談が届いた通知メール。
- * CAMP_INQUIRY_NOTIFY_EMAIL が未設定のときは送信しない（DB 保存のみ）。
+ * 宛先: CAMP_INQUIRY_NOTIFY_EMAIL → なければ OPS_NOTIFY_EMAIL（どちらも未設定なら送信しない）。
  */
 export async function sendCampInquiryNotifyEmail(params: {
   inquiryId: string;
   createdAtIso: string;
   answers: Record<string, string>;
 }): Promise<{ sent: boolean; skippedReason?: string }> {
-  const to = process.env.CAMP_INQUIRY_NOTIFY_EMAIL?.trim();
+  const to =
+    process.env.CAMP_INQUIRY_NOTIFY_EMAIL?.trim() ||
+    process.env.OPS_NOTIFY_EMAIL?.trim();
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.RESEND_FROM?.trim();
 
   if (!to) {
-    return { sent: false, skippedReason: "CAMP_INQUIRY_NOTIFY_EMAIL unset" };
+    return {
+      sent: false,
+      skippedReason: "CAMP_INQUIRY_NOTIFY_EMAIL / OPS_NOTIFY_EMAIL unset",
+    };
   }
   if (!apiKey || !from) {
     console.warn("[camp inquiry email] skipped: RESEND_API_KEY / RESEND_FROM");
@@ -75,9 +81,13 @@ export async function sendCampInquiryNotifyEmail(params: {
       ].includes(row.labelJa)
   );
 
+  const teamLabel = (a.team_name ?? "").trim();
+  const subjectSuffix = teamLabel ? ` ${teamLabel}より` : " フォームから新着";
+
   const textBody = [
-    "合宿・宿泊の相談フォームから新着です（予約確定ではありません）。",
-    "受付〜事前案内まで。当日運用・対戦表・在庫の自動管理は対象外です。",
+    `「${MAIL_BODY_SERVICE_NAME}」の合宿・宿泊の相談フォームから、新しいお問い合わせがあります。`,
+    "※この受付は「予約の確定」を意味しません。内容を確認のうえ、運営から返信メールまたはお電話でご連絡ください。",
+    "（当日の進行や対戦表の自動管理は対象外です。）",
     "",
     `照会 ID: ${params.inquiryId}`,
     `スキーマ: ${CAMP_INQUIRY_SCHEMA_VERSION}`,
@@ -117,7 +127,8 @@ export async function sendCampInquiryNotifyEmail(params: {
     : "";
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
-<p>合宿・宿泊の相談フォームから新着です（<strong>予約確定ではありません</strong>）。</p>
+<p>「${escapeHtml(MAIL_BODY_SERVICE_NAME)}」の合宿・宿泊の相談フォームから、新しいお問い合わせがあります。</p>
+<p style="font-size:14px;color:#3f3f46"><strong>予約の確定ではありません。</strong>運営で内容を確認のうえ、返信メールまたはお電話でご連絡ください。</p>
 <p style="font-size:13px;color:#52525b">照会 ID: <code>${escapeHtml(params.inquiryId)}</code> / スキーマ: ${escapeHtml(CAMP_INQUIRY_SCHEMA_VERSION)}</p>
 <table style="border-collapse:collapse;font-size:14px;max-width:640px">${structuredHtmlRows}</table>
 ${extraHtml}
@@ -134,7 +145,7 @@ ${adminBlock}
     from,
     to: [to],
     ...(replyToList ? { replyTo: replyToList } : {}),
-    subject: "【交流試合サイト】合宿・宿泊の相談が届きました",
+    subject: `${MAIL_SUBJECT_OPS_CAMP}${subjectSuffix}`,
     text: textBody,
     html,
   });

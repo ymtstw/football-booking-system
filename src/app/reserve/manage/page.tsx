@@ -8,15 +8,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { FieldLabel } from "../_components/field-label";
 import { LunchOrderSummary } from "../_components/lunch-order-summary";
-import {
-  IconCalendar,
-  IconClipboard,
-  IconInfoCircle,
-  IconPencil,
-  IconSearch,
-  IconTrash,
-} from "../_components/reserve-icons";
-import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-icon";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
@@ -30,6 +21,7 @@ import {
 } from "@/lib/validators/contact-phone";
 import { inputAsciiDigitsOnly } from "@/lib/validators/digits-input";
 import type { LunchMenuItemPublic, ReservationLunchLinePublic } from "@/lib/lunch/types";
+import { parseLunchQuantityField } from "@/lib/lunch/parse-lunch-qty-field";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
 
 type ReservationJson = {
@@ -145,7 +137,8 @@ export default function ReserveManagePage() {
         const qty: Record<string, string> = {};
         for (const m of lunchMenus) {
           const line = reservation.lunchItems.find((li) => li.menuItemId === m.id);
-          qty[m.id] = String(line?.quantity ?? 0);
+          const q = line?.quantity ?? 0;
+          qty[m.id] = q > 0 ? String(q) : "";
         }
         setEditLunchQtyByMenuId(qty);
       } else {
@@ -212,14 +205,21 @@ export default function ReserveManagePage() {
       return;
     }
     const lunchItems: { menuItemId: string; quantity: number }[] = [];
+    let lunchTotalUnits = 0;
     for (const m of lunchMenus) {
-      const raw = editLunchQtyByMenuId[m.id] ?? "0";
-      const q = parseInt(raw, 10);
-      if (!Number.isInteger(q) || q < 0 || q > 500) {
-        setSaveError("昼食の数量は 0〜500 の整数にしてください");
+      const parsed = parseLunchQuantityField(editLunchQtyByMenuId[m.id]);
+      if (!parsed.ok) {
+        setSaveError(
+          "昼食の数量は 0〜500 の半角数字で入力してください。不要なメニューは空白のままで構いません。"
+        );
         return;
       }
-      lunchItems.push({ menuItemId: m.id, quantity: q });
+      lunchItems.push({ menuItemId: m.id, quantity: parsed.quantity });
+      lunchTotalUnits += parsed.quantity;
+    }
+    if (lunchTotalUnits === 0) {
+      setSaveError("昼食は、必ずご予約が必要です。");
+      return;
     }
     if (!editContactName.trim()) {
       setSaveError("チーム代表者名を入力してください");
@@ -326,14 +326,9 @@ export default function ReserveManagePage() {
   return (
     <div className="space-y-8 sm:space-y-10">
       <div className="min-w-0">
-        <ReserveHeadingWithIcon
-          as="h1"
-          shell="navy"
-          icon={<IconClipboard className="h-6 w-6 sm:h-6 sm:w-6" />}
-          textClassName="text-xl font-bold text-rp-navy sm:text-2xl"
-        >
+        <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">
           予約の確認・キャンセル
-        </ReserveHeadingWithIcon>
+        </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
           ご予約内容の確認やキャンセルは、以下の情報を入力してご利用ください。
         </p>
@@ -342,9 +337,6 @@ export default function ReserveManagePage() {
       <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
         <section className="rounded-2xl border border-rp-mint-2 bg-white p-5 shadow-sm sm:p-6">
           <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-rp-brand/10 text-rp-brand ring-1 ring-rp-brand/15">
-              <IconClipboard className="h-6 w-6" />
-            </span>
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-bold text-rp-navy">予約内容を確認する</h2>
               <p className="mt-1 text-xs text-zinc-600 sm:text-sm">
@@ -371,11 +363,7 @@ export default function ReserveManagePage() {
               disabled={loading}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-md hover:bg-rp-brand-hover disabled:cursor-wait disabled:bg-zinc-400"
             >
-              {loading ? (
-                <InlineSpinner variant="onDark" />
-              ) : (
-                <IconSearch className="h-5 w-5 shrink-0" />
-              )}
+              {loading ? <InlineSpinner variant="onDark" /> : null}
               {loading ? "確認中…" : "予約内容を確認する"}
             </button>
             {lookupError ? (
@@ -386,9 +374,6 @@ export default function ReserveManagePage() {
 
         <section className="rounded-2xl border border-rp-mint-2 bg-rp-mint/40 p-5 sm:p-6">
           <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white text-rp-brand shadow-sm ring-1 ring-rp-mint-2">
-              <IconInfoCircle className="h-6 w-6" />
-            </span>
             <div>
               <h2 className="text-base font-bold text-rp-navy">ご予約のキャンセルについて</h2>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-zinc-800">
@@ -430,10 +415,7 @@ export default function ReserveManagePage() {
             </p>
           </div>
           <div className="border-t border-rp-mint-2 bg-white px-4 py-5 sm:px-6 sm:py-6">
-            <h2 className="mb-4 flex items-center gap-2.5 text-base font-bold text-rp-navy">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rp-brand/10 text-rp-brand ring-1 ring-rp-brand/15">
-                <IconCalendar className="h-5 w-5" />
-              </span>
+            <h2 className="mb-4 text-base font-bold text-rp-navy">
               予約内容（確認結果）
             </h2>
             <div className="grid gap-6 lg:grid-cols-2">
@@ -552,9 +534,14 @@ export default function ReserveManagePage() {
                 </label>
                 {lunchMenus && lunchMenus.length > 0 ? (
                   <div className="sm:col-span-2 space-y-2">
-                    <span className="block text-sm font-medium text-zinc-700">
-                      昼食（数量・税込単価）
-                    </span>
+                    <div>
+                      <span className="block text-sm font-medium text-zinc-700">
+                        昼食（数量・税込単価）
+                      </span>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        昼食は、必ずご予約が必要です。複数メニューがある場合、片方だけ入力でも構いません。
+                      </p>
+                    </div>
                     <div className="overflow-x-auto rounded border border-zinc-200 bg-white">
                       <table className="w-full min-w-[260px] border-collapse text-left text-sm">
                         <thead>
@@ -567,10 +554,11 @@ export default function ReserveManagePage() {
                         </thead>
                         <tbody>
                           {lunchMenus.map((m) => {
-                            const raw = editLunchQtyByMenuId[m.id] ?? "0";
-                            const q = parseInt(raw, 10);
-                            const ok = Number.isInteger(q) && q >= 0 && q <= 500;
-                            const sub = ok ? q * m.priceTaxIncluded : NaN;
+                            const raw = editLunchQtyByMenuId[m.id] ?? "";
+                            const parsed = parseLunchQuantityField(raw);
+                            const sub = parsed.ok
+                              ? parsed.quantity * m.priceTaxIncluded
+                              : NaN;
                             return (
                               <tr key={m.id} className="border-b border-zinc-100 last:border-0">
                                 <td className="px-2 py-2 font-medium text-zinc-900">{m.name}</td>
@@ -616,11 +604,7 @@ export default function ReserveManagePage() {
                 disabled={saving}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-sm hover:bg-rp-brand-hover disabled:cursor-wait disabled:bg-zinc-400 sm:w-auto"
               >
-                {saving ? (
-                  <InlineSpinner variant="onDark" />
-                ) : (
-                  <IconPencil className="h-4 w-4 shrink-0" />
-                )}
+                {saving ? <InlineSpinner variant="onDark" /> : null}
                 {saving ? "保存中…" : "予約内容を編集する（保存）"}
               </button>
             </div>
@@ -640,11 +624,7 @@ export default function ReserveManagePage() {
                 disabled={cancelling}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border-2 border-red-500 bg-white px-6 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 sm:order-2 sm:w-auto"
               >
-                {cancelling ? (
-                  <InlineSpinner variant="onLight" />
-                ) : (
-                  <IconTrash className="h-4 w-4 shrink-0" />
-                )}
+                {cancelling ? <InlineSpinner variant="onLight" /> : null}
                 {cancelling ? "処理中…" : "予約をキャンセルする"}
               </button>
             ) : null}

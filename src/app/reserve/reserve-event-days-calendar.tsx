@@ -1,11 +1,10 @@
 "use client";
 
-/** SCR-01: 開催日を月カレンダーで選択。受付中は強調、締切後・確定済はグレー表示（他月は薄色）。 */
+/** SCR-01: 開催日を月カレンダー（7列グリッド）で選択。スマホはコンパクト表示、sm以上は余白多め。 */
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import {
-  IconArrowRight,
   IconCalendar,
   IconChevronLeft,
   IconChevronRight,
@@ -29,6 +28,8 @@ export type EventDayPublic = {
   status: string;
   reservation_deadline_at: string;
   acceptingReservations: boolean;
+  /** GET /api/event-days で付与。受付中のみ数値、それ以外は null */
+  morningRemainingVacancies?: number | null;
 };
 
 function monthTitleJa(year: number, month: number): string {
@@ -50,23 +51,12 @@ function closedLabelFromStatus(status: string): {
   return { label: "受付終了", cancelled: false };
 }
 
-/** 表示中の月に該当する開催日のみ（スマホはグリッド代わりにリスト表示） */
-function eventDaysInMonth(
-  days: EventDayPublic[],
-  year: number,
-  month: number
-): EventDayPublic[] {
-  const ym = `${year}-${String(month).padStart(2, "0")}`;
-  return days
-    .filter((d) => {
-      const k = toIsoDateKey(d.event_date);
-      return k != null && k.startsWith(ym);
-    })
-    .sort((a, b) => {
-      const ka = toIsoDateKey(a.event_date) ?? "";
-      const kb = toIsoDateKey(b.event_date) ?? "";
-      return ka.localeCompare(kb);
-    });
+/** grade_band（例: 1-2）をカレンダー用「1-2年」表記に */
+function gradeYearsDisplay(gradeBand: string): string {
+  const s = gradeBand.trim();
+  if (!s) return "—";
+  if (s.endsWith("年")) return s;
+  return `${s}年`;
 }
 
 export function ReserveEventDaysCalendar({
@@ -102,11 +92,6 @@ export function ReserveEventDaysCalendar({
     [viewYear, viewMonth]
   );
 
-  const monthEvents = useMemo(
-    () => eventDaysInMonth(days, viewYear, viewMonth),
-    [days, viewYear, viewMonth]
-  );
-
   function goPrevMonth() {
     if (viewMonth === 1) {
       setViewYear((y) => y - 1);
@@ -132,6 +117,14 @@ export function ReserveEventDaysCalendar({
   }
 
   const headers = weekdayHeadersJa();
+
+  const hasEventInViewMonth = useMemo(() => {
+    const ym = `${viewYear}-${String(viewMonth).padStart(2, "0")}`;
+    return days.some((d) => {
+      const k = toIsoDateKey(d.event_date);
+      return k != null && k.startsWith(ym);
+    });
+  }, [days, viewYear, viewMonth]);
 
   return (
     <div className="space-y-4">
@@ -172,131 +165,13 @@ export function ReserveEventDaysCalendar({
         </div>
       </div>
 
-      {/* スマホ: 当月の開催日だけをリスト表示（7列グリッドは潰れやすいため非表示） */}
-      <div className="space-y-2 sm:hidden">
-        {monthEvents.length === 0 ? (
-          <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-600">
-            この月に公開されている開催日はありません。前後の月へ移動するか、「今月」で表示を切り替えてください。
-          </p>
-        ) : (
-          monthEvents.map((event) => {
-            const isoDate = toIsoDateKey(event.event_date);
-            if (!isoDate) return null;
-            const bookable = event.acceptingReservations;
-            const title = `締切: ${formatDateTimeTokyoWithWeekday(
-              event.reservation_deadline_at
-            )}`;
-            const selected = selectedIsoDate === isoDate;
-            const { label: closedLabel, cancelled: isCancelled } =
-              closedLabelFromStatus(event.status);
-
-            if (bookable) {
-              const cardBase =
-                "block w-full rounded-xl border-2 border-rp-mint-2 bg-rp-mint/60 px-4 py-3 text-left shadow-sm transition-colors active:bg-rp-mint-2/80";
-              const selectedRing = selected
-                ? "ring-2 ring-rp-brand ring-offset-2"
-                : "";
-              if (bookableInteraction === "select" && onBookableDateSelect) {
-                return (
-                  <button
-                    key={event.id}
-                    type="button"
-                    title={title}
-                    onClick={() => onBookableDateSelect(isoDate)}
-                    className={`${cardBase} ${selectedRing}`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="text-base font-bold text-rp-navy">
-                          {formatIsoDateWithWeekdayJa(isoDate)}
-                        </p>
-                        <p className="mt-1 text-sm text-zinc-700">
-                          学年帯 <span className="font-semibold">{event.grade_band}</span>
-                        </p>
-                        <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{title}</p>
-                      </div>
-                      <span className="shrink-0 rounded-full bg-rp-brand px-2.5 py-1 text-xs font-bold text-white">
-                        受付中
-                      </span>
-                    </div>
-                    <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-rp-brand">
-                      この日を選ぶ
-                      <IconArrowRight className="h-4 w-4" />
-                    </span>
-                  </button>
-                );
-              }
-              return (
-                <Link
-                  key={event.id}
-                  href={`/reserve/${isoDate}`}
-                  title={title}
-                  className={`${cardBase} ${selectedRing}`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-base font-bold text-rp-navy">
-                        {formatIsoDateWithWeekdayJa(isoDate)}
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-700">
-                        学年帯 <span className="font-semibold">{event.grade_band}</span>
-                      </p>
-                      <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{title}</p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-rp-brand px-2.5 py-1 text-xs font-bold text-white">
-                      受付中
-                    </span>
-                  </div>
-                  <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-rp-brand">
-                    予約ページへ
-                    <IconArrowRight className="h-4 w-4" />
-                  </span>
-                </Link>
-              );
-            }
-
-            return (
-              <div
-                key={event.id}
-                title={title}
-                className={`rounded-xl border px-4 py-3 ${
-                  isCancelled
-                    ? "border-rose-200 bg-rose-50/90"
-                    : "border-zinc-200 bg-zinc-50"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-base font-semibold text-zinc-800">
-                      {formatIsoDateWithWeekdayJa(isoDate)}
-                    </p>
-                    <p className="mt-1 text-sm text-zinc-600">
-                      学年帯 <span className="font-medium">{event.grade_band}</span>
-                    </p>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-                      isCancelled
-                        ? "bg-rose-600 text-white"
-                        : "bg-zinc-300 text-zinc-800"
-                    }`}
-                  >
-                    {closedLabel}
-                  </span>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded-xl border border-rp-mint-2 bg-white shadow-sm sm:block">
-        <div className="p-2 sm:p-3">
+      <div className="overflow-x-auto rounded-xl border border-rp-mint-2 bg-white shadow-sm">
+        <div className="min-w-[280px] p-1.5 sm:min-w-0 sm:p-3">
           <div className="grid grid-cols-7 gap-px bg-rp-mint-2/80">
             {headers.map((h) => (
               <div
                 key={h}
-                className="bg-rp-mint/90 py-2 text-center text-xs font-semibold text-rp-navy sm:text-sm"
+                className="bg-rp-mint/90 py-1 text-center text-[10px] font-semibold leading-tight text-rp-navy sm:py-2 sm:text-sm"
               >
                 {h}
               </div>
@@ -309,8 +184,9 @@ export function ReserveEventDaysCalendar({
               const bookable =
                 hasEvent && event!.acceptingReservations;
 
+              /** 日付＋学年帯表記＋残枠（受付中）。案内テキストは凡例・aria-label に寄せる */
               const baseCell =
-                "flex min-h-[4.5rem] flex-col border border-transparent p-1.5 sm:min-h-[5.5rem] sm:p-2";
+                "flex min-h-[3.15rem] flex-col border border-transparent p-0.5 sm:min-h-[5rem] sm:p-2";
 
               if (!hasEvent) {
                 return (
@@ -321,7 +197,7 @@ export function ReserveEventDaysCalendar({
                     }`}
                   >
                     <span
-                      className={`text-sm font-medium tabular-nums sm:text-base ${
+                      className={`text-xs font-medium tabular-nums sm:text-base ${
                         inCurrentMonth ? "text-zinc-300" : "text-zinc-200"
                       }`}
                     >
@@ -334,10 +210,19 @@ export function ReserveEventDaysCalendar({
               const title = `締切: ${formatDateTimeTokyoWithWeekday(
                 event!.reservation_deadline_at
               )}`;
+              const dayLineJa = formatIsoDateWithWeekdayJa(isoDate);
+              const yearsJa = gradeYearsDisplay(event!.grade_band);
+              const rem =
+                typeof event!.morningRemainingVacancies === "number"
+                  ? event!.morningRemainingVacancies
+                  : null;
+              const remPhrase = rem !== null ? `残り${rem}枠。` : "";
+              /** 画面上は「1-2年」等のみ。読み上げ用に日付・学年帯・締切・残枠を明示 */
+              const bookableAria = `${dayLineJa}。${yearsJa}（学年帯）。${remPhrase}${title}。`;
 
               if (bookable) {
                 const selected = selectedIsoDate === isoDate;
-                const cellClass = `${baseCell} bg-rp-mint ring-1 ring-rp-brand/25 transition-colors hover:bg-rp-mint-2/90 ${
+                const cellClass = `${baseCell} bg-rp-mint ring-1 ring-rp-brand/25 transition-colors hover:bg-rp-mint-2/90 active:bg-rp-mint-2 ${
                   selected ? "ring-2 ring-rp-brand shadow-md" : ""
                 }`;
                 if (bookableInteraction === "select" && onBookableDateSelect) {
@@ -346,18 +231,18 @@ export function ReserveEventDaysCalendar({
                       key={isoDate + idx}
                       type="button"
                       title={title}
+                      aria-label={`${bookableAria}タップでこの日を選び、午前枠の指定に進みます。`}
                       onClick={() => onBookableDateSelect(isoDate)}
                       className={`${cellClass} w-full text-left`}
                     >
-                      <span className="text-sm font-semibold tabular-nums text-rp-brand sm:text-base">
+                      <span className="text-xs font-bold tabular-nums text-rp-brand sm:text-base">
                         {dom}
                       </span>
-                      <span className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-rp-brand sm:text-xs">
-                        {`学年帯 ${event!.grade_band}`}
-                      </span>
-                      <span className="mt-auto inline-flex items-center gap-0.5 text-[10px] font-semibold text-rp-brand sm:text-xs">
-                        この日を選ぶ
-                        <IconArrowRight className="h-3 w-3" />
+                      <span className="mt-0.5 flex min-h-0 flex-col gap-0.5 text-[9px] leading-snug text-rp-brand sm:gap-1 sm:text-xs">
+                        <span className="font-bold tabular-nums">{yearsJa}</span>
+                        {rem !== null ? (
+                          <span className="font-semibold">残り{rem}枠</span>
+                        ) : null}
                       </span>
                     </button>
                   );
@@ -367,17 +252,17 @@ export function ReserveEventDaysCalendar({
                     key={isoDate + idx}
                     href={`/reserve/${isoDate}`}
                     title={title}
+                    aria-label={`${bookableAria}タップで予約入力に進みます。`}
                     className={cellClass}
                   >
-                    <span className="text-sm font-semibold tabular-nums text-rp-brand sm:text-base">
+                    <span className="text-xs font-bold tabular-nums text-rp-brand sm:text-base">
                       {dom}
                     </span>
-                    <span className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight text-rp-brand sm:text-xs">
-                      {`学年帯 ${event!.grade_band}`}
-                    </span>
-                    <span className="mt-auto inline-flex items-center gap-0.5 text-[10px] font-semibold text-rp-brand sm:text-xs">
-                      予約する
-                      <IconArrowRight className="h-3 w-3" />
+                    <span className="mt-0.5 flex min-h-0 flex-col gap-0.5 text-[9px] leading-snug text-rp-brand sm:gap-1 sm:text-xs">
+                      <span className="font-bold tabular-nums">{yearsJa}</span>
+                      {rem !== null ? (
+                        <span className="font-semibold">残り{rem}枠</span>
+                      ) : null}
                     </span>
                   </Link>
                 );
@@ -385,11 +270,14 @@ export function ReserveEventDaysCalendar({
 
               const { label: closedLabel, cancelled: isCancelled } =
                 closedLabelFromStatus(event!.status);
+              const closedAria = `${dayLineJa}。${title}。${closedLabel}のため選択できません。`;
 
               return (
                 <div
                   key={isoDate + idx}
                   title={title}
+                  role="group"
+                  aria-label={closedAria}
                   className={`${baseCell} cursor-not-allowed ${
                     isCancelled
                       ? "bg-rose-50/90 ring-1 ring-rose-200"
@@ -397,22 +285,15 @@ export function ReserveEventDaysCalendar({
                   } ${inCurrentMonth ? "" : "opacity-80"}`}
                 >
                   <span
-                    className={`text-sm font-semibold tabular-nums sm:text-base ${
+                    className={`text-xs font-bold tabular-nums sm:text-base ${
                       inCurrentMonth ? "text-zinc-500" : "text-zinc-400"
                     }`}
                   >
                     {dom}
                   </span>
                   <span
-                    className={`mt-0.5 line-clamp-2 text-[10px] font-medium leading-tight sm:text-xs ${
-                      isCancelled ? "text-rose-900" : "text-zinc-500"
-                    }`}
-                  >
-                    {`学年帯 ${event!.grade_band}`}
-                  </span>
-                  <span
-                    className={`mt-auto text-[10px] font-medium sm:text-xs ${
-                      isCancelled ? "text-rose-800" : "text-zinc-500"
+                    className={`mt-0.5 line-clamp-3 text-[9px] font-semibold leading-tight sm:text-xs ${
+                      isCancelled ? "text-rose-800" : "text-zinc-600"
                     }`}
                   >
                     {closedLabel}
@@ -424,9 +305,11 @@ export function ReserveEventDaysCalendar({
         </div>
       </div>
 
-      <p className="text-xs text-zinc-500 sm:hidden">
-        ※スマホは当月の開催日のみ一覧表示です（タブレット以上で月カレンダー表示）。
-      </p>
+      {!hasEventInViewMonth ? (
+        <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm leading-relaxed text-zinc-600">
+          この月に公開されている開催日はありません。前後の月へ移動するか、「今月」で表示を切り替えてください。
+        </p>
+      ) : null}
 
       <ul className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-600 sm:text-sm">
         <li className="flex items-center gap-2">
