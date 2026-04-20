@@ -893,7 +893,8 @@ export function registerExhaustiveRows(ctx) {
     優先度: "P1",
     自動化: "要検討",
     実装参照: "src/app/api/event-days/route.ts",
-    備考: "MVP公開カレンダーのフェイルセーフ",
+    備考:
+      "【分岐】event_days の .select 直後の if (error) で 500。【リスク】トップ／カレンダーが取得不能になり予約導線に入れない・問い合わせ集中。監視・ユーザー向けエラー表示の要否を確認する。",
   });
 
   add({
@@ -911,16 +912,18 @@ export function registerExhaustiveRows(ctx) {
     優先度: "P1",
     自動化: "要検討",
     実装参照: "src/app/api/event-days/[date]/availability/route.ts",
-    備考: "",
+    備考:
+      "【分岐】開催日取得・event_day_slots・reservations の各 if (dayErr|slotsErr|resErr)。【リスク】枠空きが表示されず誤った枠選択や「予約できると思わせる」状態を防ぐ。フロントのリトライ／エラー文言とセットで見る。",
   });
 
-  for (const [id, name, pre, step, exp] of [
+  for (const [id, name, pre, step, exp, bikou] of [
     [
       "TC-MVP-ADM-DASH-400A",
       "クエリ after 欠落は400",
       authAdmin,
       "GET（クエリなし）",
       "400、after（YYYY-MM-DD）が必要です",
+      "【分岐】after 取得後 !after で 400。【リスク】基準日なしの広域クエリや誤集計を防ぐ。フロントの必須クエリ漏れを早期検知。",
     ],
     [
       "TC-MVP-ADM-DASH-400B",
@@ -928,6 +931,7 @@ export function registerExhaustiveRows(ctx) {
       authAdmin,
       "GET ?after=2026-02-30",
       "400（isValidIsoDateParam 不一致）",
+      "【分岐】isValidIsoDateParam(after) が false。【リスク】形式だけ合っていても存在しない日付で「次の開催日」を誤表示するのを防ぐ。",
     ],
     [
       "TC-MVP-ADM-DASH-200N",
@@ -935,6 +939,7 @@ export function registerExhaustiveRows(ctx) {
       authAdmin,
       "GET ?after=2099-12-31",
       "200、JSON.day が null",
+      "【分岐】loadNextEventDayHubSummaryAfter が該当なしで null→JSON { day: null }。【リスク】シーズン終了後も UI が壊れず「次がない」状態を運用が把握できる。",
     ],
     [
       "TC-MVP-ADM-DASH-200Y",
@@ -942,6 +947,7 @@ export function registerExhaustiveRows(ctx) {
       `${authAdmin}。DBに after より後の開催日が1件以上`,
       "GET ?after=過去の既知日付",
       "200、day.id / event_date 等が期待通り",
+      "【分岐】認証後 try 内の正常レスポンス。【リスク】昼食・通知確認の起点。ここが取りこぼすと当日オペ（枠・メール）の抜けに直結。TC-ADM-DASH-001（401）とセット。",
     ],
   ]) {
     add({
@@ -959,7 +965,7 @@ export function registerExhaustiveRows(ctx) {
       優先度: "P0",
       自動化: "可",
       実装参照: dashRef,
-      備考: "TC-ADM-DASH-001（401）とセット",
+      備考: bikou,
     });
   }
 
@@ -978,10 +984,11 @@ export function registerExhaustiveRows(ctx) {
     優先度: "P0",
     自動化: "可",
     実装参照: "src/app/api/admin/notifications/route.ts",
-    備考: "",
+    備考:
+      "【分岐】getAdminUser() が偽の先頭ガード。【リスク】通知一覧は宛先メール・チーム名・テンプレ種別を含みうる。未認証取得は個人情報漏えいに直結するため必須防御の回帰テスト。",
   });
 
-  for (const [id, name, exp, pre, note, kind] of [
+  for (const [id, name, exp, pre, note, kind, bikou] of [
     [
       "TC-MVP-PUB-CAMP-422",
       "answers バリデーション失敗（必須欠落など）",
@@ -989,6 +996,7 @@ export function registerExhaustiveRows(ctx) {
       "-",
       "parseCampInquiryAnswers の代表例",
       "異常",
+      "【分岐】parseCampInquiryAnswers が ok:false の return。【リスク】不正・不完全入力を DB に載せず説明可能なエラーに留める。返信不能な連絡先ミスを事前に減らす。",
     ],
     [
       "TC-MVP-PUB-CAMP-429",
@@ -997,6 +1005,7 @@ export function registerExhaustiveRows(ctx) {
       "-",
       "rateLimitCampInquiryCreate",
       "セキュリティ",
+      "【分岐】rateLimitCampInquiryCreate が非 null。【リスク】ボットや誤多重送信で insert／通知メールが洪水になり、正当な相談が埋もれる。運用コストと到達性の両面。",
     ],
     [
       "TC-MVP-PUB-CAMP-500",
@@ -1005,6 +1014,7 @@ export function registerExhaustiveRows(ctx) {
       "正しい answers",
       "Supabase 障害シミュレーション",
       "異常",
+      "【分岐】insert 後 if (error || !row?.id)。【リスク】ユーザーは送信したと認識しうるが保存されていない→クレーム・機会損失。監視と「再試行」UI文言の整合を確認。",
     ],
   ]) {
     add({
@@ -1022,14 +1032,29 @@ export function registerExhaustiveRows(ctx) {
       優先度: "P1",
       自動化: "要検討",
       実装参照: "src/app/api/camp-inquiries/route.ts",
-      備考: "",
+      備考: bikou,
     });
   }
 
-  for (const [id, name, exp] of [
-    ["TC-MVP-PUB-TRN-400J", "JSON 壊れ", "400"],
-    ["TC-MVP-PUB-TRN-422", "必須項目欠落またはメール形式不正", "422"],
-    ["TC-MVP-PUB-TRN-429", "レート制限超過", "429"],
+  for (const [id, name, exp, bikou] of [
+    [
+      "TC-MVP-PUB-TRN-400J",
+      "JSON 壊れ",
+      "400",
+      "【分岐】request.json() の catch。【リスク】中間プロキシやクライアント不具合で壊れた body が来たとき、500 にしないで切り分けできる。",
+    ],
+    [
+      "TC-MVP-PUB-TRN-422",
+      "必須項目欠落またはメール形式不正",
+      "422",
+      "【分岐】parseBody が null のときの 422。【リスク】連絡不能な問い合わせを DB に積まない。運営の返信工数とユーザー体験の両方。",
+    ],
+    [
+      "TC-MVP-PUB-TRN-429",
+      "レート制限超過",
+      "429",
+      "【分岐】rateLimitTournamentInquiryCreate。【リスク】スパムで問い合わせキューが汚染され、本件対応が遅延。TC-PUB-TRN-001（正常）とセットで往路／制限を確認。",
+    ],
   ]) {
     add({
       テストID: id,
@@ -1046,11 +1071,11 @@ export function registerExhaustiveRows(ctx) {
       優先度: "P1",
       自動化: "要検討",
       実装参照: "src/app/api/tournament-inquiries/route.ts",
-      備考: "TC-PUB-TRN-001（正常）とセット",
+      備考: bikou,
     });
   }
 
-  for (const [id, path, ref, name, exp, pre] of [
+  for (const [id, path, ref, name, exp, pre, bikou] of [
     [
       "TC-MVP-ADM-CAMP-401",
       "PATCH /api/admin/camp-inquiries/{id}",
@@ -1058,6 +1083,7 @@ export function registerExhaustiveRows(ctx) {
       "未認証401",
       "401",
       "セッションなし",
+      "【分岐】getAdminUser() 偽。【リスク】相談ステータスが第三者に改ざんされうる。対応履歴の信頼性崩壊を防ぐ。",
     ],
     [
       "TC-MVP-ADM-CAMP-400",
@@ -1066,6 +1092,7 @@ export function registerExhaustiveRows(ctx) {
       "パス id 不正は400",
       "400 ID が不正です",
       authAdmin,
+      "【分岐】UUID_RE.test(id) 偽。【リスク】誤パスや旧URLで DB に無意味なクエリを飛ばさない。負荷・ログノイズ削減。",
     ],
     [
       "TC-MVP-ADM-CAMP-400J",
@@ -1074,6 +1101,7 @@ export function registerExhaustiveRows(ctx) {
       "JSON 壊れ400",
       "400",
       authAdmin,
+      "【分岐】request.json() catch。【リスク】管理画面のバグや拡張で壊れた PATCH が 500 化しないことを確認。",
     ],
     [
       "TC-MVP-ADM-CAMP-422",
@@ -1082,6 +1110,7 @@ export function registerExhaustiveRows(ctx) {
       "status が許容値以外422",
       "422",
       authAdmin,
+      "【分岐】isCampInquiryStatus が偽。【リスク】手作業ワークフロー用の status が自由文字列だと集計・フィルタが壊れる。",
     ],
     [
       "TC-MVP-ADM-CAMP-500",
@@ -1090,6 +1119,7 @@ export function registerExhaustiveRows(ctx) {
       "存在しないUUIDは single 失敗で500",
       "500",
       authAdmin,
+      "【分岐】update 後 if (error || !data)（0 行は error になりうる）。【リスク】404 と区別しづらいが、現行実装の挙動として「存在しない ID」の運用ミスを検知し UI／ログを合わせる必要がある。",
     ],
     [
       "TC-MVP-ADM-TRN-401",
@@ -1098,6 +1128,7 @@ export function registerExhaustiveRows(ctx) {
       "未認証401",
       "401",
       "セッションなし",
+      "【分岐】getAdminUser() 偽。【リスク】大会問い合わせの対応状況が第三者に晒される・改ざんされる。",
     ],
     [
       "TC-MVP-ADM-TRN-422",
@@ -1106,6 +1137,7 @@ export function registerExhaustiveRows(ctx) {
       "status 不正422",
       "422",
       authAdmin,
+      "【分岐】isCampInquiryStatus（共通ステータス集合）が偽。【リスク】合宿と同様、運用ラベルの乱立で一覧・レポートが壊れる。",
     ],
   ]) {
     add({
@@ -1123,7 +1155,7 @@ export function registerExhaustiveRows(ctx) {
       優先度: "P1",
       自動化: "可",
       実装参照: ref,
-      備考: "MVP運用の問い合わせ対応画面前提",
+      備考: bikou,
     });
   }
 }
