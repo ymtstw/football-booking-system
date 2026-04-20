@@ -41,7 +41,7 @@ npm.cmd run db:push
 
 本番で設定している内容を **Staging プロジェクトの Authentication → URL Configuration** にも同じ**パターン**で入れます（ホスト名だけ Staging / Preview 用に変える）。
 
-**MVP 設計（正本: `docs/spec/design-mvp.md` §1-5）** では、本番・ステージングを **固定のカスタムサブドメイン**で分ける想定とする（例: 本番 `https://football-booking.greenplanet-project.com`、ステージング `https://staging-football-booking.greenplanet-project.com`）。この場合、**Redirect URLs に上記ステージング URL を明示登録**すれば、Preview の可変 `*.vercel.app` だけに依存しなくてよい。
+**環境分離の前提（`docs/spec/mvp-product-intent.md` と整合）** では、本番・ステージングを **固定のカスタムサブドメイン**で分ける想定とする（例: 本番 `https://football-booking.greenplanet-project.com`、ステージング `https://staging-football-booking.greenplanet-project.com`）。この場合、**Redirect URLs に上記ステージング URL を明示登録**すれば、Preview の可変 `*.vercel.app` だけに依存しなくてよい。
 
 | 設定 | 例（本番と同じルールでホストだけ差し替え） |
 |------|--------------------------------------------|

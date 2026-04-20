@@ -1,6 +1,6 @@
 /**
  * 公開 GET: 指定日の開催日（open / locked / confirmed / 中止系）について、午前各枠の集計。認証不要。
- * 新規予約は status=open かつ締切前のみ（仕様: docs/spec/reservation-deadline-and-event-status.md）。
+ * 新規予約は status=open かつ締切前のみ（仕様: docs/spec/implemented-behavior-catalog.md §1）。
  */
 import { NextResponse } from "next/server";
 

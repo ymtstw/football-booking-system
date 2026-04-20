@@ -1,4 +1,4 @@
-/** 開催日の運営まとめ: サマリ・警告・各詳細への導線（境界仕様: docs/spec/admin-ops-boundary-spec.md） */
+/** 開催日の運営まとめ: サマリ・警告・各詳細への導線（仕様: docs/spec/implemented-behavior-catalog.md §7） */
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 

@@ -1,7 +1,7 @@
 /**
  * 公開 GET: token（平文 URL）で予約照会。PATCH: 有効な予約の一部項目のみ更新。
  * PATCH は `event_days.status === open'` かつ `reservation_deadline_at` 前のみ許可。
- * 仕様の正本: `docs/spec/reservation-deadline-and-event-status.md`
+ * 仕様の正本: `docs/spec/implemented-behavior-catalog.md` §1
  */
 import { NextResponse } from "next/server";
 

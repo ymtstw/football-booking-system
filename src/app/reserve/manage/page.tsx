@@ -2,7 +2,7 @@
 
 /**
  * SCR-03: 確認コードで照会・変更・取消。API 側で open かつ締切前を検証。
- * 仕様: docs/spec/reservation-deadline-and-event-status.md
+ * 仕様: docs/spec/implemented-behavior-catalog.md §1
  */
 import { useEffect, useRef, useState } from "react";
 

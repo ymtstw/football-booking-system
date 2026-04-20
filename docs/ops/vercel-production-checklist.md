@@ -2,7 +2,7 @@
 
 リポジトリにデプロイしたあと、**本番 URL で最低限動く状態**にするための確認表です。値の入力は **Vercel Dashboard → Project → Settings → Environment Variables** で行います（値はチャットやスクリーンショットに載せない）。
 
-**ホスト構成（本番 Web / ステージング Web / メール送信用サブドメイン）** の方針は、開発設計書 **`docs/spec/design-mvp.md` §1-5** を正とする。`NEXT_PUBLIC_SITE_URL` は **Production と Preview（または Staging 割当）で、それぞれ実際にブラウザで開く Web ホスト**に一致させる（本番とステージングで値が違って当然）。
+**ホスト構成（本番 Web / ステージング Web / メール送信用サブドメイン）** の方針は **`docs/setup-staging-supabase.md`**（サブドメイン例）および **`docs/spec/mvp-product-intent.md`** を参照する。`NEXT_PUBLIC_SITE_URL` は **Production と Preview（または Staging 割当）で、それぞれ実際にブラウザで開く Web ホスト**に一致させる（本番とステージングで値が違って当然）。
 
 ## 1. 環境変数（必須）
 
@@ -32,7 +32,7 @@
 ## 3. Supabase（本番）
 
 - **本番プロジェクト**に migration を適用済みか（`supabase link` + `db push` または CI）
-- **DB バックアップ:** 自動バックアップの有無・保持期間を Dashboard で確認し、大きなマイグレーション前は手動スナップショットや `pg_dump` 等で退避する。**方針の正:** `docs/spec/design-mvp.md` **§1-6**
+- **DB バックアップ:** 自動バックアップの有無・保持期間を Dashboard で確認し、大きなマイグレーション前は手動スナップショットや `pg_dump` 等で退避する。**運用方針:** Supabase ダッシュボードのバックアップ設定を正とする。
 - **Auth:** 管理者用ユーザーを 1 人以上作成
 - **`app_admins`:** そのユーザーの `auth.users.id` を `INSERT INTO public.app_admins (user_id) VALUES ('…');` で登録（Role: postgres / SQL Editor）。手順の詳細は `docs/progress.md` の「A. 運用・Supabase」または `docs/setup-staging-supabase.md` の Auth 周りを参照（Staging 用だが手順は同型）。
 

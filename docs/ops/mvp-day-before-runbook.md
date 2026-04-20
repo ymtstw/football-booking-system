@@ -1,6 +1,6 @@
 # MVP 前日フロー運用メモ（1枚）
 
-和歌山サッカー交流試合システムの **締切〜前日通知** を現場で迷わないための最短手順です。正本仕様は `docs/spec/design-mvp.md` §5・§9、`docs/spec/reservation-deadline-and-event-status.md`。
+和歌山サッカー交流試合システムの **締切〜前日通知** を現場で迷わないための最短手順です。正本仕様は `docs/spec/implemented-behavior-catalog.md`（§1 締切・§6 Cron）、`docs/spec/implemented-system-overview.md`。
 
 ## 前提
 
@@ -40,5 +40,5 @@
 
 - **ローカルで Cron 相当を順実行:** `npm run cron:local-day-before`（手順: **`docs/ops/local-day-before-cron.md`**）
 - 本番・環境のチェック項目: **`docs/ops/vercel-production-checklist.md`**
-- 締切と状態: `docs/spec/reservation-deadline-and-event-status.md`
+- 締切と状態: `docs/spec/implemented-behavior-catalog.md` §1・§2
 - Cron 時刻の対応: 同ファイルの「Cron（Vercel）」表

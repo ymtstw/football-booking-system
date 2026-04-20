@@ -2,13 +2,13 @@
 
 `POST /api/admin/matching/run` が呼ばれたとき、`buildMatchingAssignments`（`src/domains/matching/build-matching-assignments.ts`）で編成案を組み立て、`admin_apply_matching_run` RPC（マイグレーション `20260421100000`）で DB に一括反映する。
 
-正本の業務仕様: `docs/spec/design-mvp.md` §5-2〜5-6。本書は **コードの挙動** を記す。
+業務・締切・状態の要約は `docs/spec/implemented-behavior-catalog.md` および `docs/spec/mvp-product-intent.md`。本書は **コードの挙動** を記す。
 
 ---
 
 ## 編成の前提条件（プロダクト）
 
-- **枠数（運用）:** 管理画面・API では **午前=午後で 3 または 4 のみ**（3+3 または 4+4）。詳細は `design-mvp.md` §3-2-1、`src/lib/event-days/event-day-slot-count-policy.ts`。  
+- **枠数（運用）:** 管理画面・API では **午前=午後で 3 または 4 のみ**（3+3 または 4+4）。詳細は `src/lib/event-days/event-day-slot-count-policy.ts` および `implemented-behavior-catalog.md`（枠・編成まわり）。  
 - **枠数（編成）:** 上記のとおり `event_day_slots` の有効行に従い、編成は **枠数に比例してループ**する（固定本数のハードコードなし）。  
 - **前日自動編成**: 締切後の `matching/run` で **可能な限り枠に試合行を付与**する（午前は空枠解消を特に重視。詳細は 2b/2c）。締切の運用既定は **開催 2 日前 15:00（JST）** で、Cron は **締切 1 分後** を想定して `run-matching-locked` を叩く（`vercel.json` 正本）。  
 - **参加チーム数**: 従来の「3〜6」に **上限は設けない**（8チーム以上も同じロジックで処理。`active` が **2未満**のときだけ `morning_fixed` のみ返して打ち切り）。チーム数と枠数の組み合わせは固定しない。  

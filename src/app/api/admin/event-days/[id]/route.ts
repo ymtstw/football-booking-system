@@ -1,6 +1,6 @@
 /**
  * 管理者のみ PATCH:
- * - draft↔open、または open→locked（仕様: docs/spec/reservation-deadline-and-event-status.md）
+ * - draft↔open、または open→locked（仕様: docs/spec/implemented-behavior-catalog.md §1・§2）
  */
 import { NextResponse } from "next/server";
 

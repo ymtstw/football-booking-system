@@ -17,7 +17,7 @@ function defaultDeadlineLocalForEventDate(eventDate: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** DB は text だが、UI では仕様どおりの値だけ選べるようにする（MVP / design-mvp と一致）。 */
+/** DB は text だが、UI では仕様どおりの値だけ選べるようにする（MVP。仕様は docs/spec/implemented-behavior-catalog.md）。 */
 const GRADE_BAND_OPTIONS = [
   { value: "1-2", label: "1-2年生" },
   { value: "3-4", label: "3-4年生" },

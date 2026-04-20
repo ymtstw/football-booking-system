@@ -1,7 +1,7 @@
 /**
  * 公開 GET: 一般カレンダーに載せる開催日（中止系を含む公開可能ステータス）。
  * 予約受付可能かは acceptingReservations（status が open かつ締切が未来）。
- * 仕様: docs/spec/reservation-deadline-and-event-status.md
+ * 仕様: docs/spec/implemented-behavior-catalog.md §1
  */
 import { NextResponse } from "next/server";
 

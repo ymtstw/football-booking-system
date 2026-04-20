@@ -1,4 +1,4 @@
--- RLS（design-mvp.md §4-2・§10 / docs/progress.md 1-2）
+-- RLS（セキュリティ方針: docs/spec/implemented-behavior-catalog.md・docs/progress.md 1-2）
 --
 -- 方針:
 --   - anon: ポリシーなし → テーブルへの直接アクセスは不可（公開は Route Handler 等＋service role 推奨）。

@@ -1,4 +1,4 @@
--- 公開予約作成（design-mvp §8-2）。FOR UPDATE で枠・開催日を直列化し、2件目で morning_fixed を同一 TX 内で作成。
+-- 公開予約作成（仕様: docs/spec/implemented-behavior-catalog.md）。FOR UPDATE で枠・開催日を直列化し、2件目で morning_fixed を同一 TX 内で作成。
 -- 呼び出し: service_role のみ（Route Handler）。token ハッシュは呼び出し元が生成。
 
 CREATE OR REPLACE FUNCTION public.create_public_reservation(

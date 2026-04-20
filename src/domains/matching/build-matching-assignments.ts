@@ -1,5 +1,5 @@
 /**
- * 締切後の午前補完・午後編成（design-mvp §5-2〜5-4 に沿った実装）。
+ * 締切後の午前補完・午後編成（仕様は docs/spec/implemented-matching-algorithm.md）。
  * 確定は DB の admin_apply_matching_run RPC で行う。
  *
  * 【処理の大まかな順序】
@@ -11,7 +11,7 @@
  * 4. 午前試合行に審判を決定（1枠目は次の午前枠の出場者を、2枠目は直前の午前枠の出場者を優先。午前3枠目以降（インデックス≥2）は審判回数等のみ。枠数は `event_day_slots` に追従）
  * 5. 午後行を確定順で出力しつつ審判を決定（全日試合列インデックスに応じた優先ルール）
  *
- * 詳細・係数の意味は `docs/spec/matching-algorithm-impl.md` を参照。
+ * 詳細・係数の意味は `docs/spec/implemented-matching-algorithm.md` を参照。
  */
 
 export type RpcAssignmentRow = {

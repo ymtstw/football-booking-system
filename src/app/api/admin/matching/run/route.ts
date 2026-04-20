@@ -10,7 +10,7 @@
  * - 奇数チームは午後に入れない分は `meta.unfilledAfternoonReservationIds` に列挙。
  *
  * DB: admin_apply_matching_run（マイグレーション 20260421100000）でトランザクション適用し、status を confirmed にする。
- * 編成ロジックの詳細: `docs/spec/matching-algorithm-impl.md`
+ * 編成ロジックの詳細: `docs/spec/implemented-matching-algorithm.md`
  */
 import { NextRequest, NextResponse } from "next/server";
 
