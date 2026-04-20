@@ -1,6 +1,7 @@
 "use client";
 
 /** 開催日・学年帯・締切を入力し公開前（draft）で作成。POST /api/admin/event-days（既定枠付与は API 側）。 */
+import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT } from "@/domains/event-days/default-slots";
 import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
@@ -84,17 +85,38 @@ export function CreateEventDayForm() {
   }
 
   return (
-    <section className="mb-8 rounded-lg border border-zinc-200 bg-white p-3.5 shadow-sm sm:mb-10 sm:p-4">
-      <h2 className="mb-3 text-base font-medium text-zinc-900 sm:text-lg">
-        開催日を追加
-      </h2>
+    <section
+      aria-labelledby="admin-create-event-day-heading"
+      className="relative mb-8 overflow-hidden rounded-2xl border-2 border-emerald-200/90 bg-white p-4 shadow-md ring-1 ring-emerald-100/80 sm:mb-10 sm:p-5"
+    >
+      <div
+        className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-emerald-500 to-emerald-700"
+        aria-hidden
+      />
+      <div className="relative space-y-1 pl-3 sm:pl-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900">
+            作成
+          </span>
+          <h2
+            id="admin-create-event-day-heading"
+            className="text-base font-bold text-zinc-900 sm:text-lg"
+          >
+            開催日を新規作成
+          </h2>
+        </div>
+        <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">
+          このフォームで開催日データを追加します（最初は<strong className="font-medium text-zinc-800">公開前</strong>。
+          一般公開は下の一覧から「公開」）。
+        </p>
+      </div>
       <form
         onSubmit={handleSubmit}
-        className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+        className="relative mt-4 flex flex-col gap-3 border-t border-emerald-100/90 pt-4 pl-3 sm:flex-row sm:flex-wrap sm:items-end sm:pl-4"
       >
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[9rem] sm:flex-none">
           <span className="text-zinc-600">開催日</span>
-          <input
+          <DateInputWithPicker
             name="eventDate"
             type="date"
             value={eventDate}
@@ -123,7 +145,7 @@ export function CreateEventDayForm() {
           <span className="text-zinc-600">
             予約締切（既定: 開催 2 日前 15:00・ローカル表示）
           </span>
-          <input
+          <DateInputWithPicker
             name="deadlineLocal"
             type="datetime-local"
             value={deadlineLocal}
@@ -135,7 +157,7 @@ export function CreateEventDayForm() {
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2.5 text-center text-sm font-medium leading-snug text-white whitespace-normal disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white whitespace-normal shadow-sm ring-1 ring-emerald-900/20 hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
         >
           {loading ? <InlineSpinner variant="onDark" /> : null}
           {loading ? "作成中…" : `公開前で作成（${DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT}枠運用で開始）`}

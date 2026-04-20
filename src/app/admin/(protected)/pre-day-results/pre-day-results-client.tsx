@@ -1,6 +1,7 @@
 "use client";
 
 import { NotificationFailedRetryTable } from "@/components/admin/notification-failed-retry-table";
+import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import {
   assignmentTypeLabelJa,
   eventSlotLabelJa,
@@ -388,7 +389,7 @@ export function PreDayResultsClient({
     setDate(initialDate);
   }, [initialDate]);
 
-  // 試合一覧タブのとき、開催日が決まったら一覧を自動取得（初回・日付変更・タブ切替）
+  // 対戦表タブのとき、開催日が決まったら一覧を自動取得（初回・日付変更・タブ切替）
   useEffect(() => {
     if (tab !== "matches") return;
     void loadMatches();
@@ -509,9 +510,10 @@ export function PreDayResultsClient({
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">前日確定</h1>
+        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">試合編成</h1>
+        <p className="mt-0.5 text-xs font-medium text-zinc-500">前日確定 · 対戦表の確認と自動編成</p>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          試合一覧では、
+          対戦表タブでは、
           <strong className="font-medium">
             開催日の初期値は東京の「今日以降で最も近い登録開催日」
           </strong>
@@ -526,7 +528,7 @@ export function PreDayResultsClient({
       <div
         className="flex flex-wrap gap-2 border-b border-zinc-200 pb-3"
         role="tablist"
-        aria-label="前日確定の表示切替"
+        aria-label="試合編成の表示切替"
       >
         <button
           type="button"
@@ -539,7 +541,7 @@ export function PreDayResultsClient({
               : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
           }`}
         >
-          試合一覧・自動編成
+          対戦表・自動編成
         </button>
         <button
           type="button"
@@ -552,7 +554,7 @@ export function PreDayResultsClient({
               : "border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50"
           }`}
         >
-          確定の補正
+          編成を調整
         </button>
       </div>
 
@@ -563,7 +565,7 @@ export function PreDayResultsClient({
       <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-zinc-200 bg-white p-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 sm:p-5">
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-48 sm:flex-initial">
           <span className="font-medium text-zinc-800">開催日</span>
-          <input
+          <DateInputWithPicker
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
@@ -596,7 +598,7 @@ export function PreDayResultsClient({
             この開催日の送信失敗
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/80">
-            宛先・エラーを確認のうえ「再送」できます。全体一覧は{" "}
+            宛先と「内容」を確認し、再送できる行は「再送」を押してください。全体一覧は{" "}
             <a
               href="/admin/notifications/failed"
               className="font-medium text-red-950 underline underline-offset-2"

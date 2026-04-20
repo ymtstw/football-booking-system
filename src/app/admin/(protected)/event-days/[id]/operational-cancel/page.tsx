@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 import { eventDayStatusLabelJa } from "../../event-day-status-label";
+import { EventDayOpsBreadcrumb } from "../../event-day-ops-breadcrumb";
 import { OperationalCancelForm } from "./operational-cancel-form";
 import { OperationalRestoreButton } from "./operational-restore-button";
 
@@ -53,28 +54,14 @@ export default async function AdminEventDayOperationalCancelPage({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <p className="mb-4 text-sm text-zinc-600">
-        <Link
-          href="/admin/event-days"
-          className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2"
-        >
-          開催日一覧
-        </Link>
-        {" · "}
-        <Link
-          href={`/admin/event-days/${id}/slots`}
-          className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2"
-        >
-          枠・時刻
-        </Link>
-        {" · "}
-        <Link
-          href={`/admin/event-days/${id}/weather`}
-          className="font-medium text-sky-800 underline decoration-sky-600/60 underline-offset-2"
-        >
-          雨天判断
-        </Link>
-      </p>
+      <EventDayOpsBreadcrumb
+        eventDayId={id}
+        items={[
+          { href: `/admin/event-days/${id}/slots`, label: "枠・時刻" },
+          { href: `/admin/event-days/${id}/weather`, label: "雨天判断" },
+          { label: "緊急中止（運営）" },
+        ]}
+      />
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">緊急中止（運営の都合）</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
         雨天とは別枠です。登録すると開催日は<strong>運営都合中止</strong>となり、参加者向けメールにはここで入力した文面が載ります（原則は前日

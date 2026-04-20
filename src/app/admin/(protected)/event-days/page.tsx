@@ -123,14 +123,18 @@ export default async function AdminEventDaysPage({
 
   return (
     <div className="min-w-0">
-      <h1 className="mb-2 text-xl font-semibold text-zinc-900 sm:text-2xl">
-        開催日管理
-      </h1>
-      <p className="mb-6 text-sm leading-relaxed text-zinc-600">
-        公開前のまま作成後、「公開」にすると一般向けの予約カレンダーに載ります。締切後・確定後も日付は表示されます（新規の予約受付は「公開済み」のときのみ）。
-        誤って作った公開前の開催日は「削除」から削除できます（確認のあと、予約が無い場合のみ）。
-        締切（締切済みへの移行）は運用では自動のため、ここには手動ボタンを出していません。
-      </p>
+      <header className="mb-5 space-y-2 sm:mb-6">
+        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">開催日管理</h1>
+        <p className="rounded-lg border border-emerald-200/90 bg-emerald-50/70 px-3 py-2 text-sm font-medium leading-snug text-emerald-950 sm:px-3.5 sm:py-2.5">
+          ナビの「開催日一覧」では、<strong className="font-semibold">まず下のフォームで新規開催日を作成</strong>
+          し、続けてカレンダー・一覧で公開や枠・天候へ進みます（作成はこの画面の<strong className="font-semibold">一番上</strong>だけです）。
+        </p>
+        <p className="text-sm leading-relaxed text-zinc-600">
+          公開前のまま作成後、「公開」にすると一般向けの予約カレンダーに載ります。締切後・確定後も日付は表示されます（新規の予約受付は「公開済み」のときのみ）。
+          誤って作った公開前の開催日は「削除」から削除できます（確認のあと、予約が無い場合のみ）。
+          締切（締切済みへの移行）は運用では自動のため、ここには手動ボタンを出していません。
+        </p>
+      </header>
 
       <CreateEventDayForm />
 
@@ -172,7 +176,7 @@ export default async function AdminEventDaysPage({
           id="admin-event-list-heading"
           className="mb-3 text-base font-medium text-zinc-900 sm:text-lg"
         >
-          一覧
+          登録済みの開催日（一覧）
         </h2>
         <p className="mb-3 text-xs leading-relaxed text-zinc-600 sm:text-sm">
           <span className="font-medium text-zinc-800">① デフォルト</span>
@@ -276,7 +280,12 @@ export default async function AdminEventDaysPage({
                           }`}
                         >
                           <td className="whitespace-nowrap px-3 py-2 text-zinc-900">
-                            {formatIsoDateWithWeekdayJa(row.event_date)}
+                            <Link
+                              href={`/admin/event-days/${row.id}`}
+                              className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
+                            >
+                              {formatIsoDateWithWeekdayJa(row.event_date)}
+                            </Link>
                           </td>
                           <td className="px-3 py-2 text-zinc-800">
                             {row.grade_band}

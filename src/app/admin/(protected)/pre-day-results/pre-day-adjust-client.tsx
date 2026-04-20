@@ -124,7 +124,7 @@ function getSlotRowDisplay(
   return { selectable, isSelected, typeStr, aStr, bStr, refStr };
 }
 
-/** 確定後の補正（試合行の予約差し替え・午後枠移動・審判） */
+/** 編成確定後の調整（試合行の予約差し替え・午後枠移動・審判） */
 export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
   const [data, setData] = useState<MatchesPayload | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -224,11 +224,11 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
       return;
     }
     if (!overrideReason.trim()) {
-      setActionMessage("補正理由を入力してください");
+      setActionMessage("調整理由を入力してください");
       return;
     }
     if (!canPatch) {
-      setActionMessage("締切済みまたは確定の開催日のみ補正できます");
+      setActionMessage("締切済みまたは確定の開催日のみ調整できます");
       return;
     }
     setSaving(true);
@@ -256,7 +256,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
         setActionMessage(json.error ?? `保存に失敗しました (${res.status})`);
         return;
       }
-      setActionMessage("補正を保存しました。試合一覧タブで内容を確認できます。");
+      setActionMessage("保存しました。「対戦表・自動編成」タブで内容を確認できます。");
       setOverrideReason("");
       await load();
     } catch {
@@ -269,12 +269,12 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <h2 className="mt-1 text-lg font-semibold text-zinc-900">確定の補正</h2>
+        <h2 className="mt-1 text-lg font-semibold text-zinc-900">編成を調整</h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 wrap-break-word">
-          開催日は試合一覧タブと同じ日付（
+          開催日は「対戦表・自動編成」タブと同じ日付（
           <span className="font-mono text-xs">{eventDate}</span>
           ）です。下の<strong className="font-medium">枠一覧</strong>
-          から補正する試合行を選び、続けて予約・枠を変更して保存します。枠移動は
+          から調整する試合行を選び、続けて予約・枠を変更して保存します。枠移動は
           <strong className="font-medium">午後試合のみ</strong>です。
         </p>
       </div>
@@ -296,7 +296,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             </span>
             {!canPatch ? (
               <span className="mt-1 block text-amber-800 sm:mt-0 sm:ml-2 sm:inline">
-                （補正は締切済みまたは確定のみ）
+                （調整は締切済みまたは確定のみ）
               </span>
             ) : null}
           </span>
@@ -311,7 +311,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
 
       {!data?.matchingRun ? (
         <p className="rounded-lg border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-600">
-          自動編成の記録がまだないため、補正対象の試合行がありません（先に自動編成を実行してください）。
+          自動編成の記録がまだないため、調整対象の試合行がありません（先に自動編成を実行してください）。
         </p>
       ) : data.assignments.length === 0 ? (
         <p className="rounded-lg border border-zinc-200 bg-white px-4 py-4 text-sm text-zinc-600">
@@ -320,7 +320,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
       ) : (
         <div className="space-y-6">
           <div className="rounded-lg border border-zinc-200 bg-white p-3 sm:p-5">
-            <h3 className="text-sm font-medium text-zinc-900">枠・試合一覧（行を選択）</h3>
+            <h3 className="text-sm font-medium text-zinc-900">枠・対戦一覧（行を選択）</h3>
             <p className="mt-1 text-xs text-zinc-500 md:hidden">
               スマホではカード表示です。PC幅では表に切り替わります。
             </p>
@@ -453,7 +453,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             </div>
             {!canPatch ? (
               <p className="mt-2 text-xs text-amber-800 wrap-break-word">
-                締切前などのため行を選択できません。締切済みまたは確定になってから補正してください。
+                締切前などのため行を選択できません。締切済みまたは確定になってから調整してください。
               </p>
             ) : (
               <p className="mt-2 text-xs text-zinc-500 wrap-break-word">
@@ -545,7 +545,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             )}
 
           <label className="flex min-w-0 flex-col gap-1 text-sm">
-            <span className="font-medium text-zinc-800">補正理由（必須）</span>
+            <span className="font-medium text-zinc-800">調整理由（必須）</span>
             <textarea
               value={overrideReason}
               onChange={(e) => setOverrideReason(e.target.value)}
@@ -574,7 +574,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             disabled={saving || !assignmentId || !canPatch || !selected}
             className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-zinc-900 px-4 text-base font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50 touch-manipulation sm:min-h-11 sm:w-auto sm:text-sm"
           >
-            {saving ? "保存中…" : "補正を保存"}
+            {saving ? "保存中…" : "変更を保存"}
           </button>
           </div>
         </div>

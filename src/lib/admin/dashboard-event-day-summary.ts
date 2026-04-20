@@ -63,15 +63,27 @@ export async function buildDashboardEventDaySummaryPayload(
   );
 
   let totalMeals = 0;
+  const lunchByMenu: { itemName: string; quantity: number }[] = [];
   const resIds = activeRows.map((r) => (r as { id: string }).id);
   if (resIds.length > 0) {
     const { data: lunchRows } = await supabase
       .from("reservation_lunch_items")
-      .select("quantity")
+      .select("item_name_snapshot, quantity")
       .in("reservation_id", resIds);
-    totalMeals = (lunchRows ?? []).reduce(
-      (s, m) => s + (Number((m as { quantity: number }).quantity) || 0),
-      0
+    const byName = new Map<string, number>();
+    for (const row of lunchRows ?? []) {
+      const name = String((row as { item_name_snapshot: string }).item_name_snapshot ?? "").trim();
+      const label = name.length > 0 ? name : "（名称なし）";
+      const q = Number((row as { quantity: number }).quantity) || 0;
+      if (q <= 0) continue;
+      byName.set(label, (byName.get(label) ?? 0) + q);
+      totalMeals += q;
+    }
+    for (const [itemName, quantity] of byName) {
+      lunchByMenu.push({ itemName, quantity });
+    }
+    lunchByMenu.sort(
+      (a, b) => b.quantity - a.quantity || a.itemName.localeCompare(b.itemName, "ja")
     );
   }
 
@@ -84,28 +96,8 @@ export async function buildDashboardEventDaySummaryPayload(
     activeTeamCount,
     totalParticipants,
     totalMeals,
+    lunchByMenu,
     warningCount,
     failedForDay,
   };
-}
-
-/** `event_date` が `afterEventDate` より後で、いちばん早い開催日のサマリ（無ければ null） */
-export async function getNextDashboardEventDaySummaryAfter(
-  supabase: SupabaseClient,
-  afterEventDate: string
-): Promise<DashboardEventDaySummaryPayload | null> {
-  const { data: dayRaw, error } = await supabase
-    .from("event_days")
-    .select("id, event_date, grade_band, status, weather_status")
-    .gt("event_date", afterEventDate)
-    .order("event_date", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-  if (!dayRaw) return null;
-
-  return buildDashboardEventDaySummaryPayload(supabase, dayRaw as EventDayRow);
 }

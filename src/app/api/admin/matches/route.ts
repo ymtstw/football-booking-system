@@ -1,5 +1,5 @@
 /**
- * 前日確定結果の参照（Phase 2・読み取りのみ）
+ * 試合編成（前日確定）結果の参照（Phase 2・読み取りのみ）
  * GET ?date=YYYY-MM-DD … 該当開催日の is_current な matching_run・match_assignments に加え、
  * 全日の event_day_slots と午前枠ごとの active 予約（1枠1チームの可視化）を返す。
  */

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminSignOutButton } from "./sign-out-button";
 
-type AdminSection = "ops" | "reserve" | "prep" | "contact";
+type AdminSection = "ops" | "reserve" | "cases" | "settings";
 
 type SectionDef = {
   id: AdminSection;
@@ -18,31 +18,23 @@ type SectionDef = {
 const SECTIONS: readonly SectionDef[] = [
   {
     id: "ops",
-    label: "運営",
+    label: "開催運営",
     defaultHref: "/admin/dashboard",
     links: [
-      { href: "/admin/dashboard", label: "ダッシュボード" },
-      { href: "/admin/pre-day-results", label: "前日確定" },
+      { href: "/admin/dashboard", label: "直近の開催状況" },
+      { href: "/admin/pre-day-results", label: "試合編成（前日確定）" },
+      { href: "/admin/event-days", label: "開催日一覧" },
     ],
   },
   {
     id: "reserve",
-    label: "予約",
+    label: "予約管理",
     defaultHref: "/admin/reservations",
     links: [{ href: "/admin/reservations", label: "予約一覧" }],
   },
   {
-    id: "prep",
-    label: "準備",
-    defaultHref: "/admin/event-days",
-    links: [
-      { href: "/admin/event-days", label: "開催日" },
-      { href: "/admin/lunch-menu", label: "昼食メニュー" },
-    ],
-  },
-  {
-    id: "contact",
-    label: "連絡",
+    id: "cases",
+    label: "対応案件",
     defaultHref: "/admin/notifications/failed",
     links: [
       { href: "/admin/notifications/failed", label: "メール失敗" },
@@ -50,14 +42,20 @@ const SECTIONS: readonly SectionDef[] = [
       { href: "/admin/tournament-inquiries", label: "大会お問い合わせ" },
     ],
   },
+  {
+    id: "settings",
+    label: "設定",
+    defaultHref: "/admin/lunch-menu",
+    links: [{ href: "/admin/lunch-menu", label: "昼食メニュー" }],
+  },
 ] as const;
 
 /** モバイル左上アイコン背景（現在区分） */
 const MOBILE_ICON_GRAD: Record<AdminSection, string> = {
   ops: "from-emerald-700 to-emerald-900",
   reserve: "from-sky-700 to-sky-900",
-  prep: "from-amber-600 to-amber-800",
-  contact: "from-violet-700 to-violet-900",
+  cases: "from-violet-700 to-violet-900",
+  settings: "from-amber-600 to-amber-800",
 };
 
 const SECTION_THEME: Record<
@@ -65,24 +63,28 @@ const SECTION_THEME: Record<
   { segmentActive: string; drawerTop: string; drawerIcon: string }
 > = {
   ops: {
-    segmentActive: "bg-emerald-800 text-white shadow-sm ring-1 ring-emerald-900/20",
+    segmentActive:
+      "bg-emerald-800 !text-white hover:!text-white shadow-sm ring-1 ring-emerald-900/20",
     drawerTop: "bg-emerald-600",
     drawerIcon: "text-emerald-700",
   },
   reserve: {
-    segmentActive: "bg-sky-800 text-white shadow-sm ring-1 ring-sky-900/20",
+    segmentActive:
+      "bg-sky-800 !text-white hover:!text-white shadow-sm ring-1 ring-sky-900/20",
     drawerTop: "bg-sky-600",
     drawerIcon: "text-sky-700",
   },
-  prep: {
-    segmentActive: "bg-amber-700 text-white shadow-sm ring-1 ring-amber-900/20",
-    drawerTop: "bg-amber-500",
-    drawerIcon: "text-amber-800",
-  },
-  contact: {
-    segmentActive: "bg-violet-800 text-white shadow-sm ring-1 ring-violet-900/20",
+  cases: {
+    segmentActive:
+      "bg-violet-800 !text-white hover:!text-white shadow-sm ring-1 ring-violet-900/20",
     drawerTop: "bg-violet-600",
     drawerIcon: "text-violet-800",
+  },
+  settings: {
+    segmentActive:
+      "bg-amber-800 !text-white hover:!text-white shadow-sm ring-1 ring-amber-900/25",
+    drawerTop: "bg-amber-500",
+    drawerIcon: "text-amber-800",
   },
 };
 
@@ -122,7 +124,7 @@ function SectionIcon({ id, className }: { id: AdminSection; className?: string }
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       );
-    case "prep":
+    case "settings":
       return (
         <svg
           className={cn}
@@ -134,13 +136,11 @@ function SectionIcon({ id, className }: { id: AdminSection; className?: string }
           strokeLinejoin="round"
           aria-hidden
         >
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
-    case "contact":
+    case "cases":
       return (
         <svg
           className={cn}
@@ -169,24 +169,24 @@ function isSubnavCurrent(pathname: string | null, href: string): boolean {
   if (href === "/admin/camp-inquiries" && pathname.startsWith("/admin/camp-inquiries/")) return true;
   if (href === "/admin/tournament-inquiries" && pathname.startsWith("/admin/tournament-inquiries/"))
     return true;
+  if (href === "/admin/lunch-menu" && pathname.startsWith("/admin/lunch-menu")) return true;
   return false;
 }
 
 function resolveSection(pathname: string | null): AdminSection {
   if (!pathname) return "ops";
   if (pathname.startsWith("/admin/reservations")) return "reserve";
-  if (pathname.startsWith("/admin/event-days") || pathname.startsWith("/admin/lunch-menu")) {
-    return "prep";
-  }
+  if (pathname.startsWith("/admin/lunch-menu")) return "settings";
   if (
     pathname.startsWith("/admin/notifications") ||
     pathname.startsWith("/admin/camp-inquiries") ||
     pathname.startsWith("/admin/tournament-inquiries")
   ) {
-    return "contact";
+    return "cases";
   }
   if (
     pathname.startsWith("/admin/dashboard") ||
+    pathname.startsWith("/admin/event-days") ||
     pathname.startsWith("/admin/pre-day-results") ||
     pathname.startsWith("/admin/pre-day-adjust")
   ) {
@@ -251,8 +251,10 @@ export function AdminProtectedHeader({ userEmail }: Props) {
     };
   }, [menuOpen]);
 
-  const tabInactive =
-    "inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium text-zinc-600 transition-colors hover:bg-white/90 hover:text-zinc-900 sm:flex-none sm:px-3.5";
+  /** 非選択の text-zinc-600 と選択の text-white がマージで競合しないよう、選択時は tabBase のみ＋ segmentActive */
+  const tabBase =
+    "inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-2 text-sm font-medium transition-colors sm:flex-none sm:px-3.5";
+  const tabIdle = "text-zinc-600 hover:bg-white/90 hover:text-zinc-900";
 
   const subInactive =
     "inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 text-sm font-medium text-zinc-600 transition-colors hover:bg-white hover:text-zinc-900";
@@ -344,12 +346,12 @@ export function AdminProtectedHeader({ userEmail }: Props) {
                   <Link
                     key={sec.id}
                     href={sec.defaultHref}
-                    className={`${tabInactive} ${isActive ? th.segmentActive : ""}`}
+                    className={isActive ? `${tabBase} ${th.segmentActive}` : `${tabBase} ${tabIdle}`}
                     aria-current={isActive ? "page" : undefined}
                   >
                     <SectionIcon
                       id={sec.id}
-                      className={isActive ? "text-white/90" : th.drawerIcon}
+                      className={isActive ? "!text-white/95" : th.drawerIcon}
                     />
                     {sec.label}
                   </Link>

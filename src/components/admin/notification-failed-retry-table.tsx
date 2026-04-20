@@ -1,6 +1,10 @@
 "use client";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import {
+  notificationTemplateLabelJa,
+  summarizeOutboundEmailError,
+} from "@/lib/admin/notification-failed-display";
 import { useCallback, useEffect, useState } from "react";
 
 export type FailedNotificationRow = {
@@ -26,6 +30,47 @@ type Props = {
   eventDayId?: string;
   className?: string;
 };
+
+/** 送信失敗のエラー: 管理者向け要約＋折りたたみ原文 */
+function FailedNotificationErrorCell({
+  errorMessage,
+  compact,
+}: {
+  errorMessage: string | null;
+  compact?: boolean;
+}) {
+  const { summaryJa, rawDetail } = summarizeOutboundEmailError(errorMessage);
+  const summaryClass = compact
+    ? "wrap-break-word text-sm leading-relaxed text-red-900"
+    : "wrap-break-word text-xs leading-relaxed lg:text-sm";
+  return (
+    <div className="space-y-1.5">
+      <p className={summaryClass}>{summaryJa}</p>
+      {rawDetail ? (
+        <details
+          className={
+            compact
+              ? "rounded-md border border-red-200/60 bg-white/80 px-2 py-1.5 text-xs text-zinc-700"
+              : "rounded border border-red-200/50 bg-white/90 px-2 py-1 text-[10px] text-zinc-700 lg:text-[11px]"
+          }
+        >
+          <summary className="cursor-pointer select-none font-medium text-red-950/90">
+            技術メッセージ{compact ? "（サポート用）" : ""}
+          </summary>
+          <pre
+            className={
+              compact
+                ? "mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words rounded border border-zinc-200 bg-zinc-50 p-2 font-mono text-[10px] leading-snug text-zinc-800"
+                : "mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[9px] leading-snug text-zinc-800 lg:text-[10px]"
+            }
+          >
+            {rawDetail}
+          </pre>
+        </details>
+      ) : null}
+    </div>
+  );
+}
 
 export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
   const [rows, setRows] = useState<FailedNotificationRow[] | null>(null);
@@ -79,10 +124,10 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
       }
       setMessage(
         json.status === "sent"
-          ? "再送が完了しました（sent）。"
+          ? "再送が完了しました。"
           : json.status === "failed"
-            ? "送信は再び失敗しました（failed）。エラー内容を確認してください。"
-            : "送信はスキップされた可能性があります（pending のまま）。Resend の環境変数を確認してください。"
+            ? "再送は失敗しました。表示されている内容を確認するか、担当へ相談してください。"
+            : "送信結果がまだ確定していません。しばらくして一覧を再読み込みするか、担当へ相談してください。"
       );
       await load();
     } catch {
@@ -155,9 +200,9 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                       <dd className="mt-0.5 font-mono text-xs text-zinc-800">{updatedUtc}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">テンプレ</dt>
-                      <dd className="mt-0.5 wrap-break-word font-mono text-xs text-zinc-900">
-                        {n.template_key ?? "—"}
+                      <dt className="text-xs font-medium text-zinc-500">種類</dt>
+                      <dd className="mt-0.5 wrap-break-word text-xs text-zinc-900">
+                        {notificationTemplateLabelJa(n.template_key)}
                       </dd>
                     </div>
                     <div>
@@ -169,9 +214,9 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                       <dd className="mt-0.5 wrap-break-word text-zinc-800">{n.teamName ?? "—"}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">エラー</dt>
-                      <dd className="mt-0.5 wrap-break-word text-sm leading-relaxed text-red-900">
-                        {n.error_message ?? "—"}
+                      <dt className="text-xs font-medium text-zinc-500">内容</dt>
+                      <dd className="mt-0.5">
+                        <FailedNotificationErrorCell errorMessage={n.error_message} compact />
                       </dd>
                     </div>
                   </dl>
@@ -181,8 +226,8 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                         <span className="inline-flex rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
                           再送不可
                         </span>
-                        <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                          予約完了は確認コードの平文を保持しないため、管理画面からの再送はできません。
+                        <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                          確認用コードを画面に残さないため、この一覧から再送はできません。届いていない場合は、予約確認の案内を別途お伝えする運用で対応してください。
                         </p>
                       </div>
                     ) : (
@@ -204,17 +249,17 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
 
           {/* md 以上: テーブル */}
           <div className="hidden min-w-0 max-w-full md:block md:overflow-x-auto md:overscroll-x-contain md:rounded-md md:border md:border-zinc-200 md:bg-white md:[-webkit-overflow-scrolling:touch]">
-            <table className="w-full min-w-176 border-collapse text-left text-xs text-zinc-800 lg:min-w-0 lg:text-sm">
+            <table className="w-full min-w-0 border-collapse text-left text-xs text-zinc-800 lg:text-sm">
               <thead className="border-b border-zinc-200 bg-zinc-50">
                 <tr>
                   {!eventDayId ? (
                     <th className="px-3 py-2 font-medium text-zinc-900">開催日</th>
                   ) : null}
                   <th className="px-3 py-2 font-medium text-zinc-900">更新（UTC）</th>
-                  <th className="px-3 py-2 font-medium text-zinc-900">テンプレ</th>
+                  <th className="px-3 py-2 font-medium text-zinc-900">種類</th>
                   <th className="px-3 py-2 font-medium text-zinc-900">宛先</th>
                   <th className="px-3 py-2 font-medium text-zinc-900">チーム</th>
-                  <th className="px-3 py-2 font-medium text-zinc-900">エラー</th>
+                  <th className="min-w-[12rem] max-w-md px-3 py-2 font-medium text-zinc-900">内容</th>
                   <th className="px-3 py-2 font-medium text-zinc-900">操作</th>
                 </tr>
               </thead>
@@ -232,8 +277,11 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                     <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-600">
                       {(n.updated_at ?? n.created_at)?.replace("T", " ").slice(0, 19) ?? "—"}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] lg:text-xs">
-                      {n.template_key ?? "—"}
+                    <td
+                      className="max-w-[10rem] px-3 py-2 text-[11px] text-zinc-800 lg:max-w-[12rem] lg:text-xs"
+                      title={n.template_key ?? ""}
+                    >
+                      {notificationTemplateLabelJa(n.template_key)}
                     </td>
                     <td className="max-w-56 truncate px-3 py-2 text-zinc-700" title={n.toEmail ?? ""}>
                       {n.toEmail ?? "—"}
@@ -241,8 +289,8 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                     <td className="max-w-48 truncate px-3 py-2 text-zinc-700" title={n.teamName ?? ""}>
                       {n.teamName ?? "—"}
                     </td>
-                    <td className="max-w-md px-3 py-2 wrap-break-word text-red-900">
-                      {n.error_message ?? "—"}
+                    <td className="max-w-md px-3 py-2 align-top text-red-900">
+                      <FailedNotificationErrorCell errorMessage={n.error_message} />
                     </td>
                     <td className="whitespace-nowrap px-3 py-2 align-top">
                       {n.template_key === "reservation_created" ? (
@@ -250,8 +298,8 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                           <span className="inline-flex rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-700">
                             再送不可
                           </span>
-                          <p className="mt-1 text-[10px] leading-snug text-zinc-500">
-                            予約完了は確認コードの平文を保持しないため、管理画面からの再送はできません（ボタンは出しません）。
+                          <p className="mt-1 text-[10px] leading-snug text-zinc-600">
+                            確認用コードを残さないため再送できません。届かない場合は予約確認の案内を別途送ってください。
                           </p>
                         </div>
                       ) : (
@@ -273,10 +321,11 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
           </div>
         </>
       )}
-      <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-        予約完了（<code className="rounded bg-zinc-100 px-0.5">reservation_created</code>
-        ）は確認コードの平文を保持しないため、一覧では「再送不可」と表示します（再送 API も 422 で拒否します）。
-      </p>
+      {rows?.length ? (
+        <p className="mt-3 text-xs leading-relaxed text-zinc-600">
+          「予約直後の確認メール」だけは安全のため再送できません（ボタンなし）。その他の失敗は、表示の内容を確認してから「再送」を試してください。
+        </p>
+      ) : null}
     </div>
   );
 }

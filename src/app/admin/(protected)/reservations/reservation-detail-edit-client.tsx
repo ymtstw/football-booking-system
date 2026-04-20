@@ -95,9 +95,9 @@ export function ReservationDetailEditClient({ reservationId, initial }: Props) {
     <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
       <h2 className="text-sm font-semibold text-zinc-900">予約・チーム情報の編集</h2>
       <p className="text-xs leading-relaxed text-zinc-600">
-        午前枠の付け替え・試合編成はここでは変更しません。
-        <strong className="text-zinc-800"> 前日確定</strong>
-        の補正・試合一覧から行ってください。
+        午前枠の付け替え・試合の割当はここでは変更しません。
+        <strong className="text-zinc-800">試合編成（前日確定）</strong>
+        の「編成を調整」または「対戦表・自動編成」から行ってください。
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -225,7 +225,7 @@ export function ReservationDetailEditClient({ reservationId, initial }: Props) {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-emerald-950">{message}</p>
               <p className="mt-1 text-xs leading-relaxed text-emerald-900/90">
-                予約・チーム情報を反映しました。この内容で前日確定・通知などに利用されます。
+                予約・チーム情報を反映しました。この内容で試合編成・通知などに利用されます。
               </p>
             </div>
           </div>

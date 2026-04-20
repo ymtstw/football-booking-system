@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
+import { EventDayOpsBreadcrumb } from "../../../event-day-ops-breadcrumb";
 import { eventDayStatusLabelJa } from "../../../event-day-status-label";
 import { SlotsForcePageClient } from "../slots-force-client";
 
@@ -57,21 +58,13 @@ export default async function AdminEventDaySlotsForcePage({
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <p className="text-xs font-medium text-zinc-500">
-          <Link
-            href="/admin/event-days"
-            className="text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
-          >
-            開催日一覧
-          </Link>
-          <span className="mx-1.5 text-zinc-400">·</span>
-          <Link
-            href={`/admin/event-days/${id}/slots`}
-            className="text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
-          >
-            枠・時刻（通常）
-          </Link>
-        </p>
+        <EventDayOpsBreadcrumb
+          eventDayId={id}
+          items={[
+            { href: `/admin/event-days/${id}/slots`, label: "枠・時刻（通常）" },
+            { label: "枠・時刻（強制変更）" },
+          ]}
+        />
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">
           枠・時刻（強制変更）
         </h1>

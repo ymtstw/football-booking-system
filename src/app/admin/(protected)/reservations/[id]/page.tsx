@@ -190,9 +190,9 @@ export default async function AdminReservationDetailPage({
         <p>
           枠・試合の変更は{" "}
           <Link href={preDayHref} className="font-medium text-sky-800 underline underline-offset-2">
-            前日確定（補正タブ）
+            編成を調整
           </Link>
-          または試合一覧の運用へ。
+          または「対戦表・自動編成」タブの運用へ。
         </p>
       </div>
 

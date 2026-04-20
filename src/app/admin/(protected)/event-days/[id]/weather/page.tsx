@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
+import { EventDayOpsBreadcrumb } from "../../event-day-ops-breadcrumb";
 import { WeatherDecisionForm } from "./weather-decision-form";
 
 export default async function AdminEventDayWeatherPage({
@@ -25,23 +26,13 @@ export default async function AdminEventDayWeatherPage({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <p className="mb-4 text-sm text-zinc-600">
-        <Link
-          href="/admin/event-days"
-          className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2"
-        >
-          開催日一覧
-        </Link>
-        {" · "}
-        <Link
-          href={`/admin/event-days/${id}/slots`}
-          className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2"
-        >
-          枠・時刻
-        </Link>
-        {" · "}
-        <span className="font-medium text-sky-800">雨天判断</span>
-      </p>
+      <EventDayOpsBreadcrumb
+        eventDayId={id}
+        items={[
+          { href: `/admin/event-days/${id}/slots`, label: "枠・時刻" },
+          { label: "雨天判断" },
+        ]}
+      />
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">雨天判断</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
         事前に go / cancel を登録できます。原則、参加者向けの最終文面は{" "}

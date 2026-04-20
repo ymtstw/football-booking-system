@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ReservationsDateGetInput } from "@/app/admin/(protected)/reservations/reservations-date-get-input";
 import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
 import { getNearestUpcomingEventDateIso } from "@/lib/admin/nearest-upcoming-event-date";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
@@ -8,6 +9,8 @@ import { tokyoIsoDateToday } from "@/lib/dates/tokyo-calendar-grid";
 import { createClient } from "@/lib/supabase/server";
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function isIsoDateOnly(s: string): boolean {
   if (!DATE_ONLY.test(s)) return false;
@@ -54,12 +57,15 @@ export default async function AdminReservationsPage({
 }: {
   searchParams?: Promise<{
     date?: string | string[];
+    eventDayId?: string | string[];
     team?: string | string[];
     email?: string | string[];
   }>;
 }) {
   const sp = searchParams ? await searchParams : {};
   const rawDate = typeof sp.date === "string" ? sp.date.trim() : "";
+  const rawEventDayId =
+    typeof sp.eventDayId === "string" ? sp.eventDayId.trim() : "";
   const teamQ =
     typeof sp.team === "string" ? sp.team.trim().toLowerCase() : "";
   const emailQ =
@@ -75,8 +81,22 @@ export default async function AdminReservationsPage({
     /* 一覧のみのためフォールバックで続行 */
   }
 
+  let dateFromEventDayId: string | null = null;
+  if (rawEventDayId && UUID_RE.test(rawEventDayId)) {
+    const { data: byId } = await supabase
+      .from("event_days")
+      .select("event_date")
+      .eq("id", rawEventDayId)
+      .maybeSingle();
+    if (byId?.event_date && isIsoDateOnly(byId.event_date)) {
+      dateFromEventDayId = byId.event_date;
+    }
+  }
+
   const effectiveDate =
-    rawDate && isIsoDateOnly(rawDate) ? rawDate : fallbackDate;
+    rawDate && isIsoDateOnly(rawDate)
+      ? rawDate
+      : dateFromEventDayId ?? fallbackDate;
 
   const { data: dateOptions, error: datesErr } = await supabase
     .from("event_days")
@@ -135,6 +155,7 @@ export default async function AdminReservationsPage({
   }
 
   const preDayHref = `/admin/pre-day-results?date=${encodeURIComponent(effectiveDate)}&tab=adjust`;
+  const hubHref = day && !dayErr ? `/admin/event-days/${day.id}` : null;
 
   return (
     <div className="min-w-0 space-y-6">
@@ -143,12 +164,23 @@ export default async function AdminReservationsPage({
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           開催日を選ぶと、その日の予約とチーム連絡先が表示されます。初期表示は
           <strong className="text-zinc-800"> 今日以降で最も近い開催日</strong>
-          です。午前枠の付け替え・試合まわりの変更は
+          です（URL に <code className="rounded bg-zinc-100 px-1 text-xs">eventDayId</code>{" "}
+          が付いているときはその開催日に合わせます）。午前枠の付け替え・試合まわりの変更は
           <Link href={preDayHref} className="font-medium text-sky-800 underline underline-offset-2">
-            前日確定（補正）
+            編成を調整
           </Link>
           から行ってください。
         </p>
+        {hubHref ? (
+          <p className="mt-2">
+            <Link
+              href={hubHref}
+              className="text-sm font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
+            >
+              この開催のまとめへ（状況・リンク一覧）
+            </Link>
+          </p>
+        ) : null}
       </div>
 
       <form
@@ -170,8 +202,7 @@ export default async function AdminReservationsPage({
               ))}
             </select>
           ) : (
-            <input
-              type="date"
+            <ReservationsDateGetInput
               name="date"
               defaultValue={effectiveDate}
               className="mt-1 min-h-10 w-full rounded border border-zinc-300 px-3 py-2 text-sm"

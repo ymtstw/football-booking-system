@@ -2,35 +2,39 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
+import { DashboardAroundBar } from "./dashboard-around-bar";
 import { DashboardUpcomingChain } from "./dashboard-upcoming-chain";
-import { buildDashboardEventDaySummaryPayload } from "@/lib/admin/dashboard-event-day-summary";
+import type { DashboardEventDaySummaryPayload } from "@/lib/admin/dashboard-event-day-summary.types";
+import { loadEventDayHubPayload } from "@/lib/admin/event-day-hub-payload";
+import { parseAroundParam } from "@/lib/admin/parse-around-param";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { addDaysIsoDate, tokyoIsoDateToday } from "@/lib/dates/tokyo-calendar-grid";
 import { getAdminUser } from "@/lib/auth/require-admin";
-import { createServiceRoleClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 
-type NextEventDayRow = {
-  id: string;
-  event_date: string;
-  grade_band: string;
-  status: string;
-  weather_status: string | null;
-};
-
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ around?: string | string[] | undefined }>;
+}) {
   if (!(await getAdminUser())) {
     redirect("/admin/login");
   }
 
+  const sp = searchParams ? await searchParams : {};
+  const aroundFromUrl = parseAroundParam(sp.around);
+  const explicitAround = aroundFromUrl !== null;
+  const anchorEventDate = aroundFromUrl ?? tokyoIsoDateToday();
+
   const todayTokyo = tokyoIsoDateToday();
   const tomorrowTokyo = addDaysIsoDate(todayTokyo, 1);
-  const supabase = createServiceRoleClient();
+  const supabase = await createClient();
 
-  /** 今日（東京）以降で event_date が最も早い開催日を 1 件だけ */
-  const { data: dayRaw, error: dayErr } = await supabase
+  /** 基準日（東京）以降で最も早い開催日の id → 運営まとめと同じ loadEventDayHubPayload でサマリ取得 */
+  const { data: idRow, error: dayErr } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status, weather_status")
-    .gte("event_date", todayTokyo)
+    .select("id")
+    .gte("event_date", anchorEventDate)
     .order("event_date", { ascending: true })
     .limit(1)
     .maybeSingle();
@@ -38,7 +42,7 @@ export default async function AdminDashboardPage() {
   if (dayErr) {
     return (
       <div className="min-w-0 space-y-4">
-        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">運営ダッシュボード</h1>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催状況</h1>
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
           開催日の取得に失敗しました: {dayErr.message}
         </p>
@@ -46,11 +50,24 @@ export default async function AdminDashboardPage() {
     );
   }
 
-  const nextEventDay = dayRaw as NextEventDayRow | null;
-
-  const initialSummary = nextEventDay
-    ? await buildDashboardEventDaySummaryPayload(supabase, nextEventDay)
-    : null;
+  let initialSummary: DashboardEventDaySummaryPayload | null = null;
+  if (idRow?.id) {
+    const loaded = await loadEventDayHubPayload(supabase, idRow.id);
+    if (!loaded.ok) {
+      if (loaded.kind === "db_error") {
+        return (
+          <div className="min-w-0 space-y-4">
+            <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催状況</h1>
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+              開催日サマリの取得に失敗しました: {loaded.message}
+            </p>
+          </div>
+        );
+      }
+    } else {
+      initialSummary = loaded.data.summary;
+    }
+  }
 
   return (
     <div className="min-w-0 space-y-8">
@@ -62,38 +79,43 @@ export default async function AdminDashboardPage() {
         <div className="relative pl-4 sm:pl-5">
           <p className="text-xs font-semibold tracking-wide text-emerald-800">運営</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
-            ダッシュボード
+            直近の開催状況
           </h1>
           <p className="mt-2 max-w-2xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
-            今日（東京）以降で最も早い開催日を1件表示します。「次の開催日を読み込む」で続きを同形式で追加できます。
+            基準日（東京）以降でいちばん近い開催の数値サマリです。下の1行で基準日を変えられます。「次の開催日を読み込む」で続きを同じ形式で追加できます。
           </p>
         </div>
       </header>
 
-      {!nextEventDay || !initialSummary ? (
+      {!initialSummary ? (
         <section
           aria-labelledby="dash-no-upcoming"
-          className="rounded-xl border border-zinc-200/90 bg-white px-4 py-6 text-sm text-zinc-700 shadow-sm ring-1 ring-zinc-100 sm:px-6"
+          className="space-y-4 rounded-xl border border-zinc-200/90 bg-white px-4 py-6 text-sm text-zinc-700 shadow-sm ring-1 ring-zinc-100 sm:px-6"
         >
+          <DashboardAroundBar anchorEventDate={anchorEventDate} explicitAround={explicitAround} />
           <h2 id="dash-no-upcoming" className="text-sm font-semibold text-zinc-900">
             直近の開催
           </h2>
           <p className="mt-2">
-            {formatIsoDateWithWeekdayJa(todayTokyo)} 以降に登録された開催日はまだありません。
+            {formatIsoDateWithWeekdayJa(anchorEventDate)} 以降に登録された開催日はまだありません。
           </p>
           <Link
             href="/admin/event-days"
             className="mt-4 inline-flex min-h-10 items-center rounded-lg border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
           >
-            開催日へ
+            開催日一覧へ
           </Link>
         </section>
       ) : (
-        <DashboardUpcomingChain
-          todayTokyo={todayTokyo}
-          tomorrowTokyo={tomorrowTokyo}
-          initialDay={initialSummary}
-        />
+        <div className="space-y-3">
+          <DashboardAroundBar anchorEventDate={anchorEventDate} explicitAround={explicitAround} />
+          <DashboardUpcomingChain
+            key={`${anchorEventDate}-${initialSummary.id}`}
+            todayTokyo={todayTokyo}
+            tomorrowTokyo={tomorrowTokyo}
+            initialDay={initialSummary}
+          />
+        </div>
       )}
     </div>
   );

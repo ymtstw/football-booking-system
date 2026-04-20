@@ -3,12 +3,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  getNextDashboardEventDaySummaryAfter,
-  isValidIsoDateParam,
-} from "@/lib/admin/dashboard-event-day-summary";
+import { isValidIsoDateParam } from "@/lib/admin/dashboard-event-day-summary";
+import { loadNextEventDayHubSummaryAfter } from "@/lib/admin/event-day-hub-payload";
 import { getAdminUser } from "@/lib/auth/require-admin";
-import { createServiceRoleClient } from "@/lib/supabase/service";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   if (!(await getAdminUser())) {
@@ -24,8 +22,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = createServiceRoleClient();
-    const day = await getNextDashboardEventDaySummaryAfter(supabase, after);
+    const supabase = await createClient();
+    const day = await loadNextEventDayHubSummaryAfter(supabase, after);
     return NextResponse.json({ day });
   } catch (e) {
     const message = e instanceof Error ? e.message : "不明なエラー";

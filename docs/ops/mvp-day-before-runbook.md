@@ -22,7 +22,7 @@
 
 | 段階 | 自動（Cron） | 手動で同じことをする |
 |------|----------------|----------------------|
-| ロック | `GET /api/cron/lock-event-days`（UTC **`0 6`** ≒ JST **15:00**） | 管理の開催日が `open` のとき `PATCH` で `locked`（締切後のみ） |
+| ロック（JOB01 相当） | `GET /api/cron/lock-event-days`（UTC **`0 6`** ≒ JST **15:00**） | 締切後も **`open` のまま**なら、**`/admin/event-days/{id}`（この開催のまとめ）→「例外（締切）」** から手動実行、または同等の `POST /api/admin/event-days/{id}/apply-deadline-catchup`（`acknowledged: true`）。**締切救済に `PATCH` の単純 `locked` は使わない**（最少催行分岐なし）。一覧に手動 locked ボタンは無し。 |
 | 編成 | `GET /api/cron/run-matching-locked`（UTC **`1 6`** ≒ JST **15:01**） | `POST /api/admin/matching/run` + `CRON_SECRET` または管理ログイン |
 | 案内メール | `GET /api/cron/send-matching-proposal`（UTC **`30 7`** ≒ JST **16:30**） | 同じ GET を **Bearer `CRON_SECRET`** で叩く（対象日は実装の「東京＋2日」条件に従う） |
 | 結果確認 | — | **`/admin/pre-day-results?date=YYYY-MM-DD`** |

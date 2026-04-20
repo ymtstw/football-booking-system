@@ -3,6 +3,8 @@
 **目的:** 機能見直しのたたき台として、実装されている管理 UI・API の範囲を整理する。  
 **前提:** Next.js App Router（`src/app/admin`）、Supabase Auth。管理者は **`app_admins` に登録されたユーザーのみ**（`getAdminUser()`）。
 
+**関連（着工前の設計正本）:** [集約境界・画面責務](./admin-ops-boundary-spec.md) · [状態遷移](./admin-state-transitions.md) · [API projection/command](./admin-api-projection-command.md)
+
 **最終更新:** 実装に基づくスナップショット（リポジトリ内コード）。
 
 ---
@@ -13,7 +15,7 @@
 |------|------|
 | 判定 | ログイン済み **かつ** `app_admins.user_id` が一致する場合のみ管理者 |
 | 保護レイアウト | `src/app/admin/(protected)/layout.tsx` … 未管理者は `/admin/login` へ `redirect` |
-| `/admin` | 管理者なら **`/admin/event-days` へリダイレクト**（ダッシュボードではない） |
+| `/admin` | 管理者なら **`/admin/dashboard` へリダイレクト** |
 | ログイン | `/admin/login`（公開レイアウト） |
 | ログアウト | ヘッダのサインアウト（保護レイアウト内） |
 
@@ -23,14 +25,14 @@
 
 ## 2. グローバルナビ（保護レイアウト）
 
-表示リンク（左から）:
+区分タブ（`admin-protected-header.tsx`）:
 
-1. **ダッシュボード** → `/admin/dashboard`
-2. **開催日** → `/admin/event-days`
-3. **予約一覧** → `/admin/reservations`
-4. **前日確定** → `/admin/pre-day-results`
-5. **メール失敗** → `/admin/notifications/failed`
-6. **合宿相談** → `/admin/camp-inquiries`
+1. **開催運営** … 直近の開催状況、開催日一覧、前日確定
+2. **予約管理** … 予約一覧
+3. **対応案件** … メール失敗、合宿相談、大会お問い合わせ
+4. **設定** … 昼食メニュー
+
+開催日ごとの**運営まとめ**（画面名: **この開催のまとめ**）: **`/admin/event-days/[id]`**（一覧の日付リンク・モバイルカードのボタン・ダッシュから遷移）。**Cron 失敗時:** 締切時刻経過後も `open` のときのみ、下段「例外（締切）」から **確認付き**で `POST /api/admin/event-days/{id}/apply-deadline-catchup`（JOB01 同等）を実行できる。一覧の行操作に手動 `locked` ボタンは置かない方針は維持。
 
 右側: ログインメール表示 + サインアウト。
 
@@ -38,7 +40,7 @@
 
 ## 3. ダッシュボード（`/admin/dashboard`）
 
-- **役割:** 東京日付の「今日」以降で **最も早い `event_days` 1 件**のサマリー（来場チーム数・昼食・参加人数・状態・通知 failed 等）を表示。
+- **役割:** 東京日付の「今日」以降で **最も早い `event_days` 1 件**のサマリー（来場チーム数・昼食・参加人数・状態・通知 failed 等）を表示。ナビ表示名は **直近の開催状況**。
 - **連鎖表示:** クライアントで **「次の開催日を読み込む」** → `GET /api/admin/dashboard/next-event-day` で続く開催を同形式で積み上げ（数日分の把握用）。
 - **導線:** 前日確定・開催日管理へのリンク等（画面内文言参照）。
 
@@ -69,11 +71,12 @@
 
 | リンク | URL |
 |--------|-----|
+| この開催のまとめ | `/admin/event-days/{id}` |
 | 枠・時刻 | `/admin/event-days/{id}/slots` |
 | 雨天判断 | `/admin/event-days/{id}/weather` |
 | 緊急中止（運営） | `/admin/event-days/{id}/operational-cancel` |
 
-（通知サマリーは開催日詳細からではなく、**通知用の専用パス**あり → 下記 §8。）
+（通知サマリーは **`/admin/event-days/{id}/notifications`**。）
 
 ---
 

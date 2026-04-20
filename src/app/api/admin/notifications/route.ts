@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
+  const limitRaw = request.nextUrl.searchParams.get("limit")?.trim() ?? "";
 
   if (eventDayId) {
     if (!isUuid(eventDayId)) {
@@ -75,6 +76,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const scopedLimit = Math.min(300, Math.max(1, parseInt(limitRaw, 10) || 100));
 
     const { data, error } = await supabase
       .from("notifications")
@@ -100,7 +103,7 @@ export async function GET(request: NextRequest) {
       .eq("event_day_id", eventDayId)
       .eq("status", rawStatus)
       .order("updated_at", { ascending: false })
-      .limit(100);
+      .limit(scopedLimit);
 
     if (error) {
       return NextResponse.json(
@@ -116,7 +119,6 @@ export async function GET(request: NextRequest) {
   }
 
   // 全体: 直近の失敗等（開催日・宛先メール付き）
-  const limitRaw = request.nextUrl.searchParams.get("limit")?.trim() ?? "150";
   const limit = Math.min(300, Math.max(1, parseInt(limitRaw, 10) || 150));
 
   const { data, error } = await supabase

@@ -146,7 +146,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
         <section className="rounded-lg border border-red-200/80 bg-red-50/30 px-4 py-4">
           <h2 className="text-sm font-semibold text-red-950">この開催日の送信失敗</h2>
           <p className="mt-1 text-xs text-red-900/85">
-            宛先・テンプレ・エラー内容を確認し、問題が解消したら「再送」を押してください。
+            宛先と「内容」の説明を確認してください。「予約直後の確認メール」以外で、原因を直せた行だけ「再送」が使えます。
           </p>
           <div className="mt-3">
             <NotificationFailedRetryTable eventDayId={eventDayId} />

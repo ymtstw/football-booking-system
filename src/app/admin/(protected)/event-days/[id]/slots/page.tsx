@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
+import { EventDayOpsBreadcrumb } from "../../event-day-ops-breadcrumb";
 import { eventDayStatusLabelJa } from "../../event-day-status-label";
 import { SlotsEditorClient } from "./slots-editor-client";
 
@@ -120,35 +121,15 @@ export default async function AdminEventDaySlotsDetailPage({
         </div>
       ) : null}
       <div>
-        <p className="text-xs font-medium text-zinc-500">
-          <Link
-            href="/admin/event-days"
-            className="text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
-          >
-            開催日一覧
-          </Link>
-          {" · "}
-          <Link
-            href={`/admin/event-days/${id}/weather`}
-            className="text-sky-800 underline decoration-sky-600/60 underline-offset-2 hover:text-sky-950"
-          >
-            雨天判断
-          </Link>
-          {" · "}
-          <Link
-            href={`/admin/event-days/${id}/operational-cancel`}
-            className="text-rose-800 underline decoration-rose-600/60 underline-offset-2 hover:text-rose-950"
-          >
-            緊急中止（運営）
-          </Link>
-          {" · "}
-          <Link
-            href={`/admin/event-days/${id}/notifications`}
-            className="text-indigo-800 underline decoration-indigo-600/60 underline-offset-2 hover:text-indigo-950"
-          >
-            通知・送信状況
-          </Link>
-        </p>
+        <EventDayOpsBreadcrumb
+          eventDayId={id}
+          items={[
+            { href: `/admin/event-days/${id}/weather`, label: "雨天判断" },
+            { href: `/admin/event-days/${id}/operational-cancel`, label: "緊急中止（運営）" },
+            { href: `/admin/event-days/${id}/notifications`, label: "通知・送信状況" },
+            { label: "枠・時刻" },
+          ]}
+        />
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">
           枠・時刻
         </h1>

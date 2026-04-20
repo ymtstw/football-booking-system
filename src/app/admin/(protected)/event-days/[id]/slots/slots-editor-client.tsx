@@ -1,6 +1,7 @@
 "use client";
 
 /** 枠の時刻の編集と「6枠運用／8枠運用」の切替（API 連携）。 */
+import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import {
   EVENT_DAY_SLOT_COUNT_POLICY_HELP_JA,
@@ -208,7 +209,7 @@ export function SlotsEditorClient({
             </div>
             <label className="block min-w-34">
               <span className="text-xs font-medium text-zinc-500">開始</span>
-              <input
+              <DateInputWithPicker
                 type="time"
                 disabled={!editable}
                 value={timeInputValue(s.start_time)}
@@ -222,7 +223,7 @@ export function SlotsEditorClient({
             </label>
             <label className="block min-w-34">
               <span className="text-xs font-medium text-zinc-500">終了</span>
-              <input
+              <DateInputWithPicker
                 type="time"
                 disabled={!editable}
                 value={timeInputValue(s.end_time)}
