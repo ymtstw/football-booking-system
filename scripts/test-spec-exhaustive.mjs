@@ -872,4 +872,258 @@ export function registerExhaustiveRows(ctx) {
       備考: "503/401 は TC-CRN-send-matching-proposal-* で網羅",
     });
   }
+
+  // ----- MVP必須（カレンダー・Hub・問い合わせの抜け補完・TC-MVP-*）-----
+  const mvpPub = "公開API";
+  const dashPath = "GET /api/admin/dashboard/next-event-day";
+  const dashRef = "src/app/api/admin/dashboard/next-event-day/route.ts";
+
+  add({
+    テストID: "TC-MVP-PUB-ED-500",
+    レベル: L3,
+    大分類: mvpPub,
+    中分類: "開催日一覧",
+    対象ID: "GET /api/event-days",
+    テストケース名: "event_days select 失敗時は500",
+    観点区分: "異常",
+    前提条件: "DB障害または接続拒否を再現できる環境",
+    手順: "GET",
+    期待結果: "500、JSONに error / code",
+    確認証跡: "HTTP",
+    優先度: "P1",
+    自動化: "要検討",
+    実装参照: "src/app/api/event-days/route.ts",
+    備考: "MVP公開カレンダーのフェイルセーフ",
+  });
+
+  add({
+    テストID: "TC-MVP-PUB-AV-500",
+    レベル: L3,
+    大分類: mvpPub,
+    中分類: "空き状況",
+    対象ID: "GET /api/event-days/{date}/availability",
+    テストケース名: "開催日・枠・予約のいずれかの select 失敗で500",
+    観点区分: "異常",
+    前提条件: "該当日は公開ステータスで存在するが後段クエリを失敗させる",
+    手順: "GET（正常な YYYY-MM-DD）",
+    期待結果: "500",
+    確認証跡: "HTTP",
+    優先度: "P1",
+    自動化: "要検討",
+    実装参照: "src/app/api/event-days/[date]/availability/route.ts",
+    備考: "",
+  });
+
+  for (const [id, name, pre, step, exp] of [
+    [
+      "TC-MVP-ADM-DASH-400A",
+      "クエリ after 欠落は400",
+      authAdmin,
+      "GET（クエリなし）",
+      "400、after（YYYY-MM-DD）が必要です",
+    ],
+    [
+      "TC-MVP-ADM-DASH-400B",
+      "after が暦日として無効は400",
+      authAdmin,
+      "GET ?after=2026-02-30",
+      "400（isValidIsoDateParam 不一致）",
+    ],
+    [
+      "TC-MVP-ADM-DASH-200N",
+      "after より後に開催日が無いとき day は null",
+      authAdmin,
+      "GET ?after=2099-12-31",
+      "200、JSON.day が null",
+    ],
+    [
+      "TC-MVP-ADM-DASH-200Y",
+      "直近の開催日1件が返る",
+      `${authAdmin}。DBに after より後の開催日が1件以上`,
+      "GET ?after=過去の既知日付",
+      "200、day.id / event_date 等が期待通り",
+    ],
+  ]) {
+    add({
+      テストID: id,
+      レベル: L3,
+      大分類: A,
+      中分類: "dashboard",
+      対象ID: dashPath,
+      テストケース名: name,
+      観点区分: exp.includes("null") || exp.includes("200") ? "正常" : "異常",
+      前提条件: pre,
+      手順: step,
+      期待結果: exp,
+      確認証跡: "HTTP+JSON",
+      優先度: "P0",
+      自動化: "可",
+      実装参照: dashRef,
+      備考: "TC-ADM-DASH-001（401）とセット",
+    });
+  }
+
+  add({
+    テストID: "TC-MVP-ADM-NOTIF-401",
+    レベル: L3,
+    大分類: A,
+    中分類: "notifications",
+    対象ID: "GET /api/admin/notifications",
+    テストケース名: "未認証401",
+    観点区分: "セキュリティ",
+    前提条件: "セッションなし",
+    手順: "GET ?status=failed",
+    期待結果: "401 Unauthorized",
+    確認証跡: "HTTP",
+    優先度: "P0",
+    自動化: "可",
+    実装参照: "src/app/api/admin/notifications/route.ts",
+    備考: "",
+  });
+
+  for (const [id, name, exp, pre, note, kind] of [
+    [
+      "TC-MVP-PUB-CAMP-422",
+      "answers バリデーション失敗（必須欠落など）",
+      "422、fieldId 付きメッセージ",
+      "-",
+      "parseCampInquiryAnswers の代表例",
+      "異常",
+    ],
+    [
+      "TC-MVP-PUB-CAMP-429",
+      "短時間に連投でレート制限",
+      "429、Retry-After",
+      "-",
+      "rateLimitCampInquiryCreate",
+      "セキュリティ",
+    ],
+    [
+      "TC-MVP-PUB-CAMP-500",
+      "DB insert 失敗",
+      "500",
+      "正しい answers",
+      "Supabase 障害シミュレーション",
+      "異常",
+    ],
+  ]) {
+    add({
+      テストID: id,
+      レベル: L3,
+      大分類: mvpPub,
+      中分類: "合宿相談POST",
+      対象ID: "POST /api/camp-inquiries",
+      テストケース名: name,
+      観点区分: kind,
+      前提条件: pre,
+      手順: `POST JSON（${note}）`,
+      期待結果: exp,
+      確認証跡: "HTTP",
+      優先度: "P1",
+      自動化: "要検討",
+      実装参照: "src/app/api/camp-inquiries/route.ts",
+      備考: "",
+    });
+  }
+
+  for (const [id, name, exp] of [
+    ["TC-MVP-PUB-TRN-400J", "JSON 壊れ", "400"],
+    ["TC-MVP-PUB-TRN-422", "必須項目欠落またはメール形式不正", "422"],
+    ["TC-MVP-PUB-TRN-429", "レート制限超過", "429"],
+  ]) {
+    add({
+      テストID: id,
+      レベル: L3,
+      大分類: mvpPub,
+      中分類: "大会お問い合わせPOST",
+      対象ID: "POST /api/tournament-inquiries",
+      テストケース名: name,
+      観点区分: id.endsWith("429") ? "セキュリティ" : "異常",
+      前提条件: "-",
+      手順: "POST（ケースに応じ body または連投）",
+      期待結果: exp,
+      確認証跡: "HTTP",
+      優先度: "P1",
+      自動化: "要検討",
+      実装参照: "src/app/api/tournament-inquiries/route.ts",
+      備考: "TC-PUB-TRN-001（正常）とセット",
+    });
+  }
+
+  for (const [id, path, ref, name, exp, pre] of [
+    [
+      "TC-MVP-ADM-CAMP-401",
+      "PATCH /api/admin/camp-inquiries/{id}",
+      "src/app/api/admin/camp-inquiries/[id]/route.ts",
+      "未認証401",
+      "401",
+      "セッションなし",
+    ],
+    [
+      "TC-MVP-ADM-CAMP-400",
+      "PATCH ...（id が UUID でない）",
+      "src/app/api/admin/camp-inquiries/[id]/route.ts",
+      "パス id 不正は400",
+      "400 ID が不正です",
+      authAdmin,
+    ],
+    [
+      "TC-MVP-ADM-CAMP-400J",
+      "PATCH ...",
+      "src/app/api/admin/camp-inquiries/[id]/route.ts",
+      "JSON 壊れ400",
+      "400",
+      authAdmin,
+    ],
+    [
+      "TC-MVP-ADM-CAMP-422",
+      "PATCH ...",
+      "src/app/api/admin/camp-inquiries/[id]/route.ts",
+      "status が許容値以外422",
+      "422",
+      authAdmin,
+    ],
+    [
+      "TC-MVP-ADM-CAMP-500",
+      "PATCH ...",
+      "src/app/api/admin/camp-inquiries/[id]/route.ts",
+      "存在しないUUIDは single 失敗で500",
+      "500",
+      authAdmin,
+    ],
+    [
+      "TC-MVP-ADM-TRN-401",
+      "PATCH /api/admin/tournament-inquiries/{id}",
+      "src/app/api/admin/tournament-inquiries/[id]/route.ts",
+      "未認証401",
+      "401",
+      "セッションなし",
+    ],
+    [
+      "TC-MVP-ADM-TRN-422",
+      "PATCH ...",
+      "src/app/api/admin/tournament-inquiries/[id]/route.ts",
+      "status 不正422",
+      "422",
+      authAdmin,
+    ],
+  ]) {
+    add({
+      テストID: id,
+      レベル: L3,
+      大分類: A,
+      中分類: path.includes("tournament") ? "大会問い合わせ" : "合宿相談",
+      対象ID: path,
+      テストケース名: name,
+      観点区分: exp === "401" ? "セキュリティ" : "異常",
+      前提条件: pre,
+      手順: "PATCH JSON または Cookie なし（ケースによる）",
+      期待結果: exp,
+      確認証跡: "HTTP",
+      優先度: "P1",
+      自動化: "可",
+      実装参照: ref,
+      備考: "MVP運用の問い合わせ対応画面前提",
+    });
+  }
 }
