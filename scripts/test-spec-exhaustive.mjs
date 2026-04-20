@@ -1,6 +1,9 @@
 /**
- * Route Handler / ライブラリの分岐をテストケース行に展開（網羅用）。
- * gen-full-test-spec-tsv.mjs から import して registerExhaustiveRows を呼ぶ。
+ * Route Handler / ライブラリの分岐をテストケース行に展開（網羅用・旧フォーマット向け）。
+ *
+ * 現行の `docs/test-spec/full-system-test-spec.tsv` は
+ * `scripts/gen-full-test-spec-tsv.mjs` → `test-spec-reviewable-data.mjs` が生成する。
+ * 本ファイルの TC-EX / TC-MVP 行を再取り込みする場合は reviewable データへ移植すること。
  */
 export function registerExhaustiveRows(ctx) {
   const { add, authAdmin, L3 } = ctx;
