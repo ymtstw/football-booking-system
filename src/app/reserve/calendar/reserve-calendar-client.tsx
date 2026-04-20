@@ -231,7 +231,7 @@ export function ReserveCalendarClient() {
             この日程で予約情報を入力する
           </ReservePrimaryCtaButton>
         </div>
-        <ReserveOutlineRoundLink href="/reserve">イベント案内に戻る</ReserveOutlineRoundLink>
+        <ReserveOutlineRoundLink href="/">イベント案内に戻る</ReserveOutlineRoundLink>
       </div>
     </div>
   );

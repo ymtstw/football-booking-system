@@ -1,16 +1,15 @@
 "use client";
 
 /**
- * トップ（/）専用:
- * - Supabase の #access_token 等はサーバーに届かないため、/auth/update-password に hash ごと付け替える。
- * - それ以外の通常アクセスは予約導線（/reserve）へ寄せる（ルートのポータルは置かない）。
+ * サイトルート `/` 用:
+ * Supabase の #access_token 等はサーバーに届かないため、/auth/update-password に hash ごと付け替える。
+ * それ以外はイベント案内を表示する。
  */
 import { useLayoutEffect } from "react";
-import { useRouter } from "next/navigation";
 
-export function AuthHashRedirect() {
-  const router = useRouter();
+import ReserveEventGuidePage from "./reserve/event-guide-page";
 
+export function HomeReserveRoot() {
   useLayoutEffect(() => {
     const hash = window.location.hash;
     if (hash && hash.length > 1) {
@@ -23,11 +22,9 @@ export function AuthHashRedirect() {
         window.location.replace(
           `${window.location.origin}/auth/update-password${hash}`
         );
-        return;
       }
     }
-    router.replace("/reserve");
-  }, [router]);
+  }, []);
 
-  return null;
+  return <ReserveEventGuidePage />;
 }

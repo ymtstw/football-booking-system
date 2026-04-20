@@ -8,9 +8,10 @@ import { IconMenu, IconSoccerBall, IconX } from "./reserve-icons";
 
 const NAV = [
   {
-    href: "/reserve",
+    href: "/",
     label: "イベント案内",
-    match: (p: string) => p === "/reserve" || p === "/reserve/",
+    match: (p: string) =>
+      p === "/" || p === "/reserve" || p === "/reserve/",
   },
   {
     href: "/reserve/calendar",
@@ -33,7 +34,7 @@ export function ReservePublicHeader() {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
       <div className="mx-auto flex h-[72px] max-w-[1280px] items-center justify-between gap-4 px-6 md:px-8 lg:px-10">
         <Link
-          href="/reserve"
+          href="/"
           className="flex min-w-0 flex-col items-start gap-0.5 text-green-700 lg:flex-row lg:items-center lg:gap-3"
           onClick={() => setMenuOpen(false)}
         >

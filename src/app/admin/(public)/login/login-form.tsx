@@ -39,7 +39,7 @@ export function LoginForm() {
   return (
     <main className="mx-auto flex min-h-[calc(100dvh-2rem)] max-w-md flex-col justify-center px-4 py-8 pb-[max(2rem,env(safe-area-inset-bottom,0px))] pt-[max(1rem,env(safe-area-inset-top,0px))] sm:min-h-[60vh] sm:py-10">
       <p className="mb-4 text-center text-sm text-zinc-500">
-        <Link href="/reserve" className="underline decoration-zinc-400 underline-offset-2">
+        <Link href="/" className="underline decoration-zinc-400 underline-offset-2">
           予約サイトへ
         </Link>
       </p>

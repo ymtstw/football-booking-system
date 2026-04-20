@@ -65,14 +65,24 @@ export function ReserveStepper({ current }: { current: ReserveFlowStep }) {
         </p>
       </div>
 
-      <ol className="mx-auto hidden max-w-4xl flex-nowrap items-center justify-center gap-0.5 sm:flex">
+      {/* sm 以上: ピルは内容幅で全文表示。区切り線のみ flex で伸縮（均等 flex-1 ピルによる省略を防ぐ） */}
+      <ol className="mx-auto hidden w-full max-w-6xl flex-wrap items-center justify-center gap-y-3 sm:flex">
         {STEPS.map(({ step, label }, i) => {
           const done = step < current;
           const active = step === current;
+          const isLast = i === STEPS.length - 1;
+
           return (
-            <li key={step} className="flex min-w-0 flex-1 items-center">
+            <li
+              key={step}
+              className={
+                isLast
+                  ? "flex shrink-0 items-center"
+                  : "flex min-w-0 flex-1 items-center"
+              }
+            >
               <div
-                className={`inline-flex min-w-0 flex-1 flex-row items-center gap-1.5 rounded-full border-2 px-2.5 py-2 sm:gap-2 sm:px-3 sm:py-2.5 ${
+                className={`inline-flex shrink-0 flex-row items-center gap-1.5 rounded-full border-2 px-3 py-2 sm:gap-2 sm:px-3.5 sm:py-2.5 ${
                   active
                     ? "border-green-600 bg-green-600 text-white shadow-sm"
                     : done
@@ -96,13 +106,13 @@ export function ReserveStepper({ current }: { current: ReserveFlowStep }) {
                     step
                   )}
                 </span>
-                <span className="min-w-0 truncate text-[11px] font-bold leading-snug sm:text-sm">
+                <span className="text-xs font-bold leading-snug whitespace-nowrap sm:text-sm">
                   {label}
                 </span>
               </div>
-              {i < STEPS.length - 1 ? (
+              {!isLast ? (
                 <span
-                  className={`mx-0.5 h-0.5 min-w-1.5 shrink-0 flex-1 sm:mx-1 ${
+                  className={`mx-1.5 h-0.5 min-w-3 flex-1 sm:mx-2 ${
                     done ? "bg-green-600" : "bg-slate-300"
                   }`}
                   aria-hidden

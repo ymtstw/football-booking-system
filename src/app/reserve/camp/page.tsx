@@ -79,7 +79,7 @@ export default function ReserveCampConsultPage() {
       <p className="text-center text-sm text-zinc-600">
         日帰りの交流試合のみのお申し込みは、
         <Link
-          href="/reserve"
+          href="/"
           className="font-semibold text-rp-brand underline underline-offset-2"
         >
           予約カレンダー

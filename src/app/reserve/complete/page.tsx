@@ -153,7 +153,7 @@ export default function ReserveCompletePage() {
             予約手続き（開催日選択）へ
           </Link>
           <Link
-            href="/reserve"
+            href="/"
             className="inline-flex min-h-11 items-center text-sm font-semibold text-zinc-600 underline decoration-zinc-400"
           >
             イベント案内へ
@@ -310,7 +310,7 @@ export default function ReserveCompletePage() {
       </div>
       <p className="text-center">
         <Link
-          href="/reserve"
+          href="/"
           className="text-sm font-semibold text-zinc-600 underline decoration-zinc-400 hover:text-rp-navy"
         >
           イベント案内を読む
