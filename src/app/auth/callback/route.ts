@@ -2,6 +2,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/supabase/supabase-env";
+
 /**
  * /auth/callback?next=/foo の「next」が安全か確認する。
  * http://悪意のあるサイト… のように外部へ飛ばされないよう、相対パスだけ許可。
@@ -42,8 +44,8 @@ export async function GET(request: NextRequest) {
   const response = NextResponse.redirect(new URL(nextPath, url.origin));
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    getSupabaseUrl(),
+    getSupabasePublishableKey(),
     {
       cookies: {
         getAll() {

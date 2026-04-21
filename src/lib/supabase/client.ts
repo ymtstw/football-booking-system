@@ -1,11 +1,13 @@
 /** ブラウザ用 Supabase クライアント（ログイン・パスワード再設定等）。Server では server.ts を使う。 */
 import { createBrowserClient } from "@supabase/ssr";
 
+import { getSupabasePublishableKey, getSupabaseUrl } from "./supabase-env";
+
 export function createClient() {
   return createBrowserClient(
-    // プロジェクトの URL・Publishable キー（公開してよいキー）。.env.local の NEXT_PUBLIC_* と対応。
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    // プロジェクトの URL・Publishable キー（公開してよいキー）。supabase-env でレガシー名もフォールバック。
+    getSupabaseUrl(),
+    getSupabasePublishableKey(),
     {
       auth: {
         // PKCE: メールの「再設定」リンクなどで ?code= の一回限りコードが返る流れを使う。

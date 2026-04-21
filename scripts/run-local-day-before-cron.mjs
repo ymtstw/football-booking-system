@@ -41,8 +41,13 @@ if (!secret || secret.length < 16) {
   );
 }
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || !process.env.SUPABASE_SECRET_KEY?.trim()) {
-  die("NEXT_PUBLIC_SUPABASE_URL と SUPABASE_SECRET_KEY が .env.local に必要です。");
+const hasSecret =
+  process.env.SUPABASE_SECRET_KEY?.trim() ||
+  process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || !hasSecret) {
+  die(
+    "NEXT_PUBLIC_SUPABASE_URL と SUPABASE_SECRET_KEY（または移行中 SUPABASE_SERVICE_ROLE_KEY）が .env.local に必要です。"
+  );
 }
 
 if (checkOnly) {
