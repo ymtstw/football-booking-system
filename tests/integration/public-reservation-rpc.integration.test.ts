@@ -138,6 +138,126 @@ describe.skipIf(!hasSupabaseEnv())("integration: create_public_reservation / can
     }
   });
 
+  it("RSV-010: open + 締切未来 → create_public_reservation が success（DB に active 予約）", async () => {
+    const { eventDayId, morningSlotId } = await insertEventDayWithSlots({
+      status: "open",
+      reservationDeadlineAtIso: futureDeadlineIso,
+    });
+    try {
+      const supabase = getIntegrationSupabase();
+      const tokenPlain = randomBytes(32).toString("hex");
+      const tokenHash = hashReservationTokenPlainForTest(tokenPlain);
+      const { data, error } = await supabase.rpc(
+        "create_public_reservation",
+        {
+          ...baseCreateRpcParams(eventDayId, morningSlotId, tokenHash),
+          p_contact_email: `rsv010-${eventDayId.slice(0, 8)}@example.test`,
+        }
+      );
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ success: true });
+
+      const { data: row, error: qErr } = await supabase
+        .from("reservations")
+        .select("id, status")
+        .eq("event_day_id", eventDayId)
+        .eq("reservation_token_hash", tokenHash)
+        .maybeSingle();
+      expect(qErr).toBeNull();
+      expect(row?.status).toBe("active");
+    } finally {
+      await deleteEventDayById(eventDayId);
+    }
+  });
+
+  it("RSV-006: 昼食合計数量が participant_count を上回っても create は success", async () => {
+    const { eventDayId, morningSlotId } = await insertEventDayWithSlots({
+      status: "open",
+      reservationDeadlineAtIso: futureDeadlineIso,
+    });
+    try {
+      const supabase = getIntegrationSupabase();
+      const { data: menuRows, error: menuErr } = await supabase
+        .from("lunch_menu_items")
+        .select("id")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .limit(1);
+      expect(menuErr).toBeNull();
+      const menuId = menuRows?.[0]?.id as string | undefined;
+      expect(menuId).toBeTruthy();
+
+      const tokenHash = randomBytes(32).toString("hex");
+      const participantCount = 2;
+      const lunchQty = 15;
+      const { data, error } = await supabase.rpc("create_public_reservation", {
+        ...baseCreateRpcParams(eventDayId, morningSlotId, tokenHash),
+        p_participant_count: participantCount,
+        p_contact_email: `rsv006-${eventDayId.slice(0, 8)}@example.test`,
+        p_lunch_items: [{ menu_item_id: menuId, quantity: lunchQty }],
+      });
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ success: true });
+
+      const { data: resRow, error: resErr } = await supabase
+        .from("reservations")
+        .select("id")
+        .eq("event_day_id", eventDayId)
+        .eq("reservation_token_hash", tokenHash)
+        .maybeSingle();
+      expect(resErr).toBeNull();
+      const reservationId = resRow?.id as string | undefined;
+      expect(reservationId).toBeTruthy();
+
+      const { data: lines, error: lineErr } = await supabase
+        .from("reservation_lunch_items")
+        .select("quantity")
+        .eq("reservation_id", reservationId!);
+      expect(lineErr).toBeNull();
+      const totalQty = (lines ?? []).reduce((s, r) => s + Number(r.quantity ?? 0), 0);
+      expect(totalQty).toBeGreaterThan(participantCount);
+    } finally {
+      await deleteEventDayById(eventDayId);
+    }
+  });
+
+  it("RSV-021: 午前枠 is_locked のとき slot_locked", async () => {
+    const { eventDayId } = await insertEventDayWithSlots({
+      status: "open",
+      reservationDeadlineAtIso: futureDeadlineIso,
+    });
+    try {
+      const supabase = getIntegrationSupabase();
+      const { data: morningRows, error: mErr } = await supabase
+        .from("event_day_slots")
+        .select("id, slot_code")
+        .eq("event_day_id", eventDayId)
+        .eq("phase", "morning")
+        .eq("is_active", true)
+        .order("slot_code", { ascending: true });
+      expect(mErr).toBeNull();
+      const rows = morningRows ?? [];
+      expect(rows.length).toBeGreaterThanOrEqual(2);
+      const lockedSlotId = rows[1]!.id as string;
+
+      const { error: lockSlotErr } = await supabase
+        .from("event_day_slots")
+        .update({ is_locked: true })
+        .eq("id", lockedSlotId);
+      expect(lockSlotErr).toBeNull();
+
+      const tokenHash = randomBytes(32).toString("hex");
+      const { data, error } = await supabase.rpc("create_public_reservation", {
+        ...baseCreateRpcParams(eventDayId, lockedSlotId, tokenHash),
+        p_contact_email: `slotlck-${eventDayId.slice(0, 8)}@example.test`,
+      });
+      expect(error).toBeNull();
+      expect(data).toMatchObject({ success: false, error: "slot_locked" });
+    } finally {
+      await deleteEventDayById(eventDayId);
+    }
+  });
+
   it("open + 締切未来 → 成功のあと locked にすると cancel は event_not_open", async () => {
     const { eventDayId, morningSlotId } = await insertEventDayWithSlots({
       status: "open",

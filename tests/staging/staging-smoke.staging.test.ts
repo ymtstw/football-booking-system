@@ -13,8 +13,7 @@ import { describe, expect, it } from "vitest";
  *   `sb-...-auth-token` 等を含む Cookie ヘッダー文字列をコピーし:
  *   $env:STAGING_ADMIN_COOKIE="sb-xxxxx-auth-token=..."
  *
- * 参照ケース ID: API-AV-001, API-ED-001, TK-001, MVP-DASH-400, MVP-DASH-200, CK-001
- * 追加候補（未収載）: MVP-NOTIF-401（未認証 GET /api/admin/notifications → 401）
+ * 参照ケース ID: API-AV-001, API-ED-001, TK-001, MVP-DASH-400, MVP-DASH-200, CK-001, MVP-NOTIF-401, undo 認証
  */
 
 function stagingBaseUrl(): string | null {
@@ -132,5 +131,23 @@ describe.skipIf(!stagingBaseUrl())("staging smoke: Cron 認証（CK-001）", () 
       headers: { Authorization: "Bearer definitely-wrong-secret-for-smoke-test" },
     });
     expect([401, 503]).toContain(res.status);
+  });
+});
+
+describe.skipIf(!stagingBaseUrl())("staging smoke: 管理通知・編成 undo（認証）", () => {
+  it("MVP-NOTIF-401: 未認証 GET /api/admin/notifications → 401", async () => {
+    const res = await stagingFetch("/api/admin/notifications?status=failed");
+    expect(res.status).toBe(401);
+  });
+
+  it("TC-EX-UN-401: POST /api/admin/matching/undo 未認証 → 401（Cookie なし）", async () => {
+    const res = await stagingFetch("/api/admin/matching/undo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        eventDayId: "00000000-0000-4000-8000-000000000099",
+      }),
+    });
+    expect(res.status).toBe(401);
   });
 });

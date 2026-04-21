@@ -23,6 +23,8 @@ export async function insertEventDayWithSlots(input: {
   status: "draft" | "open" | "locked";
   reservationDeadlineAtIso: string;
   eventDate?: string;
+  /** 既定以外にすると、Cron 系テストの掃除用に `deleteEventDaysByGradeBand` と併用しやすい */
+  gradeBand?: string;
 }): Promise<{
   eventDayId: string;
   morningSlotId: string;
@@ -30,11 +32,12 @@ export async function insertEventDayWithSlots(input: {
 }> {
   const supabase = getIntegrationSupabase();
   const event_date = input.eventDate ?? nextUniqueEventDate();
+  const grade_band = input.gradeBand ?? "結合テスト";
   const { data: day, error } = await supabase
     .from("event_days")
     .insert({
       event_date,
-      grade_band: "結合テスト",
+      grade_band,
       status: input.status,
       reservation_deadline_at: input.reservationDeadlineAtIso,
     })
@@ -67,4 +70,10 @@ export async function insertEventDayWithSlots(input: {
 export async function deleteEventDayById(eventDayId: string): Promise<void> {
   const supabase = getIntegrationSupabase();
   await supabase.from("event_days").delete().eq("id", eventDayId);
+}
+
+/** Cron / JOB02 結合テスト用。同一 grade_band の開催日をまとめて削除する */
+export async function deleteEventDaysByGradeBand(gradeBand: string): Promise<void> {
+  const supabase = getIntegrationSupabase();
+  await supabase.from("event_days").delete().eq("grade_band", gradeBand);
 }

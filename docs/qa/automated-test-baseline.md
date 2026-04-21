@@ -1,8 +1,12 @@
 # 自動テスト・CI・手動 QA のベースライン（MVP 最小）
 
-**Excel 用の一覧（仕様 ID 単位）:** `docs/qa/MVP_TestSpec_Source.csv`（MVP_Minimum_Run を主に、CI・integration・メタ行・件数サマリを同梱）
+**Excel 用の一覧（仕様 ID 単位）:** `docs/qa/MVP_TestSpec_Source.csv`（MVP_Minimum_Run を主に、CI・integration・メタ行・**台帳状態・MVP前後**・件数サマリを同梱）
+
+**Excel 取込用（実施記録列付き・UTF-8 BOM）:** `docs/qa/MVP_TestSpec_Excel_Export.csv`（`MVP_TestSpec_Source.csv` と同一内容に実施者・日付・結果等の空列を付与。`node scripts/generate-mvp-testspec-excel-export.mjs` で Source から再生成）
 
 **方針:** 広く網羅しない。**毎回の CI は unit のみ**。結合はローカル（またはシークレット整備済み CI）で **`npm run test:integration`**。マッチングの純関数 unit は一段落として扱い、詳細な枠数・警告の考え方は下記「マッチング unit（参照）」へ。
+
+**integration の前提（重要）:** `npm run test:integration` は **結合専用のローカル Supabase** を想定する（`supabase start` かつ **`supabase db reset` で空に近い状態** を推奨）。**共有のローカル DB・本番系 URL では実行しないこと。** 一部のテストは開始時に `matching_runs` → `reservations` → `event_days` の順でデータを削除するため、**他用途の `event_days` 行も消える**。
 
 ---
 
@@ -11,7 +15,7 @@
 | 対象 | コマンド | 前提 | 備考 |
 |------|----------|------|------|
 | **必須（毎 PR / push）** | `npm run test:unit` | Node + `npm ci` のみ | **DB・Supabase 不要**。`vitest.config.ts` → `tests/unit/**/*.test.ts`（現状 **60 テスト**）。 |
-| **含めない（デフォルト）** | `npm run test:integration` | ローカル Supabase + `.env.test` または CI に同等シークレット | RPC・DB 依存。GitHub 既定ではシークレット未設定のことが多いため **ワークフローには載せない**。 |
+| **含めない（デフォルト）** | `npm run test:integration` | **結合専用**ローカル Supabase + `.env.test`（または CI に同等シークレット） | RPC・DB 依存。**上記のとおり DB を掃除するテストあり**。GitHub 既定ではシークレット未設定のことが多いため **ワークフローには載せない**。 |
 | **含めない** | `npm run test:staging` | ステージング URL・環境変数 | 手元 / 専用パイプライン向け。 |
 
 **実装:** `.github/workflows/ci.yml` の `unit` ジョブが `npm run test:unit` のみ実行する。
@@ -97,10 +101,15 @@ npx vitest run tests/unit/build-matching-assignments --config vitest.config.ts
 | ファイル | 見ること |
 |----------|----------|
 | `cron-lock-route.integration.test.ts` | `GET /api/cron/lock-event-days` の **503 / 401**（Supabase 不要）。 |
-| `public-reservation-rpc.integration.test.ts` | `create_public_reservation` / `cancel_public_reservation` の戻り値と DB 前提。 |
+| `cron-lock-event-days-db.integration.test.ts` | JOB01 の **CK-003/010/011/012/021**。締切は「予約作成＝締切未来 → 更新で過去」に固定し、`event_date` は `tokyoIsoDateToday` / `addDaysIsoDate` で一意・東京日を担保。`beforeAll` で `matching_runs`→`reservations`→`event_days` の順に掃除。 |
+| `cron-run-matching-locked-db.integration.test.ts` | JOB02 の **RM-001/010/011** と、`applyMatchingForEventDayId` 連続呼び出しの **RM-012（already_matched）**。`event_date >= tokyoIsoDateToday` 前提は本番ルートと同一。 |
+| `public-reservation-rpc.integration.test.ts` | `create_public_reservation` / `cancel_public_reservation` の戻り値と DB 前提。**RSV-006（昼食合計 > 参加人数）**・**RSV-010（成功）**・**RSV-021（slot_locked）** を含む。 |
+| `public-reservation-post-route.integration.test.ts` | **`POST /api/reservations`** の **RSV-022**（UUID 形式不正 422・幽霊 ID 404。404 は `hasSupabaseEnv` 時のみ）。 |
+| `reservation-token-patch.integration.test.ts` | **`PATCH /api/reservations/[token]`** の **TK-002**（締切後 409・DB 不変）。 |
 | `admin-apply-matching-run.integration.test.ts` | **`admin_apply_matching_run`** の `not_locked` と **locked 後の成功縦割り**。 |
+| `admin-undo-matching.integration.test.ts` | **`admin_undo_afternoon_matching` RPC（TC-EX-UN-200）**・`confirmed`→`locked`。 |
 
-**前提:** `vitest.integration.config.ts` のコメントどおり `supabase start`・`supabase db reset`・プロジェクト直下 **`.env.test`**（`tests/integration/env.test.example` 参照）。
+**前提:** `vitest.integration.config.ts` のコメントどおり **`supabase db reset` 済みの結合専用 DB**・`supabase start`・プロジェクト直下 **`.env.test`**（`tests/integration/env.test.example` 参照）。
 
 ```bash
 npm run test:integration
@@ -117,3 +126,44 @@ npm run test:integration
 - `tests/unit/match-assignment-patch-validation.test.ts`
 
 Staging: `npm run test:staging`（`vitest.staging.config.ts`）。
+
+---
+
+## 9. リリース前の手動確認（推奨実施順・台帳用）
+
+**目的:** 自動テストのあと、**人が同じ順でチェック**すると抜け漏れが減る。`MVP_TestSpec_Source.csv` の **手動のみ / 一部 / 保留かつ MVP前後=必須** と対応づける。
+
+| 順 | 実施内容 | 主な仕様 ID・備考 |
+|----|----------|-------------------|
+| 1 | **ローカル:** `npm run test:unit` → `npm run test:integration`（結合専用 DB・`.env.test`） | META-CI-001 / META-UNIT-* / META-INT-004・CK・RM・RSV・TK 等 |
+| 2 | **ステージング:** `npm run test:staging`（`STAGING_BASE_URL` 等） | API-ED / API-AV / TK-001 / CK-001・DASH 行は Cookie 次第で partial |
+| 3 | **権限・管理導線（ブラウザ）** | AL-001〜003 |
+| 4 | **公開予約 UI**（バリデーション・正常フロー・二重送信） | RSV-001〜003・RSV-010 の UI 部分・RSV-011 |
+| 5 | **管理ダッシュ・API**（staging または手動） | MVP-DASH-400 / 200 |
+| 6 | **締切救済・運用 API（必要なら）** | TC-EX-CU-OK |
+| 7 | **未自動化だが必須に近い確認** | RSV-022 の **404 分岐**（`.env.test` 未整備時は integration skip）・CK-011 の**実メール**（RESEND 設定時）。MVP-NOTIF-401・TC-EX-UN-401 は staging-smoke で自動可 |
+| 8 | **Release_Gate P0**（環境・Cron・本番スモーク等） | P0 行・別シート |
+
+**判断メモ:** 上記は「プロダクトが動くか」の順。**運用独自**（チームマージ MRG-001 等）は MVP 直後でもよい場合は CSV の **MVP前後=任意** に従い後回し可。
+
+---
+
+## 10. MVP 未完了のうち「前に片付ける」／「後でもよい」（CSVと併用）
+
+`MVP_TestSpec_Source.csv` の **台帳状態=保留** と **MVP前後** を正としつつ、次は **運用リスク** での補正（P0 シートがあればそちら優先）。
+
+### リリース前に必須寄り（自動が無くても人で一度は確認）
+
+- **権限・公開体験:** AL-001〜003、RSV-001〜003、RSV-010（画面・sessionStorage）、**P0**。
+- **公開 API の信頼性:** staging での API-ED / API-AV、**RSV-022**（422 は常時 integration、404 は Supabase 環境要）。
+- **通知ゲート:** **MVP-NOTIF-401**・**TC-EX-UN-401**（staging-smoke）。**CK-011** の実送信確認（RESEND 本番／Preview で最低 1 件）。
+- **締切救済:** **TC-EX-CU-OK**（運用で使うなら必須）。
+
+### リリース後でも可（MVP 後に integration や手動を増やす候補）
+
+- **RSV-011**（二重送信・UX）、**RM-013**（JOB02 失敗行の可視化）。
+- **Cron 通知・前日最終・JOB03・再送**（TC-EX-CR-*、NF-010、TC-EX-CR-DBF-*、NF-001、TC-EX-NR-200S）。
+- **当日運用 API**（CHK-*、TC-EX-WX-*、TC-EX-OP-*）。
+- **MRG-001**、**MVP-DASH-200**（データ依存の partial 部分）。
+
+**CSV の読み方:** **台帳状態**＝実施台帳上の進捗。**MVP前後**＝ビジネス上の優先度（**必須**はリリース判断で先に埋める。**任意**は後続スプリント可）。
