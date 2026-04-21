@@ -3,9 +3,9 @@ import { createBrowserClient } from "@supabase/ssr";
 
 export function createClient() {
   return createBrowserClient(
-    // プロジェクトの URL・anon キー（公開してよいキー）。.env.local の NEXT_PUBLIC_* と対応。
+    // プロジェクトの URL・Publishable キー（公開してよいキー）。.env.local の NEXT_PUBLIC_* と対応。
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
     {
       auth: {
         // PKCE: メールの「再設定」リンクなどで ?code= の一回限りコードが返る流れを使う。

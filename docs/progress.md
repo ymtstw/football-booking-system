@@ -49,8 +49,8 @@
 
 - [x] ルートに `.env.local` を置き、必要なキーを定義する
 - [x] 環境変数 `NEXT_PUBLIC_SUPABASE_URL` を定義する
-- [x] 環境変数 `NEXT_PUBLIC_SUPABASE_ANON_KEY` を定義する
-- [x] 環境変数 `SUPABASE_SERVICE_ROLE_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）
+- [x] 環境変数 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` を定義する
+- [x] 環境変数 `SUPABASE_SECRET_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）
 - [x] メール送信用の API キー等のシークレットを定義する（`.env.example`・ローカル `.env.local`・Vercel Preview/Production の `RESEND_API_KEY` / `RESEND_FROM`）
 - [x] Vercel Cron や管理用 API の認可に使うシークレットを定義する（採用する場合）（`CRON_SECRET`・ローカル `curl.exe` / 本番 Vercel Cron で締切ロック API 確認済み）
 - [x] `.env.example` をコミットし、キー名のみ列挙する（値は書かない）
@@ -519,11 +519,11 @@
 #### B. アプリ基盤（サーバーから DB に触る準備）
 
 1. **`src/lib/supabase/service.ts`（名前は任意）**  
-   `createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } })` のような **service role 専用**ファクトリを 1 箇所に集約。  
+   `createClient(url, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })` のような **Secret（service_role 相当）専用**ファクトリを 1 箇所に集約。  
    **import できるのは Server のみ**（`route.ts`・Server Actions・`server-only` 付与などでクライアントから参照されないようにする）。
 
 2. **秘密がクライアントに乗らないことの確認**  
-   `SUPABASE_SERVICE_ROLE_KEY` を `NEXT_PUBLIC_*` にしない。`rg` / エディタ検索で `SERVICE_ROLE` が `src/app/**/*.tsx` や `client.ts` から参照されていないことを確認。`npm run build` 後、必要なら `.next` 内にキー文字列が含まれないか spot 確認。
+   `SUPABASE_SECRET_KEY` を `NEXT_PUBLIC_*` にしない。`rg` / エディタ検索で `SUPABASE_SECRET_KEY` が `src/app/**/*.tsx` や `client.ts` から参照されていないことを確認。`npm run build` 後、必要なら `.next` 内にキー文字列が含まれないか spot 確認。
 
 3. **（任意・0-4）型**  
    `supabase gen types typescript --project-id ...` 等で `Database` 型を生成し、`src/lib/db/` で利用。未導入なら当面 `as any` 最小で進めてもよい。

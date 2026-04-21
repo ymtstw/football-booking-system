@@ -5,13 +5,13 @@
 ## Supabase セットアップ
 
 1. [Supabase ダッシュボード](https://supabase.com/dashboard) → 対象プロジェクト → **Settings** → **API**
-2. **Project URL** と **anon public** キーをコピー
+2. **Project URL** と **Publishable（公開）** キーをコピー
 3. プロジェクト直下に `.env.local` を作成し、以下を記入（値を自分のものに置き換え）:
    ```
    NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_xxx  （または匿名キー）
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
    ```
-   ※ 公開可能キー（sb_publishable_）でも匿名キー（anon）でも可。匿名キーは不要。
+   ※ ダッシュボード表記は「Publishable」または従来の anon public と同じ値です。
 4. 開発サーバーを再起動: `npm run dev`
 
 ## Getting Started

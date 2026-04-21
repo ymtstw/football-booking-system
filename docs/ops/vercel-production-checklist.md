@@ -9,8 +9,8 @@
 | 変数名 | 用途 | メモ |
 |--------|------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase プロジェクト URL | Production に **本番用** Supabase を割り当てる |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ブラウザ用 anon キー | 同上 |
-| `SUPABASE_SERVICE_ROLE_KEY` | サーバー専用（Route Handler） | **絶対に** `NEXT_PUBLIC_*` にしない |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | ブラウザ用 Publishable キー | 同上 |
+| `SUPABASE_SECRET_KEY` | サーバー専用（Route Handler・Secret） | **絶対に** `NEXT_PUBLIC_*` にしない |
 | `CRON_SECRET` | Cron・`POST /api/admin/matching/run` の Bearer | **16 文字以上**のランダム文字列。Preview/Production それぞれ入れるか、方針を決める |
 | `RESEND_API_KEY` | 予約完了・前日・即時雨天メール | 未設定だとメールは飛ばず `notifications` は `pending` のまま |
 | `RESEND_FROM` | Resend の From | 例: `交流試合 <onboarding@resend.dev>` または **検証済み送信用サブドメイン**（設計例: `updates.<apex>`。Web 本番ホストとは別子ドメインを推奨） |
@@ -50,7 +50,7 @@
 
 ## 6. ログ・秘密情報
 
-- サーバーログやクライアントに **`SUPABASE_SERVICE_ROLE_KEY`・`CRON_SECRET`・Resend キー・予約 token 平文**が出ていないか
+- サーバーログやクライアントに **`SUPABASE_SECRET_KEY`・`CRON_SECRET`・Resend キー・予約 token 平文**が出ていないか
 - 利用者向け画面に **メール・電話の全文**が出ていないか（管理画面以外）
 
 ## 7. 運用フロー（前日まで）

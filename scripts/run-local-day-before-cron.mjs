@@ -41,8 +41,8 @@ if (!secret || secret.length < 16) {
   );
 }
 
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || !process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()) {
-  die("NEXT_PUBLIC_SUPABASE_URL と SUPABASE_SERVICE_ROLE_KEY が .env.local に必要です。");
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || !process.env.SUPABASE_SECRET_KEY?.trim()) {
+  die("NEXT_PUBLIC_SUPABASE_URL と SUPABASE_SECRET_KEY が .env.local に必要です。");
 }
 
 if (checkOnly) {

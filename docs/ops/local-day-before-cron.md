@@ -10,8 +10,8 @@ Vercel の Cron は **本番 URL にしか飛びません**。ローカルでロ
 | 変数 | 用途 |
 |------|------|
 | `NEXT_PUBLIC_SUPABASE_URL` | DB（ローカル Supabase なら `supabase status` の API URL） |
-| `SUPABASE_SERVICE_ROLE_KEY` | Cron ルートがサービスロールで DB にアクセス |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | 管理画面・予約画面など（Cron 本体には必須ではないが通常は入れる） |
+| `SUPABASE_SECRET_KEY` | Cron ルートが Secret（service_role 相当）で DB にアクセス |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | 管理画面・予約画面など（Cron 本体には必須ではないが通常は入れる） |
 | `CRON_SECRET` | **16 文字以上**。Cron API の `Authorization: Bearer` と一致させる |
 | `RESEND_API_KEY` / `RESEND_FROM` | **実メールまで試すとき必須**。無いとメール系ジョブは送信をスキップし `pending` のままになり得る |
 | `NEXT_PUBLIC_SITE_URL` | メール内「予約確認」リンク（例: `http://localhost:3000`） |

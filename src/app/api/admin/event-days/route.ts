@@ -132,7 +132,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "DB の行レベル制限に引っかかりました。サーバー用の SUPABASE_SERVICE_ROLE_KEY に「Publishable（anon）」を入れていないか確認し、db:status の Secret と NEXT_PUBLIC_SUPABASE_URL を揃えたうえで next dev を再起動してください。",
+            "DB の行レベル制限に引っかかりました。サーバー用の SUPABASE_SECRET_KEY に NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY（Publishable）を入れていないか確認し、db:status の Secret と NEXT_PUBLIC_SUPABASE_URL を揃えたうえで next dev を再起動してください。",
           code: dayErr.code,
         },
         { status: 503 }
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "event_day_slots の INSERT が RLS で拒否されました。SUPABASE_SERVICE_ROLE_KEY（Secret）を確認してください。",
+            "event_day_slots の INSERT が RLS で拒否されました。SUPABASE_SECRET_KEY（Secret）を確認してください。",
           code: slotsErr.code,
         },
         { status: 503 }

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-04-16T08:04:01.810Z",
+  "generatedAt": "2026-04-21T04:31:47.837Z",
   "sourceFile": "docs/progress.md",
   "taskCount": 265,
   "tasks": [
@@ -46,16 +46,16 @@
       "sourceLine": 51
     },
     {
-      "id": "4697f9abecea691a",
+      "id": "0ff6d31014b6c18d",
       "section": "0. 準備・プロジェクト基盤",
-      "text": "環境変数 `NEXT_PUBLIC_SUPABASE_ANON_KEY` を定義する",
+      "text": "環境変数 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` を定義する",
       "defaultDone": true,
       "sourceLine": 52
     },
     {
-      "id": "75523821d5c7ce0c",
+      "id": "d6731398dba38c36",
       "section": "0. 準備・プロジェクト基盤",
-      "text": "環境変数 `SUPABASE_SERVICE_ROLE_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）",
+      "text": "環境変数 `SUPABASE_SECRET_KEY` をサーバー専用で定義する（クライアントに含めないことを確認）",
       "defaultDone": true,
       "sourceLine": 53
     },
@@ -725,7 +725,7 @@
       "sourceLine": 205
     },
     {
-      "id": "6ac8e7d2b816ea43",
+      "id": "a4dab666f81c5663",
       "section": "2. Phase 2 — 締切・編成・前日確定",
       "text": "**開催2日前15:00（JST）** を標準締切の既定とし、`reservation_deadline_at <= now()` で締切到達分を処理する（`GET /api/cron/lock-event-days`・Cron UTC **`0 6`** = 同日 JST **15:00**。active 3 未満は `cancelled_minimum`＋最少中止メール。仕様: `docs/spec/implemented-behavior-catalog.md` §1）",
       "defaultDone": true,
@@ -767,7 +767,7 @@
       "sourceLine": 223
     },
     {
-      "id": "c63efac5d4407cf6",
+      "id": "1e50127a826bb676",
       "section": "2. Phase 2 — 締切・編成・前日確定",
       "text": "1 チームのみの午前枠を優先して埋める（アルゴリズム詳細は `docs/spec/implemented-matching-algorithm.md`）",
       "defaultDone": true,
