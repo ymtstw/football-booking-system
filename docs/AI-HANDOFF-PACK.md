@@ -4,6 +4,28 @@
 
 ---
 
+## そもそもファイルはどこから取る？
+
+**どこからもダウンロードしません。** 次の **プロジェクトフォルダ（Git のクローン）の中** にあります。
+
+| いま言っている「ルート」 | 例（あなたの PC ではユーザー名が違うことがあります） |
+|---------------------------|--------------------------------------------------------|
+| リポジトリのトップフォルダ | `C:\Users\kashima_y\football-booking-system` |
+
+このドキュメントに出てくる `docs/...` や `scripts/...` は、**いずれも上のトップからの相対パス**です。
+
+| 表に書いてあるパス | 実際の場所（例） |
+|--------------------|------------------|
+| `docs/AI-HANDOFF-PACK.md` | `football-booking-system\docs\AI-HANDOFF-PACK.md` |
+| `docs/test-spec/full-system-test-spec.tsv` | `football-booking-system\docs\test-spec\full-system-test-spec.tsv` |
+| `scripts/test-spec-reviewable-data.mjs` | `football-booking-system\scripts\test-spec-reviewable-data.mjs` |
+
+**Cursor / VS Code で見つけ方:** 左のファイルツリーで **`football-booking-system`** を開いた状態で、フォルダ **`docs`** や **`scripts`** をクリックして開くと、表と同じ名前のファイルが並びます。
+
+**エクスプローラーで見つけ方:** アドレスバーに `C:\Users\kashima_y\football-booking-system\docs` と打って Enter → 中のファイルをコピー。
+
+---
+
 ## ChatGPT に投げる手順（詳しい版・ここから読む）
 
 ### ゴールを決める
