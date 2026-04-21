@@ -1,0 +1,54 @@
+フェーズ,区分,ID,機能/カテゴリ,確認内容,優先理由,参照シート,実行状況,実行結果,メモ,実施方式,実施環境,自動化対象,前提データ,備考
+実施方針,まずこのシートを上から実施。H/I に入力すると Master / Coverage に反映。完了後に Release_Gate のP0を確認。,,,,,,,,,,,,,
+目安時間,半日〜1日（データ準備込み）。修正再テスト込みで1〜2日。,,,,,,,,,,,,,
+,,,,,,,,,,,,,,
+アクセス/権限,テストケース,AL-001,管理アクセス制御,未ログインで保護 URL にアクセスするとログインへ,未認証漏れを防ぐ,Master_TestSpec,,PASS,,manual,staging,no,なし,未ログインCookieで保護URL。staging-smoke は fetch のみのため未カバー。Playwright 等で将来自動化可
+アクセス/権限,テストケース,AL-002,管理アクセス制御,ログイン済みだが app_admins に無いユーザーは保護ページ不可,権限漏れを防ぐ,Master_TestSpec,,PASS,,manual,staging,no,非adminのログイン済みアカウント,403/リダイレクトはブラウザ確認が主
+アクセス/権限,テストケース,AL-003,管理アクセス制御,app_admins ユーザーは保護ページが表示される,本番管理導線の成立確認,Master_TestSpec,,PASS,,manual,staging,no,app_admins ユーザーのログイン済みセッション,管理画面表示の目視確認
+アクセス/権限,テストケース,MVP-DASH-400,管理ダッシュボード,after 欠落または暦日無効は 400,管理導線APIの入力防御,Master_TestSpec,,,,staging-smoke,staging,partial,admin cookie必要（STAGING_ADMIN_COOKIE）,tests/staging/staging-smoke.staging.test.ts。Cookie 未設定時は it skip
+アクセス/権限,テストケース,MVP-DASH-200,管理ダッシュボード,after より後に開催日なしは day null／ありは 1 件,次開催取得の正常動作,Master_TestSpec,,,,staging-smoke,staging,partial,admin cookie必要,同上。after=2099-12-31 で day:null を検証。別分岐（開催日あり）はデータ依存のため未網羅
+公開予約,テストケース,API-ED-001,公開カレンダー,acceptingReservations は status=open かつ締切未来のみ true,公開カレンダーの受付可否表示,Master_TestSpec,,,,staging-smoke,staging,yes,なし,staging-smoke.staging.test.ts（acceptingReservations 整合）
+公開予約,テストケース,API-AV-001,公開カレンダー,日付形式不正は 400、該当なしは 404,日付別空き状況の境界確認,Master_TestSpec,,,,staging-smoke,staging,yes,なし,400 と 404 の2ケースを同一IDで自動化
+公開予約,テストケース,RSV-001,公開予約,確認へ進む前に必須未入力（枠未選択）で止まる,予約前の必須入力防御,Master_TestSpec,,,,manual,local,partial,なし（UI）,【MVP・将来の最優先自動化候補】公開予約の必須バリデーション（枠未選択で止まる）。現状は manual（目視）。自動化の候補レイヤー: ①component test（フォーム・バリデーション最短）②local-integration（必要なら MSW 等で submit 前まで）③Playwright/E2E（実ブラウザの最終確認）。①→②の順で効果が大きい想定。
+公開予約,テストケース,RSV-002,公開予約,参加人数が 1 未満または非整数で止まる,人数境界で事故防止,Master_TestSpec,,,,manual,local,partial,なし（UI）,【MVP・将来の最優先自動化候補】参加人数の境界バリデーション。現状は manual。候補: ①component test ②local-integration ③Playwright/E2E。RSV-001 と同方針で統一しやすい。
+公開予約,テストケース,RSV-003,公開予約,昼食合計数量 0（全メニュー 0）で止まる,昼食必須ルール確認,Master_TestSpec,,,,manual,local,partial,なし（UI）,【MVP・将来の最優先自動化候補】昼食合計0の必須ルール。現状は manual。候補: ①component test ②local-integration ③Playwright/E2E。RSV-001 と同方針で統一しやすい。
+公開予約,テストケース,RSV-006,公開予約,participant_count と meal_count の大小関係は独立し、meal_count が participant_count を上回っても予約できる,人数/昼食仕様差の確認,Master_TestSpec,,,,local-integration,local,partial,開催日・枠・締切前の seed / テストDB,POST /api/reservations と DB 整合。Staging はデータ汚染リスクのため local 推奨
+公開予約,テストケース,RSV-010,公開予約,正常入力で 201・sessionStorage・/reserve/complete 遷移,予約成立の主経路,Master_TestSpec,,,,local-integration,both,partial,受付可能な開催日seed・枠空き（API/DB 側）。sessionStorage・画面遷移は別途 manual/E2E,【切り分け】①HTTP 201・レスポンス body・DB 整合（予約行・関連テーブル）→ local-integration（API route / integration テスト）で自動化するのが第一。②sessionStorage への保存・/reserve/complete への画面遷移・表示確認 → manual または Playwright 等の E2E で別スイートとして扱う。①のみではケース完了扱いにしない運用推奨。
+公開予約,テストケース,RSV-011,公開予約,二重送信: submitting 中は連打しても fetch が重複しない,二重登録防止,Master_TestSpec,,,,manual,local,partial,DevTools Network 推奨,連打時の fetch 重複抑止はブラウザ操作が主
+公開予約,テストケース,RSV-020,公開予約,締切後は 409（event_not_open / deadline_passed）,締切後受付防止,Master_TestSpec,,,,local-integration,local,partial,締切後の open 開催日 seed,409 とメッセージの確認
+公開予約,テストケース,RSV-021,公開予約,満枠・枠ロックは 409（slot_full / slot_locked / day_full）,満枠/ロック時の拒否,Master_TestSpec,,,,local-integration,local,partial,満枠・ロック状態の seed,Staging では再現コストが高い
+公開予約,テストケース,RSV-022,公開予約,不正 UUID（開催日・枠）で 404 系,不正IDの拒否,Master_TestSpec,,,,local-integration,local,yes,なし（不正UUID）,API のみなら local の route テストで可
+公開予約,テストケース,RSV-023,公開予約,draft 等（公開ステータス外）は RPC で受付不可（409 等、実装準拠）,非公開日の受付防止,Master_TestSpec,,,,local-integration,local,partial,draft 等ステータスの開催日 seed,非公開日の拒否
+公開予約,テストケース,TK-001,予約トークン,形式不正トークンは 404,トークン推測対策,Master_TestSpec,,,,staging-smoke,staging,yes,なし,staging-smoke.staging.test.ts
+公開予約,テストケース,TK-002,予約トークン,締切後 PATCH は拒否（HTTP と DB 無変更）,締切後変更禁止,Master_TestSpec,,,,local-integration,local,partial,締切後の active 予約トークン・DB読取,PATCH と DB 不変。Staging ではデータ準備が重い
+締切/ロック,テストケース,CK-001,締切Cron（JOB01）,Bearer 不一致は 401（再実行含め毎回検証）,Cron保護,Master_TestSpec,,,,staging-smoke,staging,partial,なし（Bearer誤り）／本仕様の再実行検証は別途,401 または 503（CRON_SECRET 未設定時）を許容。staging-smoke に実装
+締切/ロック,テストケース,CK-002,締切Cron（JOB01）,CRON_SECRET 未設定または短すぎると 503,設定漏れ検知,Master_TestSpec,,,,local-integration,local,partial,CRON_SECRET 未設定または短い値のプロセス起動,Staging の環境変数は操作不可のため local-integration
+締切/ロック,テストケース,CK-003,締切Cron（JOB01）,対象 open かつ締切済みが 0 件のときは配列空で成功,空振りでも正常終了,Master_TestSpec,,,,local-integration,local,partial,該当0件のDB状態,Cron 本体の戻り配列検証
+締切/ロック,テストケース,CK-010,締切Cron（JOB01）,締切前の open はクエリ対象外（更新なし）,締切前誤ロック防止,Master_TestSpec,,,,local-integration,local,partial,締切前 open の seed,
+締切/ロック,テストケース,CK-011,締切Cron（JOB01）,締切後・active 数 < 3 → cancelled_minimum と通知フロー,最少催行の主分岐,Master_TestSpec,,,,local-integration,local,partial,締切後・active<3・通知モック等,最少催行分岐はデータ依存が強い
+締切/ロック,テストケース,CK-012,締切Cron（JOB01）,締切後・active 数 >= 3 → locked（JOB02 前提）,ロックの主分岐,Master_TestSpec,,,,local-integration,local,partial,締切後・active>=3 の seed,
+締切/ロック,テストケース,CK-021,締切Cron（JOB01）,冪等: 2 回目の Cron は open+締切済みが無ければ両配列 0,Cron冪等性,Master_TestSpec,,,,local-integration,local,partial,同一状態で2回叩ける seed,冪等性
+締切/ロック,テストケース,TC-EX-CU-OK,管理API｜締切catchup,applyReservationDeadlineCatchup: ok locked or minimum,手動救済の正規経路,Master_TestSpec,,,,manual,both,partial,admin 認証・対象イベント状態,【現時点】救済オペ寄りのため manual 優先でよい。【将来】apply-deadline-catchup の成功系は local-integration（管理 API + DB seed + モック）での自動化候補。運用フローと分けてテストファイルに切り出すと再現しやすい。
+編成/通知,テストケース,RM-001,締切後自動編成（JOB02）,認証は lock-event-days と同様（401/503）,Cron保護,Master_TestSpec,,,,local-integration,local,partial,cron secret・Bearer 検証用,lock-event-days と同系の認証
+編成/通知,テストケース,RM-010,締切後自動編成（JOB02）,locked かつ event_date >= 東京今日 が 0 件,対象0件の正常終了,Master_TestSpec,,,,local-integration,local,partial,対象0件の locked 日なし状態,
+編成/通知,テストケース,RM-011,締切後自動編成（JOB02）,1 日分 ok:true で matchingRunId・assignmentCount が返る,自動編成の主経路,Master_TestSpec,,,,local-integration,local,partial,locked 日・編成可能データ seed,JOB02 主経路
+編成/通知,テストケース,RM-012,締切後自動編成（JOB02）,already_matched / not_locked は results で ok:true skipped に格納,スキップ分岐の扱い,Master_TestSpec,,,,local-integration,local,partial,skipped 分岐用 seed,
+編成/通知,テストケース,RM-013,締切後自動編成（JOB02）,上記以外の失敗は results で ok:false + error,失敗日の見逃し防止,Master_TestSpec,,,,local-integration,local,partial,失敗系 seed,
+編成/通知,テストケース,TC-EX-CR-MP-06,Cron｜マッチング案内（内部分岐）,送信後 notifications.status が sent,案内通知送信成功,Master_TestSpec,,,,local-integration,local,partial,通知送信モック・notifications seed,内部分岐
+編成/通知,テストケース,TC-EX-CR-MP-07,Cron｜マッチング案内（内部分岐）,送信後 status が failed,案内通知失敗反映,Master_TestSpec,,,,local-integration,local,partial,同上,failed 反映
+編成/通知,テストケース,NF-010,通知・メール,JOB03: 認証失敗は 401/503。成功時は summary に sent/skipped/failed,JOB03主経路,Master_TestSpec,,,,local-integration,local,partial,cron secret・メール送信モック,JOB03
+編成/通知,テストケース,TC-EX-CR-DBF-07,Cron｜前日最終（内部分岐）,variant=held（status confirmed）,前日最終の確定案内,Master_TestSpec,,,,local-integration,local,partial,confirmed 系 seed・通知,
+編成/通知,テストケース,TC-EX-CR-DBF-10,Cron｜前日最終（内部分岐）,variant=pending_matching（status locked）,未確定日にも通知ロジックが成立,Master_TestSpec,,,,local-integration,local,partial,locked 系 seed,
+通知再送,テストケース,NF-001,通知・メール,failed を pending に戻し再送可能（成功時は notifications と実メール）,failed再送の正規経路,Master_TestSpec,,,,local-integration,local,partial,failed 通知・再送用 seed,Resend モック推奨
+通知再送,テストケース,MVP-NOTIF-401,通知一覧,未認証は 401,通知一覧保護,Master_TestSpec,,,,staging-smoke,staging,partial,なし（未認証GET）,通知一覧の未認証 401 は fetch のみで staging でも検証可能。staging-smoke.test.ts への追加が最短（現状は未収載のため partial）。追加 it 例: Cookie なしで GET /api/admin/notifications → 401
+通知再送,テストケース,TC-EX-NR-200S,管理API｜notifications retry,再送結果 sent（lib）,failed→sentの確認,Master_TestSpec,,,,local-integration,local,partial,admin cookie または service role・failed→sent 用 seed,管理API
+当日運用/例外操作,テストケース,CHK-001,管理API｜checkins,当日チェックインを新規登録できる,当日受付オペの成立,Master_TestSpec,,,,local-integration,local,partial,当日開催・チーム seed・admin,
+当日運用/例外操作,テストケース,CHK-002,管理API｜checkins,同一開催日・同一チームの再登録は upsert され、重複行を作らない,重複チェックイン防止,Master_TestSpec,,,,local-integration,local,partial,同一開催日・チームの既存行,upsert 検証
+当日運用/例外操作,テストケース,MRG-001,管理API｜team-merge,source team を target team へ統合できる,チーム重複整理の成立,Master_TestSpec,,,,local-integration,local,partial,2チーム・関連テーブル seed,データ破壊的のため staging 非推奨
+当日運用/例外操作,テストケース,TC-EX-WX-200GO,管理API｜weather-decision,go 正常,天候判断の正常復帰,Master_TestSpec,,,,local-integration,local,partial,開催日・admin,
+当日運用/例外操作,テストケース,TC-EX-WX-200CIM,管理API｜weather-decision,cancel immediate 正常,即時雨天中止と通知,Master_TestSpec,,,,local-integration,local,partial,同上,
+当日運用/例外操作,テストケース,TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,前日17時予約の成立,Master_TestSpec,,,,local-integration,local,partial,同上,
+当日運用/例外操作,テストケース,TC-EX-OP-200,管理API｜operational-cancel,正常中止,運営中止の正常経路,Master_TestSpec,,,,local-integration,local,partial,運営中止対象 seed・admin,
+当日運用/例外操作,テストケース,TC-EX-OP-200IM,管理API｜operational-cancel,即時通知付き,即時通知付き運営中止,Master_TestSpec,,,,local-integration,local,partial,同上＋即時通知モック,
+当日運用/例外操作,テストケース,TC-EX-UN-200,管理API｜matching undo,admin_undo_afternoon_matching: 成功,編成やり直しの正規経路,Master_TestSpec,,,,local-integration,local,partial,編成済みデータ・admin,
+環境/運用前提,リリースゲート,P0,Release_Gate,Release_Gate の P0 項目をすべて完了にする,アプリが動いても環境未整備だと本番事故になるため,Release_Gate,"=IF(COUNTIF(Release_Gate!$D$2:$D$25,""P0"")=0,"""",IF(COUNTIFS(Release_Gate!$D$2:$D$25,""P0"",Release_Gate!$F$2:$F$25,""完了"")=COUNTIF(Release_Gate!$D$2:$D$25,""P0""),""完了"",IF(COUNTIFS(Release_Gate!$D$2:$D$25,""P0"",Release_Gate!$F$2:$F$25,""完了"")>0,""実施中"",""未着手"")))","=IF(COUNTIF(Release_Gate!$D$2:$D$25,""P0"")=0,"""",IF(COUNTIFS(Release_Gate!$D$2:$D$25,""P0"",Release_Gate!$G$2:$G$25,""FAIL"")+COUNTIFS(Release_Gate!$D$2:$D$25,""P0"",Release_Gate!$G$2:$G$25,""BLOCK"")>0,""FAIL"",IF(COUNTIFS(Release_Gate!$D$2:$D$25,""P0"",Release_Gate!$G$2:$G$25,""PASS"")=COUNTIF(Release_Gate!$D$2:$D$25,""P0""),""PASS"","""")))",環境変数、Cron、Supabase、Resend、前日運用、スモーク、セキュリティ,manual,both,no,Release_Gate シート連携,チェックリスト全体。自動化対象外

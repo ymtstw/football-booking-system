@@ -1,15 +1,22 @@
+import { randomBytes } from "node:crypto";
+
 import { toEventDaySlotRows } from "@/domains/event-days/default-slots";
 
 import { getIntegrationSupabase } from "./service-role-client";
 
 let serial = 0;
 
-/** UNIQUE(event_date) 用のテスト日付を採番 */
+/**
+ * UNIQUE(event_date) 用。DB に残った過去のテスト行と衝突しないよう、
+ * 2070 年台のランダム日オフセット＋連番で採番する。
+ */
 export function nextUniqueEventDate(): string {
   serial += 1;
-  const day = 1 + (serial % 28);
-  const month = 1 + (((serial / 28) | 0) % 12);
-  return `2099-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const salt = randomBytes(4).readUInt32BE(0);
+  const dayOffset = (serial * 7919 + salt) % 12000;
+  const base = new Date(Date.UTC(2070, 0, 1));
+  base.setUTCDate(base.getUTCDate() + dayOffset);
+  return base.toISOString().slice(0, 10);
 }
 
 export async function insertEventDayWithSlots(input: {
