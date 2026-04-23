@@ -4,6 +4,12 @@
 
 **Excel 取込用（実施記録列付き・UTF-8 BOM）:** `docs/qa/MVP_TestSpec_Excel_Export.csv`（`MVP_TestSpec_Source.csv` と同一内容に実施者・日付・結果等の空列を付与。`node scripts/generate-mvp-testspec-excel-export.mjs` で Source から再生成）
 
+**テスト実行結果付き台帳（CSV）:** `docs/qa/MVP_TestSpec_Execution_Report.csv`。**「最新の自動テスト結果まで含めたテスト仕様書」として他 AI や Excel に渡すなら主にこのファイル**（`MVP_TestSpec_Source.csv` の論理行＋試験結果列）。更新は **`node scripts/run-qa-tests-and-report.mjs`**（推奨）で unit / integration / staging 実行後に自動反映。手動だけ変えたいときは `npm run qa:execution-report` と `scripts/generate-mvp-testspec-execution-report.mjs` 先頭の `REPORT_*`。
+
+**一括:** `npm run qa:tests-and-report` … 上記3コマンドを順に実行し、終了コードに応じて `MVP_TestSpec_Execution_Report.csv` を更新する（`scripts/run-qa-tests-and-report.mjs`）。**PowerShell で `npm.ps1` が実行できないエラー**のときは `npm.cmd run qa:tests-and-report` または **`node scripts/run-qa-tests-and-report.mjs`**（内部は Windows で `npm.cmd` を使用）。
+
+**参照関係（短く）:** `MVP_TestSpec_Source.csv`＝正本（要件・台帳）。`MVP_TestSpec_Excel_Export.csv`＝正本＋実施記録**空欄**のテンプレ。`MVP_TestSpec_Execution_Report.csv`＝正本相当＋**試験結果・実施日**（自動実行のあとに更新）。`MVP_Minimum_Run.csv`・`Master_TestSpec.csv` は運用シート／マスター系の参照元。
+
 **方針:** 広く網羅しない。**毎回の CI は unit のみ**。結合はローカル（またはシークレット整備済み CI）で **`npm run test:integration`**。マッチングの純関数 unit は一段落として扱い、詳細な枠数・警告の考え方は下記「マッチング unit（参照）」へ。
 
 **integration の前提（重要）:** `npm run test:integration` は **結合専用のローカル Supabase** を想定する（`supabase start` かつ **`supabase db reset` で空に近い状態** を推奨）。**共有のローカル DB・本番系 URL では実行しないこと。** 一部のテストは開始時に `matching_runs` → `reservations` → `event_days` の順でデータを削除するため、**他用途の `event_days` 行も消える**。
@@ -16,7 +22,7 @@
 |------|----------|------|------|
 | **必須（毎 PR / push）** | `npm run test:unit` | Node + `npm ci` のみ | **DB・Supabase 不要**。`vitest.config.ts` → `tests/unit/**/*.test.ts`（現状 **60 テスト**）。 |
 | **含めない（デフォルト）** | `npm run test:integration` | **結合専用**ローカル Supabase + `.env.test`（または CI に同等シークレット） | RPC・DB 依存。**上記のとおり DB を掃除するテストあり**。GitHub 既定ではシークレット未設定のことが多いため **ワークフローには載せない**。 |
-| **含めない** | `npm run test:staging` | ステージング URL・環境変数 | 手元 / 専用パイプライン向け。 |
+| **含めない** | `npm run test:staging` | ネットワーク到達可能な環境。既定 URL は **`.env.staging.example`**（`vitest.staging.config.ts` が読込）。Cookie 任意は **`.env.staging`** | 手元 / 専用パイプライン向け。 |
 
 **実装:** `.github/workflows/ci.yml` の `unit` ジョブが `npm run test:unit` のみ実行する。
 
@@ -25,6 +31,7 @@
 ```bash
 npm run test:unit
 npm run test:integration   # supabase start && db reset && .env.test 済みのとき
+npm run test:staging       # .env.staging.example で STAGING_BASE_URL 既定。MVP-DASH は STAGING_ADMIN_COOKIE 任意
 ```
 
 ---
@@ -108,6 +115,7 @@ npx vitest run tests/unit/build-matching-assignments --config vitest.config.ts
 | `reservation-token-patch.integration.test.ts` | **`PATCH /api/reservations/[token]`** の **TK-002**（締切後 409・DB 不変）。 |
 | `admin-apply-matching-run.integration.test.ts` | **`admin_apply_matching_run`** の `not_locked` と **locked 後の成功縦割り**。 |
 | `admin-undo-matching.integration.test.ts` | **`admin_undo_afternoon_matching` RPC（TC-EX-UN-200）**・`confirmed`→`locked`。 |
+| `admin-weather-op-notification-retry.integration.test.ts` | 管理 API **`/api/admin/event-days/[id]/weather-decision`**（**TC-EX-WX-200GO/200CIM/200CDB**）・**`operational-cancel`（OP-200/200IM）**・**`POST /api/admin/notifications/[id]/retry`（NF-001 / TC-EX-NR-200S）**。`getAdminUser` を Vitest でモックし、**`auth.admin.createUser` で `decided_by` 用のユーザーを作る**（`weather_decisions.decided_by` の FK 用）。 |
 
 **前提:** `vitest.integration.config.ts` のコメントどおり **`supabase db reset` 済みの結合専用 DB**・`supabase start`・プロジェクト直下 **`.env.test`**（`tests/integration/env.test.example` 参照）。
 
@@ -125,7 +133,7 @@ npm run test:integration
 - `tests/unit/reservation-deadline-default.test.ts`
 - `tests/unit/match-assignment-patch-validation.test.ts`
 
-Staging: `npm run test:staging`（`vitest.staging.config.ts`）。
+Staging: `npm run test:staging`（`vitest.staging.config.ts`。プロジェクト直下の **`.env.staging.example`** で既定の `STAGING_BASE_URL` を読み込み、任意で **`.env.staging`** が上書き用）。
 
 ---
 
@@ -136,7 +144,7 @@ Staging: `npm run test:staging`（`vitest.staging.config.ts`）。
 | 順 | 実施内容 | 主な仕様 ID・備考 |
 |----|----------|-------------------|
 | 1 | **ローカル:** `npm run test:unit` → `npm run test:integration`（結合専用 DB・`.env.test`） | META-CI-001 / META-UNIT-* / META-INT-004・CK・RM・RSV・TK 等 |
-| 2 | **ステージング:** `npm run test:staging`（`STAGING_BASE_URL` 等） | API-ED / API-AV / TK-001 / CK-001・DASH 行は Cookie 次第で partial |
+| 2 | **ステージング:** `npm run test:staging`（`.env.staging.example`＋任意 `.env.staging`） | API-ED / API-AV / TK-001 / CK-001 等は常時実行。**MVP-DASH** は `.env.staging` の `STAGING_ADMIN_COOKIE` 未設定時のみ it skip |
 | 3 | **権限・管理導線（ブラウザ）** | AL-001〜003 |
 | 4 | **公開予約 UI**（バリデーション・正常フロー・二重送信） | RSV-001〜003・RSV-010 の UI 部分・RSV-011 |
 | 5 | **管理ダッシュ・API**（staging または手動） | MVP-DASH-400 / 200 |
@@ -164,6 +172,6 @@ Staging: `npm run test:staging`（`vitest.staging.config.ts`）。
 - **RSV-011**（二重送信・UX）、**RM-013**（JOB02 失敗行の可視化）。
 - **Cron 通知・前日最終・JOB03・再送**（TC-EX-CR-*、NF-010、TC-EX-CR-DBF-*、NF-001、TC-EX-NR-200S）。
 - **当日運用 API**（CHK-*、TC-EX-WX-*、TC-EX-OP-*）。
-- **MRG-001**、**MVP-DASH-200**（データ依存の partial 部分）。
+- **MRG-001**、**MVP-DASH-200**（開催日あり分岐などデータ依存の partial 部分。MVP-DASH-400 は Cookie 設定で Vitest 自動可）。
 
 **CSV の読み方:** **台帳状態**＝実施台帳上の進捗。**MVP前後**＝ビジネス上の優先度（**必須**はリリース判断で先に埋める。**任意**は後続スプリント可）。

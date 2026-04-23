@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { AdminSignOutButton } from "./sign-out-button";
 
-type AdminSection = "ops" | "reserve" | "cases" | "settings";
+type AdminSection = "ops" | "reserve" | "settings";
 
 type SectionDef = {
   id: AdminSection;
@@ -23,7 +23,10 @@ const SECTIONS: readonly SectionDef[] = [
     links: [
       { href: "/admin/dashboard", label: "直近の開催状況" },
       { href: "/admin/pre-day-results", label: "試合編成（前日確定）" },
-      { href: "/admin/event-days", label: "開催日一覧" },
+      { href: "/admin/event-days", label: "開催日の登録・一覧" },
+      { href: "/admin/notifications/failed", label: "メール失敗" },
+      { href: "/admin/camp-inquiries", label: "合宿相談" },
+      { href: "/admin/tournament-inquiries", label: "お問い合わせ" },
     ],
   },
   {
@@ -31,16 +34,6 @@ const SECTIONS: readonly SectionDef[] = [
     label: "予約管理",
     defaultHref: "/admin/reservations",
     links: [{ href: "/admin/reservations", label: "予約一覧" }],
-  },
-  {
-    id: "cases",
-    label: "対応案件",
-    defaultHref: "/admin/notifications/failed",
-    links: [
-      { href: "/admin/notifications/failed", label: "メール失敗" },
-      { href: "/admin/camp-inquiries", label: "合宿相談" },
-      { href: "/admin/tournament-inquiries", label: "大会お問い合わせ" },
-    ],
   },
   {
     id: "settings",
@@ -54,7 +47,6 @@ const SECTIONS: readonly SectionDef[] = [
 const MOBILE_ICON_GRAD: Record<AdminSection, string> = {
   ops: "from-emerald-700 to-emerald-900",
   reserve: "from-sky-700 to-sky-900",
-  cases: "from-violet-700 to-violet-900",
   settings: "from-amber-600 to-amber-800",
 };
 
@@ -73,12 +65,6 @@ const SECTION_THEME: Record<
       "bg-sky-800 !text-white hover:!text-white shadow-sm ring-1 ring-sky-900/20",
     drawerTop: "bg-sky-600",
     drawerIcon: "text-sky-700",
-  },
-  cases: {
-    segmentActive:
-      "bg-violet-800 !text-white hover:!text-white shadow-sm ring-1 ring-violet-900/20",
-    drawerTop: "bg-violet-600",
-    drawerIcon: "text-violet-800",
   },
   settings: {
     segmentActive:
@@ -140,35 +126,41 @@ function SectionIcon({ id, className }: { id: AdminSection; className?: string }
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
-    case "cases":
-      return (
-        <svg
-          className={cn}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-        >
-          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-          <polyline points="22,6 12,13 2,6" />
-        </svg>
-      );
     default:
       return null;
   }
 }
 
+/** `/admin/event-days/{uuid}` およびその配下（枠・通知など）からハブ URL を得る */
+const EVENT_DAY_HUB_PATH =
+  /^\/admin\/event-days\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+
+function eventDayHubHrefFromPathname(pathname: string | null): string | null {
+  if (!pathname) return null;
+  const m = pathname.match(EVENT_DAY_HUB_PATH);
+  return m ? `/admin/event-days/${m[1]}` : null;
+}
+
+function getOpsSubnavLinks(pathname: string | null): readonly { href: string; label: string }[] {
+  const hub = eventDayHubHrefFromPathname(pathname);
+  const base = SECTIONS[0].links;
+  if (!hub) return base;
+  return [...base, { href: hub, label: "この開催のまとめ" }];
+}
+
 function isSubnavCurrent(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
   if (pathname === href) return true;
-  if (href === "/admin/event-days" && pathname.startsWith("/admin/event-days/")) return true;
-  if (href === "/admin/reservations" && pathname.startsWith("/admin/reservations/")) return true;
-  if (href === "/admin/camp-inquiries" && pathname.startsWith("/admin/camp-inquiries/")) return true;
-  if (href === "/admin/tournament-inquiries" && pathname.startsWith("/admin/tournament-inquiries/"))
+  // 開催日の「まとめ」タブ: ハブ本体と枠・雨天・通知など同一開催の子ルート
+  if (href.startsWith("/admin/event-days/") && EVENT_DAY_HUB_PATH.test(href)) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+  if (href === "/admin/event-days") return pathname === "/admin/event-days";
+  if (href === "/admin/notifications/failed" && pathname.startsWith("/admin/notifications")) return true;
+  if (href === "/admin/camp-inquiries" && pathname.startsWith("/admin/camp-inquiries")) return true;
+  if (href === "/admin/tournament-inquiries" && pathname.startsWith("/admin/tournament-inquiries"))
     return true;
+  if (href === "/admin/reservations" && pathname.startsWith("/admin/reservations/")) return true;
   if (href === "/admin/lunch-menu" && pathname.startsWith("/admin/lunch-menu")) return true;
   return false;
 }
@@ -177,12 +169,13 @@ function resolveSection(pathname: string | null): AdminSection {
   if (!pathname) return "ops";
   if (pathname.startsWith("/admin/reservations")) return "reserve";
   if (pathname.startsWith("/admin/lunch-menu")) return "settings";
+  // メール失敗・問い合わせ一覧はメインナビに載せないが、ヘッダー区分は開催運営に寄せる
   if (
     pathname.startsWith("/admin/notifications") ||
     pathname.startsWith("/admin/camp-inquiries") ||
     pathname.startsWith("/admin/tournament-inquiries")
   ) {
-    return "cases";
+    return "ops";
   }
   if (
     pathname.startsWith("/admin/dashboard") ||
@@ -229,6 +222,11 @@ export function AdminProtectedHeader({ userEmail }: Props) {
   const activeSection = useMemo(() => resolveSection(pathname), [pathname]);
   const activeDef = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0];
   const theme = SECTION_THEME[activeSection];
+
+  const subnavLinks = useMemo(() => {
+    if (activeSection === "ops") return getOpsSubnavLinks(pathname);
+    return activeDef.links;
+  }, [activeSection, activeDef.links, pathname]);
 
   const [menuOpen, setMenuOpen] = useState(false);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -363,11 +361,11 @@ export function AdminProtectedHeader({ userEmail }: Props) {
               aria-label={`${activeDef.label}内のページ`}
               className="mt-2 flex min-h-10 flex-wrap items-center gap-1 rounded-lg border border-zinc-100 bg-zinc-50/90 p-1"
             >
-              {activeDef.links.map(({ href, label }) => {
+              {subnavLinks.map(({ href, label }) => {
                 const isCurrent = isSubnavCurrent(pathname, href);
                 return (
                   <Link
-                    key={href}
+                    key={`${href}-${label}`}
                     href={href}
                     className={isCurrent ? subActive : subInactive}
                     aria-current={isCurrent ? "page" : undefined}
@@ -435,33 +433,26 @@ export function AdminProtectedHeader({ userEmail }: Props) {
                         <span className="text-sm font-bold text-zinc-900">{sec.label}</span>
                       </div>
                       <div className="space-y-0.5 p-2">
-                        {sec.links.map(({ href, label }) => {
-                          const isEventDays = href === "/admin/event-days";
-                          const isRes = href === "/admin/reservations";
-                          const isCamp = href === "/admin/camp-inquiries";
-                          const isTournament = href === "/admin/tournament-inquiries";
-                          const isCurrent =
-                            pathname === href ||
-                            (isEventDays && pathname?.startsWith("/admin/event-days/")) ||
-                            (isRes && pathname?.startsWith("/admin/reservations/")) ||
-                            (isCamp && pathname?.startsWith("/admin/camp-inquiries/")) ||
-                            (isTournament && pathname?.startsWith("/admin/tournament-inquiries/"));
-                          return (
-                            <Link
-                              key={href}
-                              href={href}
-                              className={
-                                isCurrent
-                                  ? "flex min-h-11 items-center rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-sm font-semibold text-white shadow-sm"
-                                  : "flex min-h-11 items-center rounded-lg border border-transparent px-3 text-sm font-medium text-zinc-800 hover:border-zinc-200 hover:bg-zinc-50"
-                              }
-                              aria-current={isCurrent ? "page" : undefined}
-                              onClick={closeMenu}
-                            >
-                              {label}
-                            </Link>
-                          );
-                        })}
+                        {(sec.id === "ops" ? getOpsSubnavLinks(pathname) : sec.links).map(
+                          ({ href, label }) => {
+                            const isCurrent = isSubnavCurrent(pathname, href);
+                            return (
+                              <Link
+                                key={`${href}-${label}`}
+                                href={href}
+                                className={
+                                  isCurrent
+                                    ? "flex min-h-11 items-center rounded-lg border border-zinc-700 bg-zinc-900 px-3 text-sm font-semibold text-white shadow-sm"
+                                    : "flex min-h-11 items-center rounded-lg border border-transparent px-3 text-sm font-medium text-zinc-800 hover:border-zinc-200 hover:bg-zinc-50"
+                                }
+                                aria-current={isCurrent ? "page" : undefined}
+                                onClick={closeMenu}
+                              >
+                                {label}
+                              </Link>
+                            );
+                          }
+                        )}
                       </div>
                     </div>
                   );

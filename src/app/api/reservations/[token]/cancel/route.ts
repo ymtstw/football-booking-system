@@ -10,6 +10,10 @@ import {
   isValidReservationTokenFormat,
   normalizeReservationTokenPlain,
 } from "@/lib/reservations/token";
+import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_WRITE_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 type RpcResult = {
@@ -44,8 +48,12 @@ export async function POST(
   });
 
   if (error) {
+    logPublicReserveApiSupabaseError(
+      "POST /api/reservations/[token]/cancel cancel_public_reservation",
+      error
+    );
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error.code },
       { status: 500 }
     );
   }

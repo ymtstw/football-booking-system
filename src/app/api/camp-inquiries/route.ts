@@ -5,6 +5,10 @@ import {
   parseCampInquiryAnswers,
 } from "@/lib/camp-inquiry/camp-inquiry-field-registry";
 import { sendCampInquiryNotifyEmail } from "@/lib/email/camp-inquiry-notify-mail";
+import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_WRITE_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
 import { rateLimitCampInquiryCreate } from "@/lib/rate-limit/camp-inquiry-public";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -51,8 +55,11 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !row?.id) {
+    if (error) {
+      logPublicReserveApiSupabaseError("POST /api/camp-inquiries insert", error);
+    }
     return NextResponse.json(
-      { error: error?.message ?? "保存に失敗しました" },
+      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error?.code },
       { status: 500 }
     );
   }

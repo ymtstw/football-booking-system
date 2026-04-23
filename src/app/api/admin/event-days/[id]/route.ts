@@ -4,6 +4,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -110,6 +111,13 @@ export async function PATCH(
       { error: "公開前に戻せるのは公開中（open）のときだけです" },
       { status: 422 }
     );
+  }
+
+  if (nextStatus === "open" && current === "draft") {
+    const lunch = await assertEventDayAcceptsBookableLunchMenus(supabase, id);
+    if (!lunch.ok) {
+      return NextResponse.json({ error: lunch.message }, { status: 422 });
+    }
   }
 
   const { data: updated, error: updateErr } = await supabase

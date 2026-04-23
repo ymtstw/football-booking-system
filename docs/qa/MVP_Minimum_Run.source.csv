@@ -1,4 +1,4 @@
-﻿フェーズ,区分,ID,機能/カテゴリ,確認内容,優先理由,参照シート,実行状況,実行結果,メモ
+フェーズ,区分,ID,機能/カテゴリ,確認内容,優先理由,参照シート,実行状況,実行結果,メモ
 実施方針,まずこのシートを上から実施。H/I に入力すると Master / Coverage に反映。完了後に Release_Gate のP0を確認。,,,,,,,,
 目安時間,半日〜1日（データ準備込み）。修正再テスト込みで1〜2日。,,,,,,,,
 ,,,,,,,,,
@@ -47,7 +47,7 @@
 当日運用/例外操作,テストケース,MRG-001,管理API｜team-merge,source team を target team へ統合できる,チーム重複整理の成立,Master_TestSpec,,,
 当日運用/例外操作,テストケース,TC-EX-WX-200GO,管理API｜weather-decision,go 正常,天候判断の正常復帰,Master_TestSpec,,,
 当日運用/例外操作,テストケース,TC-EX-WX-200CIM,管理API｜weather-decision,cancel immediate 正常,即時雨天中止と通知,Master_TestSpec,,,
-当日運用/例外操作,テストケース,TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,前日17時予約の成立,Master_TestSpec,,,
+当日運用/例外操作,テストケース,TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,前日一括（day_before_17）予約の成立,Master_TestSpec,,,
 当日運用/例外操作,テストケース,TC-EX-OP-200,管理API｜operational-cancel,正常中止,運営中止の正常経路,Master_TestSpec,,,
 当日運用/例外操作,テストケース,TC-EX-OP-200IM,管理API｜operational-cancel,即時通知付き,即時通知付き運営中止,Master_TestSpec,,,
 当日運用/例外操作,テストケース,TC-EX-UN-200,管理API｜matching undo,admin_undo_afternoon_matching: 成功,編成やり直しの正規経路,Master_TestSpec,,,

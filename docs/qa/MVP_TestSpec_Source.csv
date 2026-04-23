@@ -1,14 +1,14 @@
 仕様ID,機能/カテゴリ,確認内容,実施方式,実施環境,確認方法,対応テストファイル,実行コマンド,CI対象か,自動判定可否,手動確認要否,前提データ,PASS条件,備考,台帳状態,MVP前後
-AL-001,管理アクセス制御,未ログインで保護 URL にアクセスするとログインへ,ブラウザ手動確認,staging または local,manual,,,no,no,yes,未ログイン Cookie,保護 URL へのアクセスがログインへ誘導される,MVP_Minimum_Run 由来。Playwright 等の自動化は未実装,手動のみ,必須
-AL-002,管理アクセス制御,ログイン済みだが app_admins に無いユーザーは保護ページ不可,ブラウザ手動確認,staging または local,manual,,,no,no,yes,非 admin のログイン済みアカウント,403 またはリダイレクトで保護される,MVP_Minimum_Run 由来,手動のみ,必須
-AL-003,管理アクセス制御,app_admins ユーザーは保護ページが表示される,ブラウザ手動確認,staging または local,manual,,,no,no,yes,app_admins ユーザーのセッション,管理画面が表示される,MVP_Minimum_Run 由来,手動のみ,必須
-MVP-DASH-400,管理ダッシュボード,after 欠落または暦日無効は 400,Staging fetch + 任意で admin Cookie,staging,mixed,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,partial,yes,STAGING_BASE_URL。admin 系は STAGING_ADMIN_COOKIE 任意,400 が返る。Cookie 未設定時は該当 it skip のため partial,MVP_Minimum_Run / staging-smoke 参照行,一部,必須
-MVP-DASH-200,管理ダッシュボード,after より後に開催日なしは day null／ありは 1 件,Staging fetch + 任意で admin Cookie,staging,mixed,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,partial,yes,同上,after=2099-12-31 で day:null を検証する分岐が通る。開催日あり分岐はデータ依存で未網羅のため partial,MVP_Minimum_Run 記載の通り,一部,任意
+AL-001,管理アクセス制御,未ログインで保護 URL にアクセスするとログインへ,ブラウザ手動確認,staging または local,manual,,,no,no,yes,未ログイン Cookie,保護 URL へのアクセスがログインへ誘導される,MVP は手動ブラウザにて合格とする（E2E 未実装）。Playwright 等の自動化は未実装,手動のみ,必須
+AL-002,管理アクセス制御,ログイン済みだが app_admins に無いユーザーは保護ページ不可,ブラウザ手動確認,staging または local,manual,,,no,no,yes,非 admin のログイン済みアカウント,403 またはリダイレクトで保護される,MVP は手動ブラウザにて合格とする（E2E 未実装）,手動のみ,必須
+AL-003,管理アクセス制御,app_admins ユーザーは保護ページが表示される,ブラウザ手動確認,staging または local,manual,,,no,no,yes,app_admins ユーザーのセッション,管理画面が表示される,MVP は手動ブラウザにて合格とする（E2E 未実装）,手動のみ,必須
+MVP-DASH-400,管理ダッシュボード,after 欠落または暦日無効は 400,Staging fetch + .env.staging の Cookie,staging,staging-smoke,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,yes,no,.env.staging.example で STAGING_BASE_URL。MVP-DASH 用は .env.staging の STAGING_ADMIN_COOKIE（未設定時は該当 it skip）,400 が返る。Cookie 設定時は Vitest で自動担保,MVP_Minimum_Run / staging-smoke 参照行,完了,必須
+MVP-DASH-200,管理ダッシュボード,after より後に開催日なしは day null／ありは 1 件,Staging fetch + .env.staging の Cookie,staging,staging-smoke,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,partial,yes,.env.staging.example で STAGING_BASE_URL。Cookie は .env.staging の STAGING_ADMIN_COOKIE（未設定時は it skip）,after=2099-12-31 で day:null を検証。開催日あり分岐はデータ依存で未網羅のため台帳は一部扱い,MVP_Minimum_Run 記載の通り,一部,任意
 API-ED-001,公開カレンダー,acceptingReservations は status=open かつ締切未来のみ true,Staging fetch,staging,staging-smoke,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,yes,no,STAGING_BASE_URL,GET /api/event-days 200 かつ各要素で acceptingReservations が仕様通り,MVP_Minimum_Run。自動のみで判定可,完了,必須
 API-AV-001,公開カレンダー,日付形式不正は 400、該当なしは 404,Staging fetch,staging,staging-smoke,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,yes,no,STAGING_BASE_URL,400 と 404 の両ケースが期待どおり,MVP_Minimum_Run。自動のみで判定可,完了,必須
-RSV-001,公開予約,確認へ進む前に必須未入力（枠未選択）で止まる,ブラウザ手動,local,manual,,,no,no,yes,なし（UI）,送信前にバリデーションで止まる,MVP_Minimum_Run。将来 component / E2E 候補,手動のみ,必須
-RSV-002,公開予約,参加人数が 1 未満または非整数で止まる,ブラウザ手動,local,manual,,,no,no,yes,なし（UI）,境界値で止まる,MVP_Minimum_Run,手動のみ,必須
-RSV-003,公開予約,昼食合計数量 0（全メニュー 0）で止まる,ブラウザ手動,local,manual,,,no,no,yes,なし（UI）,昼食必須で止まる,MVP_Minimum_Run,手動のみ,必須
+RSV-001,公開予約,確認へ進む前に必須未入力（枠未選択）で止まる,ブラウザ手動,local,manual,,,no,no,yes,なし（UI）,送信前にバリデーションで止まる,MVP は手動 UI にて合格とする。将来 component / E2E 候補,手動のみ,必須
+RSV-002,公開予約,参加人数が 1 未満または非整数で止まる,ブラウザ手動,local,manual,,,no,no,yes,なし（UI）,境界値で止まる,MVP は手動 UI にて合格とする,手動のみ,必須
+RSV-003,公開予約,昼食合計数量 0（全メニュー 0）で止まる,ブラウザ手動,local,manual,,,no,no,yes,なし（UI）,昼食必須で止まる,MVP は手動 UI にて合格とする,手動のみ,必須
 RSV-006,公開予約,p_lunch_items の数量合計が participant_count を上回っても create_public_reservation が success（明細が DB に保持される）,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/public-reservation-rpc.integration.test.ts,npm run test:integration,no,yes,no,.env.test・結合専用DB・lunch_menu_items active 1 件以上,RPC success・reservation_lunch_items の合計 > participant_count,MVP_Minimum_Run,完了,任意
 RSV-010,公開予約,正常入力で 201・sessionStorage・/reserve/complete 遷移,API 自動 + ブラウザ,mixed,mixed,tests/integration/public-reservation-rpc.integration.test.ts,npm run test:integration（RPC）/ 手動で UI,no,partial,yes,受付可能な開催日,create_public_reservation success と DB active は integration。sessionStorage と画面遷移は手動,MVP_Minimum_Run の切り分け記載を反映,一部,必須
 RSV-011,公開予約,二重送信: submitting 中は連打しても fetch が重複しない,ブラウザ手動,local,manual,,,no,no,yes,DevTools Network 推奨,連打でも重複 fetch が発生しない,MVP_Minimum_Run,手動のみ,任意
@@ -30,26 +30,26 @@ RM-001,締切後自動編成（JOB02）,認証は lock-event-days と同様（40
 RM-010,締切後自動編成（JOB02）,locked かつ event_date >= 東京今日 が 0 件,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-run-matching-locked-db.integration.test.ts,npm run test:integration,no,yes,no,.env.test・結合専用DB,processed 0・results 空,MVP_Minimum_Run,完了,必須
 RM-011,締切後自動編成（JOB02）,1 日分 ok:true で matchingRunId・assignmentCount が返る,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-run-matching-locked-db.integration.test.ts,npm run test:integration,no,yes,no,.env.test・結合専用DB,matchingRunId・confirmed,MVP_Minimum_Run。admin_apply とは別 HTTP 経路,完了,必須
 RM-012,締切後自動編成（JOB02）,already_matched / not_locked は results で ok:true skipped,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-run-matching-locked-db.integration.test.ts,npm run test:integration,no,yes,no,applyMatchingForEventDayId 連続で already_matched。Cron HTTP の skipped 再現は任意で追補可,MVP_Minimum_Run,完了,必須
-RM-013,締切後自動編成（JOB02）,上記以外の失敗は results で ok:false + error,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,失敗可視化,MVP_Minimum_Run,保留,任意
-TC-EX-CR-MP-06,Cron｜マッチング案内（内部分岐）,送信後 notifications.status が sent,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,通知モック等,sent,MVP_Minimum_Run,保留,任意
-TC-EX-CR-MP-07,Cron｜マッチング案内（内部分岐）,送信後 status が failed,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,同上,failed,MVP_Minimum_Run,保留,任意
-NF-010,通知・メール,JOB03: 認証失敗は 401/503。成功時は summary に sent/skipped/failed,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,cron・メールモック,JOB03,MVP_Minimum_Run,保留,任意
-TC-EX-CR-DBF-07,Cron｜前日最終（内部分岐）,variant=held（status confirmed）,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,案内,MVP_Minimum_Run,保留,任意
-TC-EX-CR-DBF-10,Cron｜前日最終（内部分岐）,variant=pending_matching（status locked）,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,案内,MVP_Minimum_Run,保留,任意
-NF-001,通知・メール,failed を pending に戻し再送可能,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,failed 通知 seed,再送,MVP_Minimum_Run,保留,任意
+RM-013,締切後自動編成（JOB02）,上記以外の失敗は results で ok:false + error,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-run-matching-locked-rm013.integration.test.ts,npm run test:integration,no,no,yes,seed・applyMatching をモック,results に error 文字列,MVP_Minimum_Run,完了,任意
+TC-EX-CR-MP-06,Cron｜マッチング案内（内部分岐）,送信後 notifications.status が sent,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-send-matching-proposal.integration.test.ts,npm run test:integration,no,no,yes,Resend モック・当日+2 日 seed,sent,MVP_Minimum_Run,完了,任意
+TC-EX-CR-MP-07,Cron｜マッチング案内（内部分岐）,送信後 status が failed,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-send-matching-proposal.integration.test.ts,npm run test:integration,no,no,yes,同上,failed,MVP_Minimum_Run,完了,任意
+NF-010,通知・メール,JOB03: 認証失敗は 401/503。成功時は summary に sent/skipped/failed,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-send-day-before-final.integration.test.ts,npm run test:integration,no,no,yes,cron・Resend モック,401/503・summary 数値,MVP_Minimum_Run,完了,任意
+TC-EX-CR-DBF-07,Cron｜前日最終（内部分岐）,variant=held（status confirmed）,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-send-day-before-final.integration.test.ts,npm run test:integration,no,no,yes,seed,案内,MVP_Minimum_Run,完了,任意
+TC-EX-CR-DBF-10,Cron｜前日最終（内部分岐）,variant=pending_matching（status locked）,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/cron-send-day-before-final.integration.test.ts,npm run test:integration,no,no,yes,seed,案内,MVP_Minimum_Run,完了,任意
+NF-001,通知・メール,failed を pending に戻し再送可能,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts,npm run test:integration,no,yes,no,failed 通知 seed・auth.admin テストユーザー・再送 1 本,POST retry で sent（matching_proposal）,MVP_Minimum_Run,完了,任意
 MVP-NOTIF-401,通知一覧,未認証 GET /api/admin/notifications は 401,Staging fetch,staging,staging-smoke,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,yes,no,STAGING_BASE_URL・Cookie なし,401,MVP_Minimum_Run,完了,必須
-TC-EX-NR-200S,管理API｜notifications retry,再送結果 sent（lib）,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,admin・seed,sent,MVP_Minimum_Run,保留,任意
-CHK-001,管理API｜checkins,当日チェックインを新規登録できる,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,当日 seed・admin,登録成功,MVP_Minimum_Run,保留,任意
-CHK-002,管理API｜checkins,同一開催日・同一チームの再登録は upsert,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,同上,重複なし,MVP_Minimum_Run,保留,任意
+TC-EX-NR-200S,管理API｜notifications retry,再送結果 sent（lib）,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts（NF-001 同一 it）,npm run test:integration,no,yes,no,同上,POST /api/admin/notifications/:id/retry,sent,NF-001 と併せて admin 再送を担保,完了,任意
+CHK-001,管理API｜checkins,【MVP対象外】当日チェックインを新規登録できる,非対象（API 未実装）,local,not-applicable,,,no,no,yes,—,—,checkins API 実装予定なし。他仕様比較用に行を残す,対象外,任意
+CHK-002,管理API｜checkins,【MVP対象外】同一開催日・同一チームの再登録は upsert,非対象（API 未実装）,local,not-applicable,,,no,no,yes,—,—,checkins API 実装予定なし,対象外,任意
 MRG-001,管理API｜team-merge,source team を target team へ統合できる,手動または未実装結合,both,manual,,,no,no,yes,2 チーム seed,統合成功,MVP_Minimum_Run。staging 非推奨,手動のみ,任意
-TC-EX-WX-200GO,管理API｜weather-decision,go 正常,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,go,MVP_Minimum_Run,保留,任意
-TC-EX-WX-200CIM,管理API｜weather-decision,cancel immediate 正常,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,即時中止,MVP_Minimum_Run,保留,任意
-TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,前日17時系,MVP_Minimum_Run,保留,任意
-TC-EX-OP-200,管理API｜operational-cancel,正常中止,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed,中止,MVP_Minimum_Run,保留,任意
-TC-EX-OP-200IM,管理API｜operational-cancel,即時通知付き,未実装,local,local-integration-vitest,,npm run test:integration,no,no,yes,seed+モック,通知,MVP_Minimum_Run,保留,任意
+TC-EX-WX-200GO,管理API｜weather-decision,go 正常,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts,npm run test:integration,no,yes,no,admin モック・seed,POST weather-decision go→weather_status go,MVP_Minimum_Run,完了,任意
+TC-EX-WX-200CIM,管理API｜weather-decision,cancel immediate 正常,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts,npm run test:integration,no,yes,no,Resend モック・予約 1 件,即時 cancel 分岐 200,MVP_Minimum_Run,完了,任意
+TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts,npm run test:integration,no,yes,no,confirmed・前日未通知,weather_day_before_rain_scheduled,MVP_Minimum_Run,完了,任意
+TC-EX-OP-200,管理API｜operational-cancel,正常中止,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts,npm run test:integration,no,yes,no,即時通知なし,cancelled_operational,MVP_Minimum_Run,完了,任意
+TC-EX-OP-200IM,管理API｜operational-cancel,即時通知付き,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-weather-op-notification-retry.integration.test.ts,npm run test:integration,no,yes,no,Resend モック・予約 1 件,即時付き 200,MVP_Minimum_Run,完了,任意
 TC-EX-UN-200,管理API｜matching undo,admin_undo_afternoon_matching: 成功,Vitest + ローカル Supabase,local,local-integration-vitest,tests/integration/admin-undo-matching.integration.test.ts,npm run test:integration,no,yes,no,.env.test・結合専用DB,RPC success・status locked,MVP_Minimum_Run。HTTP POST undo の未認証は TC-EX-UN-401,完了,必須
 TC-EX-UN-401,管理API｜matching undo,未認証 POST /api/admin/matching/undo は 401,Staging fetch,staging,staging-smoke,tests/staging/staging-smoke.staging.test.ts,npm run test:staging,no,yes,no,STAGING_BASE_URL・Cookie なし,401,MVP_Minimum_Run。TC-EX-UN-200 は RPC ローカル縦割り,完了,必須
-P0,Release_Gate,Release_Gate の P0 項目をすべて完了にする,チェックリスト手動,both,manual,,,no,no,yes,Release_Gate シート連携,各 P0 が完了,MVP_Minimum_Run。環境・Cron・セキュリティ等。自動化対象外,手動のみ,必須
+P0,Release_Gate,Release_Gate の P0 項目をすべて完了にする,チェックリスト手動,both,manual,,,no,no,yes,docs/qa/Release_Gate_P0.md または同ブック Release_Gate シート（D列=優先度P0）,観点7区分を満たし対象環境（staging/本番想定）で手動確認済み。元ブックのRelease_Gate行は完了列・結果列が全PASS相当,単一画面TCではない。観点：環境変数・Cron・Supabase・Resend・前日運用・スモーク・セキュリティ（MVP_Minimum_Run リリースゲートP0行メモと同旨・詳細はdocs/qa/Release_Gate_P0.md）。Vitest対象外,手動のみ,必須
 META-CI-001,（メタ）CI ゲート,GitHub Actions で毎 PR npm run test:unit が成功する,CI,GitHub Actions,unit-vitest,tests/unit/**/*.test.ts,npm run test:unit,yes,yes,no,Node 22・npm ci,vitest 60 passed,.github/workflows/ci.yml / docs/qa/automated-test-baseline.md,完了,必須
 META-UNIT-002,（メタ）マッチング編成,buildMatchingAssignments の代表・境界・午後・カテゴリ/学年,CI ローカル同一,local / CI,unit-vitest,tests/unit/build-matching-assignments-*.test.ts（5 ファイル）,npx vitest run tests/unit/build-matching-assignments --config vitest.config.ts,yes,yes,no,DB 不要,52 passed,MVP 行には ID が無いためメタ行で集約。一段落扱い,完了,必須
 META-UNIT-003,（メタ）マッチング以外 unit,枠数ポリシー・締切デフォルト・assignment patch 検証,CI,local / CI,unit-vitest,"tests/unit/event-day-slot-count-policy.test.ts; tests/unit/reservation-deadline-default.test.ts; tests/unit/match-assignment-patch-validation.test.ts",npm run test:unit,yes,yes,no,DB 不要,各ファイルの it が PASS,META-CI-001 に含まれるが追跡用に記載,完了,必須
@@ -58,11 +58,12 @@ __SUMMARY__,件数サマリ（データ行は AL-001〜P0 の 51 行。メタ行
 __SUMMARY__,MVP+P0 データ行数,,,,,,,,,,,,51,,
 __SUMMARY__,CI対象か=yes（MVP 行のみ）,,,,,,,,,,,,0,,
 __SUMMARY__,CI対象か=yes（メタ META-CI-001 / META-UNIT-002 / META-UNIT-003）,,,,,,,,,,,,3,,
-__SUMMARY__,自動のみ（MVP 行・手動要否=no かつ 自動判定=yes）,,,,,,,,,,,,19,,
-__SUMMARY__,自動＋手動（MVP 行・手動要否=yes かつ 自動判定=partial）,,,,,,,,,,,,3,,
-__SUMMARY__,台帳状態=一部（MVP 行・上記に加え自動判定=partial かつ手動要否=no を含む全体）,,,,,,,,,,,,7,,
+__SUMMARY__,自動のみ（MVP 行・手動要否=no かつ 自動判定=yes）,,,,,,,,,,,,27,,
+__SUMMARY__,自動＋手動（MVP 行・手動要否=yes かつ 自動判定=partial）,,,,,,,,,,,,2,,
+__SUMMARY__,台帳状態=一部（MVP 行・上記に加え自動判定=partial かつ手動要否=no を含む全体）,,,,,,,,,,,,6,,
 __SUMMARY__,手動のみ（MVP 行・確認方法=manual）,,,,,,,,,,,,10,,
-__SUMMARY__,台帳状態=保留（MVP 行・台帳状態列が保留）,,,,,,,,,,,,15,,
+__SUMMARY__,台帳状態=保留（MVP 行・台帳状態列が保留）,,,,,,,,,,,,0,,
+__SUMMARY__,MVP 対象外（台帳状態=対象外）,,,,,,,,,,,,2,,
 __SUMMARY__,メタ行（META-*）台帳状態=完了,,,,,,,,,,,,4,,
-__SUMMARY__,列定義,台帳状態=完了|一部|手動のみ|保留。MVP前後=必須|任意（ビジネス上のリリース前後の推奨。P0 シートと併用）,,,,,,,,,,,,,,
-__SUMMARY__,注,Excel は UTF-8。列にカンマを含む値は二重引用符で囲む（RFC4180）。台帳状態は実施台帳用。保留は integration 未割当が主,,,,,,,,,,,,,,
+__SUMMARY__,列定義,台帳状態=完了|一部|手動のみ|保留|対象外。MVP前後=必須|任意（P0 シートと併用）,,,,,,,,,,,,,,
+__SUMMARY__,注,Excel は UTF-8。列にカンマを含む値は二重引用符で囲む。CHK-* は checkins API 非実装のため対象外。AL/RSV-001〜003/P0 は MVP 手動合格前提,,,,,,,,,,,,,,

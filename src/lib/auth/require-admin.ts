@@ -5,14 +5,20 @@ import type { User } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/server";
 
-export async function getAdminUser(): Promise<User | null> {
+/** 未ログインと「ログイン済みだが app_admins にいない」を区別する（リダイレクト・メッセージ用） */
+export type AdminGateResult =
+  | { kind: "ok"; user: User }
+  | { kind: "no_session" }
+  | { kind: "not_allowlisted"; user: User };
+
+export async function getAdminGate(): Promise<AdminGateResult> {
   const supabase = await createClient();
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
 
-  if (authError || !user) return null;
+  if (authError || !user) return { kind: "no_session" };
 
   const { data: adminRow } = await supabase
     .from("app_admins")
@@ -20,6 +26,11 @@ export async function getAdminUser(): Promise<User | null> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!adminRow) return null;
-  return user;
+  if (!adminRow) return { kind: "not_allowlisted", user };
+  return { kind: "ok", user };
+}
+
+export async function getAdminUser(): Promise<User | null> {
+  const gate = await getAdminGate();
+  return gate.kind === "ok" ? gate.user : null;
 }

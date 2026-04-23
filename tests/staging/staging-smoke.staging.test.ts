@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
  * Master_TestSpec.csv / MVP_Minimum_Run.csv のうち、Staging に対して fetch だけで検証できる範囲。
  * 実施方式・自動化対象の整理: docs/qa/MVP_Minimum_Run.csv（列: 実施方式〜備考）
  *
- * 実行例（PowerShell）:
+ * 環境変数: リポジトリ直下の `.env.staging.example`（既定 URL）または `.env.staging` を
+ * `vitest.staging.config.ts` が読み込む。
+ *
+ * 実行例（PowerShell・上書きしたいとき）:
  *   $env:STAGING_BASE_URL="https://stg-rsv-soccer.greenplanet-project.com"
  *   npm run test:staging
  *

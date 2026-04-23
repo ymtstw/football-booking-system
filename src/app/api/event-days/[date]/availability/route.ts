@@ -4,6 +4,10 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_READ_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 function isIsoDateOnly(s: string): boolean {
@@ -50,8 +54,12 @@ export async function GET(
     .maybeSingle();
 
   if (dayErr) {
+    logPublicReserveApiSupabaseError(
+      `GET /api/event-days/${eventDate}/availability event_days`,
+      dayErr
+    );
     return NextResponse.json(
-      { error: dayErr.message, code: dayErr.code },
+      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: dayErr.code },
       { status: 500 }
     );
   }
@@ -72,8 +80,12 @@ export async function GET(
     .order("slot_code", { ascending: true });
 
   if (slotsErr) {
+    logPublicReserveApiSupabaseError(
+      `GET /api/event-days/${eventDate}/availability slots`,
+      slotsErr
+    );
     return NextResponse.json(
-      { error: slotsErr.message, code: slotsErr.code },
+      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: slotsErr.code },
       { status: 500 }
     );
   }
@@ -88,8 +100,12 @@ export async function GET(
     .not("selected_morning_slot_id", "is", null);
 
   if (resErr) {
+    logPublicReserveApiSupabaseError(
+      `GET /api/event-days/${eventDate}/availability reservations`,
+      resErr
+    );
     return NextResponse.json(
-      { error: resErr.message, code: resErr.code },
+      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: resErr.code },
       { status: 500 }
     );
   }

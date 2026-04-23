@@ -3,8 +3,12 @@
  * アクティブな予約があっても更新可。`acknowledgeReservationRisk: true` 必須。
  * 開催日 status は draft / open のみ（通常枠 API と同じ）。
  */
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 
+import {
+  enqueueMorningSlotForceChangedNotifications,
+  sendMorningSlotForceChangedNotificationJobs,
+} from "@/lib/admin/notify-morning-slot-force-changed";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import {
   appendEventDaySlotRow,
@@ -108,6 +112,23 @@ export async function PATCH(
   if (!slotsResult.ok) {
     return NextResponse.json({ error: slotsResult.error }, { status: 500 });
   }
+
+  const patchedSlotIds = parsedRows.rows.map((row) => row.id);
+  const morningSlotMailJobs = await enqueueMorningSlotForceChangedNotifications(
+    supabase,
+    eventDayId,
+    patchedSlotIds
+  );
+  if (morningSlotMailJobs.length > 0) {
+    after(() => {
+      void sendMorningSlotForceChangedNotificationJobs(supabase, morningSlotMailJobs).catch(
+        (e) => {
+          console.error("[force PATCH] morning slot mail after response:", e);
+        }
+      );
+    });
+  }
+
   return NextResponse.json({
     eventDay: { id: day.id, status: day.status },
     slots: slotsResult.slots,

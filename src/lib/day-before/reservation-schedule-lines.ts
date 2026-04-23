@@ -7,20 +7,23 @@ function formatHm(t: string): string {
   return m ? `${m[1]}:${m[2]}` : t.slice(0, 5);
 }
 
-function phaseLabel(phase: string): string {
-  if (phase === "morning") return "午前";
-  if (phase === "afternoon") return "午後";
-  return phase;
-}
+/** メール表・一覧用の1試合行（午前/午後ラベルは付けない） */
+export type ReservationScheduleRow = {
+  startHm: string;
+  endHm: string;
+  teamA: string;
+  teamB: string;
+  referee: string | null;
+};
 
 /**
- * 当該予約が関わる試合行のみ、前日通知用の短文リストにする。
+ * 当該予約が関わる試合行のみ、案内メール用の行データにする。
  */
-export async function buildReservationScheduleLines(
+export async function buildReservationScheduleRows(
   supabase: SupabaseClient,
   eventDayId: string,
   reservationId: string
-): Promise<string[]> {
+): Promise<ReservationScheduleRow[]> {
   const { data: run, error: runErr } = await supabase
     .from("matching_runs")
     .select("id")
@@ -102,18 +105,35 @@ export async function buildReservationScheduleLines(
     return String(a.match_phase).localeCompare(String(b.match_phase));
   });
 
-  const lines: string[] = [];
+  const rows: ReservationScheduleRow[] = [];
   for (const a of sorted) {
     const slot = slotById.get(a.event_day_slot_id as string);
     const st = slot?.start_time ? formatHm(String(slot.start_time)) : "?";
     const en = slot?.end_time ? formatHm(String(slot.end_time)) : "?";
-    const ph = phaseLabel(String(a.match_phase));
     const na = teamName(a.reservation_a_id as string);
     const nb = teamName(a.reservation_b_id as string);
     const refId = a.referee_reservation_id as string | null;
-    const refPart = refId ? `／審判: ${teamName(refId)}` : "";
-    lines.push(`${ph} ${st}–${en}  ${na} vs ${nb}${refPart}`);
+    rows.push({
+      startHm: st,
+      endHm: en,
+      teamA: na,
+      teamB: nb,
+      referee: refId ? teamName(refId) : null,
+    });
   }
 
-  return lines;
+  return rows;
+}
+
+/** プレーンテキスト用の1行（従来の呼び出し互換） */
+export async function buildReservationScheduleLines(
+  supabase: SupabaseClient,
+  eventDayId: string,
+  reservationId: string
+): Promise<string[]> {
+  const rows = await buildReservationScheduleRows(supabase, eventDayId, reservationId);
+  return rows.map((r) => {
+    const refPart = r.referee ? `／審判：${r.referee}` : "";
+    return `${r.startHm}〜${r.endHm}　${r.teamA} vs ${r.teamB}${refPart}`;
+  });
 }

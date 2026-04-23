@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { InlineSpinner } from "@/components/ui/inline-spinner";
+
 import {
   IconArrowRight,
   IconHome,
@@ -37,14 +39,26 @@ export function ReservePrimaryCtaLink({
   );
 }
 
-/** カレンダー画面フッターなど中サイズの緑ボタン */
+/** カレンダー画面フッターなど中サイズの緑ボタン（`pending` で処理中スピナー） */
 export function ReservePrimaryCtaButton({
   children,
   className = "",
+  pending = false,
+  disabled,
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) {
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  children: ReactNode;
+  pending?: boolean;
+}) {
   return (
-    <button type="button" {...props} className={`${primaryMedium} ${className}`}>
+    <button
+      type="button"
+      {...props}
+      disabled={Boolean(disabled) || pending}
+      aria-busy={pending || undefined}
+      className={`${primaryMedium} ${className}`}
+    >
+      {pending ? <InlineSpinner variant="onDark" /> : null}
       {children}
       <IconArrowRight className="h-5 w-5 shrink-0" strokeWidth={2.25} />
     </button>

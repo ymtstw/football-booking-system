@@ -22,6 +22,11 @@ const NAV = [
       p === "/reserve/complete",
   },
   { href: "/reserve/manage", label: "予約の確認・キャンセル", match: (p: string) => p.startsWith("/reserve/manage") },
+  {
+    href: "/reserve/schedule",
+    label: "対戦表・スケジュール",
+    match: (p: string) => p.startsWith("/reserve/schedule"),
+  },
   { href: "/reserve/camp", label: "合宿のご相談", match: (p: string) => p.startsWith("/reserve/camp") },
   { href: "/reserve/contact", label: "お問い合わせ", match: (p: string) => p.startsWith("/reserve/contact") },
 ] as const;
@@ -32,7 +37,16 @@ export function ReservePublicHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white">
-      <div className="mx-auto flex h-[72px] max-w-[1280px] items-center justify-between gap-4 px-6 md:px-8 lg:px-10">
+      {/* スマホ: メニュー表示中に一覧外（下の領域）をタップで閉じる */}
+      {menuOpen ? (
+        <button
+          type="button"
+          className="fixed inset-x-0 top-[72px] bottom-0 z-0 bg-black/25 lg:hidden"
+          aria-label="メニューを閉じる"
+          onClick={() => setMenuOpen(false)}
+        />
+      ) : null}
+      <div className="relative z-10 mx-auto flex h-[72px] max-w-[1280px] items-center justify-between gap-4 px-6 md:px-8 lg:px-10">
         <Link
           href="/"
           className="flex min-w-0 flex-col items-start gap-0.5 text-green-700 lg:flex-row lg:items-center lg:gap-3"

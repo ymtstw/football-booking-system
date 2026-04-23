@@ -305,6 +305,15 @@ export default async function AdminEventDayHubPage({
               公開枠の時刻・有効化・強制変更（対戦の付け替えではありません）
             </p>
           </Link>
+          <Link
+            href={`/admin/event-days/${day.id}/lunch`}
+            className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-100 transition hover:border-amber-200/80 hover:ring-amber-100/60"
+          >
+            <p className="text-sm font-bold text-zinc-900">昼食（この開催日）</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              グローバル昼食のままか、この日だけ別メニューにするかを設定します。
+            </p>
+          </Link>
           <div
             className={
               summary.failedForDay > 0
@@ -372,18 +381,7 @@ export default async function AdminEventDayHubPage({
           </div>
         </div>
         <p className="border-t border-zinc-100 pt-4 text-xs leading-relaxed text-zinc-500">
-          合宿・大会の問い合わせは{" "}
-          <Link href="/admin/camp-inquiries" className="font-medium text-zinc-700 underline underline-offset-2">
-            合宿相談
-          </Link>
-          {" · "}
-          <Link
-            href="/admin/tournament-inquiries"
-            className="font-medium text-zinc-700 underline underline-offset-2"
-          >
-            大会お問い合わせ
-          </Link>
-          （対応案件）。昼食の数は上のサマリで確認し、メニュー編集は{" "}
+          合宿・大会の問い合わせは、届いた通知メールを起点に別アドレスでやり取りする運用です（一覧ページは直 URL のみ）。昼食の数は上のサマリで確認し、メニュー編集は{" "}
           <Link href="/admin/lunch-menu" className="font-medium text-zinc-700 underline underline-offset-2">
             設定の昼食メニュー
           </Link>

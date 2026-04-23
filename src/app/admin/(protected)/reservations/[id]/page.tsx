@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { LunchOrderSummary } from "@/app/reserve/_components/lunch-order-summary";
 
+import { ReservationCreatedMailResendClient } from "../reservation-created-mail-resend-client";
 import { ReservationDetailEditClient } from "../reservation-detail-edit-client";
 import {
   formatDateTimeTokyoWithWeekday,
@@ -59,6 +60,28 @@ function reservationStatusLabelJa(s: string): string {
     default:
       return s;
   }
+}
+
+/** notifications.status（メール送達の記録用・表示のみ） */
+function reservationCreatedMailNotifyStatusJa(s: string): string {
+  switch (s) {
+    case "pending":
+      return "送信待ち";
+    case "sent":
+      return "送信済み";
+    case "failed":
+      return "送信失敗";
+    default:
+      return s;
+  }
+}
+
+const NOTIFY_ERR_SNIP = 200;
+function snipNotificationError(msg: string | null): string | null {
+  if (!msg?.trim()) return null;
+  const t = msg.trim();
+  if (t.length <= NOTIFY_ERR_SNIP) return t;
+  return `${t.slice(0, NOTIFY_ERR_SNIP - 1)}…`;
 }
 
 /** 管理: 予約詳細（読み取り＋チーム・予約情報の編集） */
@@ -148,6 +171,13 @@ export default async function AdminReservationDetailPage({
     }
   );
   const lunchTotal = lunchLines.reduce((s, x) => s + x.lineTotal, 0);
+
+  const { data: createdMailNotifyRows } = await supabase
+    .from("notifications")
+    .select("id, status, created_at, sent_at, updated_at, error_message")
+    .eq("reservation_id", row.id)
+    .eq("template_key", "reservation_created")
+    .order("created_at", { ascending: false });
 
   let morningSlotLabel = "—";
   if (row.selected_morning_slot_id) {
@@ -253,6 +283,68 @@ export default async function AdminReservationDetailPage({
           strength_category: team.strength_category,
           representative_grade_year: team.representative_grade_year,
         }}
+      />
+
+      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
+        <h2 className="text-sm font-semibold text-zinc-900">
+          予約完了メール（送信ログ）
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+          送信処理の記録です。再送のたびに行が増えます（最新が上）。画面の再送クールダウンとは別の情報です。
+        </p>
+        {(createdMailNotifyRows ?? []).length === 0 ? (
+          <p className="mt-3 text-sm text-zinc-600">
+            該当する通知行はまだありません。
+          </p>
+        ) : (
+          <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-100">
+            {(createdMailNotifyRows ?? []).map((raw) => {
+              const n = raw as {
+                id: string;
+                status: string;
+                created_at: string;
+                sent_at: string | null;
+                updated_at: string | null;
+                error_message: string | null;
+              };
+              const err = snipNotificationError(n.error_message);
+              return (
+                <li key={n.id} className="px-3 py-3 text-sm sm:px-4">
+                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                    <span className="font-semibold text-zinc-900">
+                      {reservationCreatedMailNotifyStatusJa(n.status)}
+                    </span>
+                    <span className="text-xs text-zinc-500">
+                      登録: {formatDateTimeTokyoWithWeekday(n.created_at)}
+                    </span>
+                    {n.status === "sent" && n.sent_at ? (
+                      <span className="text-xs text-zinc-500">
+                        送信完了: {formatDateTimeTokyoWithWeekday(n.sent_at)}
+                      </span>
+                    ) : null}
+                    {n.status === "failed" && n.updated_at ? (
+                      <span className="text-xs text-zinc-500">
+                        失敗記録: {formatDateTimeTokyoWithWeekday(n.updated_at)}
+                      </span>
+                    ) : null}
+                  </div>
+                  {err ? (
+                    <p className="mt-2 font-mono text-xs leading-relaxed text-red-800">
+                      {err}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <ReservationCreatedMailResendClient
+        key={`${row.id}-${team.contact_email}`}
+        reservationId={row.id}
+        defaultToEmail={team.contact_email}
+        reservationActive={row.status === "active"}
       />
     </div>
   );

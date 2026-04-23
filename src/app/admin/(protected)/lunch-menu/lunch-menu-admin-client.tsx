@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { InlineSpinner } from "@/components/ui/inline-spinner";
+import {
+  MIN_ACTIVE_LUNCH_MENUS,
+  type LunchMenuOption,
+} from "@/lib/lunch/admin-lunch-constraints-shared";
+
 type Row = {
   id: string;
   name: string;
@@ -36,7 +42,7 @@ function ReservationVisibilityToggle({
 }: {
   isActive: boolean;
   disabled: boolean;
-  onChoose: (next: boolean) => void;
+  onChoose: (next: boolean) => void | Promise<void>;
 }) {
   return (
     <div className="space-y-2">
@@ -65,7 +71,7 @@ function ReservationVisibilityToggle({
           type="button"
           disabled={disabled}
           onClick={() => {
-            if (!isActive) onChoose(true);
+            if (!isActive) void onChoose(true);
           }}
           className={`min-h-10 min-w-30 rounded-lg px-3 text-sm font-medium transition-colors disabled:opacity-50 ${
             isActive
@@ -79,7 +85,7 @@ function ReservationVisibilityToggle({
           type="button"
           disabled={disabled}
           onClick={() => {
-            if (isActive) onChoose(false);
+            if (isActive) void onChoose(false);
           }}
           className={`min-h-10 min-w-30 rounded-lg px-3 text-sm font-medium transition-colors disabled:opacity-50 ${
             !isActive
@@ -102,6 +108,14 @@ export function LunchMenuAdminClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  /** 有効メニュー1件制約: 別メニューを同時に公開してから非公開／削除する */
+  const [minActiveModal, setMinActiveModal] = useState<null | {
+    kind: "deactivate" | "delete";
+    targetId: string;
+    options: LunchMenuOption[];
+  }>(null);
+  const [selectedCoId, setSelectedCoId] = useState<string>("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -146,24 +160,29 @@ export function LunchMenuAdminClient() {
     const price = Math.round(Number(fd.get("price") ?? NaN));
     const sort_order = Math.round(Number(fd.get("sort_order") ?? 0));
     setError(null);
-    const res = await fetch("/api/admin/lunch-menu-items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        description: description || null,
-        price_tax_included: price,
-        is_active: true,
-        sort_order: Number.isFinite(sort_order) ? sort_order : 0,
-      }),
-    });
-    const j = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) {
-      setError(j.error ?? "追加に失敗しました");
-      return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/admin/lunch-menu-items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          description: description || null,
+          price_tax_included: price,
+          is_active: true,
+          sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+        }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setError(j.error ?? "追加に失敗しました");
+        return;
+      }
+      form.reset();
+      await load();
+    } finally {
+      setCreating(false);
     }
-    form.reset();
-    await load();
   }
 
   async function patchRow(id: string, patch: Record<string, unknown>) {
@@ -174,10 +193,76 @@ export function LunchMenuAdminClient() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+    const j = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+      menuOptions?: LunchMenuOption[];
+    };
+    setBusyId(null);
+    if (!res.ok) {
+      if (
+        res.status === 422 &&
+        j.code === MIN_ACTIVE_LUNCH_MENUS &&
+        patch.is_active === false
+      ) {
+        if (Array.isArray(j.menuOptions) && j.menuOptions.length > 0) {
+          const firstInactive = j.menuOptions.find((o) => !o.is_active);
+          setSelectedCoId(firstInactive?.id ?? j.menuOptions[0]?.id ?? "");
+          setMinActiveModal({ kind: "deactivate", targetId: id, options: j.menuOptions });
+          return;
+        }
+      }
+      setError(j.error ?? "更新に失敗しました");
+      return;
+    }
+    await load();
+  }
+
+  async function requestVisibilityChange(id: string, next: boolean) {
+    if (next) {
+      await patchRow(id, { is_active: true });
+      return;
+    }
+    await patchRow(id, { is_active: false });
+  }
+
+  async function confirmMinActiveModal() {
+    if (!minActiveModal || !selectedCoId) return;
+    const { kind, targetId } = minActiveModal;
+    setMinActiveModal(null);
+    setError(null);
+    if (kind === "deactivate") {
+      setBusyId(targetId);
+      const res = await fetch(
+        `/api/admin/lunch-menu-items/${encodeURIComponent(targetId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            is_active: false,
+            co_activate_menu_item_id: selectedCoId,
+          }),
+        }
+      );
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      setBusyId(null);
+      if (!res.ok) {
+        setError(j.error ?? "更新に失敗しました");
+        return;
+      }
+      await load();
+      return;
+    }
+
+    setBusyId(targetId);
+    const res = await fetch(
+      `/api/admin/lunch-menu-items/${encodeURIComponent(targetId)}?promote_active_first=${encodeURIComponent(selectedCoId)}`,
+      { method: "DELETE" }
+    );
     const j = (await res.json().catch(() => ({}))) as { error?: string };
     setBusyId(null);
     if (!res.ok) {
-      setError(j.error ?? "更新に失敗しました");
+      setError(j.error ?? "削除に失敗しました");
       return;
     }
     await load();
@@ -198,9 +283,24 @@ export function LunchMenuAdminClient() {
     const res = await fetch(`/api/admin/lunch-menu-items/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
-    const j = (await res.json().catch(() => ({}))) as { error?: string };
+    const j = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+      menuOptions?: LunchMenuOption[];
+    };
     setBusyId(null);
     if (!res.ok) {
+      if (
+        res.status === 422 &&
+        j.code === MIN_ACTIVE_LUNCH_MENUS &&
+        Array.isArray(j.menuOptions) &&
+        j.menuOptions.length > 0
+      ) {
+        const firstInactive = j.menuOptions.find((o) => !o.is_active);
+        setSelectedCoId(firstInactive?.id ?? j.menuOptions[0]?.id ?? "");
+        setMinActiveModal({ kind: "delete", targetId: id, options: j.menuOptions });
+        return;
+      }
       setError(j.error ?? "削除に失敗しました");
       return;
     }
@@ -217,6 +317,73 @@ export function LunchMenuAdminClient() {
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
           {error}
         </p>
+      ) : null}
+
+      {minActiveModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="min-active-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-zinc-900/40"
+            aria-label="閉じる"
+            onClick={() => setMinActiveModal(null)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-zinc-200 bg-white p-4 shadow-xl">
+            <h2 id="min-active-title" className="text-sm font-semibold text-zinc-900">
+              {minActiveModal.kind === "delete"
+                ? "削除の前に、公開を続けるメニューを選んでください"
+                : "非公開の前に、公開を続けるメニューを選んでください"}
+            </h2>
+            <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+              有効な昼食は常に1件以上必要です。下で別メニューを選び、確定すると
+              {minActiveModal.kind === "delete"
+                ? "そのメニューを公開したうえで削除します。"
+                : "そのメニューを公開したうえで、対象を非公開にします。"}
+            </p>
+            <div className="mt-3 max-h-56 space-y-2 overflow-y-auto rounded border border-zinc-100 p-2">
+              {minActiveModal.options.map((o) => (
+                <label
+                  key={o.id}
+                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-zinc-50"
+                >
+                  <input
+                    type="radio"
+                    name="co-activate-lunch"
+                    checked={selectedCoId === o.id}
+                    onChange={() => setSelectedCoId(o.id)}
+                  />
+                  <span className="font-medium text-zinc-800">{o.name}</span>
+                  <span
+                    className={`text-xs ${o.is_active ? "text-emerald-700" : "text-zinc-500"}`}
+                  >
+                    {o.is_active ? "公開中" : "非公開"}
+                  </span>
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
+                onClick={() => setMinActiveModal(null)}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                disabled={!selectedCoId || busyId !== null}
+                className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                onClick={() => void confirmMinActiveModal()}
+              >
+                確定
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
@@ -249,7 +416,7 @@ export function LunchMenuAdminClient() {
             />
           </label>
           <label className="block text-sm">
-            <span className="text-zinc-600">税込価格（円・整数）</span>
+            <span className="text-zinc-600">税込価格（円）</span>
             <input
               name="price"
               type="number"
@@ -279,8 +446,11 @@ export function LunchMenuAdminClient() {
           <div className="sm:col-span-2">
             <button
               type="submit"
-              className="rounded-full bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+              disabled={creating || busyId !== null}
+              aria-busy={creating || undefined}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-5 py-2 text-sm font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {creating ? <InlineSpinner variant="onDark" /> : null}
               追加
             </button>
           </div>
@@ -340,7 +510,7 @@ export function LunchMenuAdminClient() {
                   />
                 </label>
                 <label className="block text-sm">
-                  <span className="text-zinc-600">税込（円）</span>
+                  <span className="text-zinc-600">税込価格（円）</span>
                   <input
                     name="price"
                     type="number"
@@ -373,25 +543,29 @@ export function LunchMenuAdminClient() {
                 <div className="border-t border-zinc-200 pt-4 sm:col-span-2 lg:col-span-4">
                   <ReservationVisibilityToggle
                     isActive={it.is_active}
-                    disabled={busyId === it.id}
-                    onChoose={(next) => void patchRow(it.id, { is_active: next })}
+                    disabled={busyId === it.id || creating}
+                    onChoose={(next) => void requestVisibilityChange(it.id, next)}
                   />
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3 sm:col-span-2 lg:col-span-4">
                   <button
                     type="submit"
-                    disabled={busyId === it.id}
-                    className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:opacity-50"
+                    disabled={busyId === it.id || creating}
+                    aria-busy={busyId === it.id || undefined}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
+                    {busyId === it.id ? <InlineSpinner variant="onDark" /> : null}
                     名前・価格・表示順を保存
                   </button>
                   <button
                     type="button"
-                    className="text-sm text-red-700 underline underline-offset-2 disabled:opacity-50"
-                    disabled={busyId === it.id}
+                    className="inline-flex items-center gap-2 text-sm text-red-700 underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={busyId === it.id || creating}
+                    aria-busy={busyId === it.id || undefined}
                     onClick={() => void handleDelete(it.id)}
                   >
+                    {busyId === it.id ? <InlineSpinner variant="onLight" /> : null}
                     削除
                   </button>
                 </div>

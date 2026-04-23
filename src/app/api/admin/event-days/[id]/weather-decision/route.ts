@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 
 import { sendWeatherCancelImmediateEmailAndUpdateNotification } from "@/lib/email/day-before-final-mail";
+import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -12,7 +13,7 @@ type DecisionBody = {
   decision?: string;
   notes?: string;
   sendImmediateCancelNotice?: boolean;
-  /** `cancel` のとき: `immediate`（即時確定・既定） / `day_before_17`（前日17:00のCronで雨天中止文面） */
+  /** `cancel` のとき: `immediate`（即時確定・既定） / `day_before_17`（前日一括バッチで雨天中止文面。JOB03・16:30頃JST） */
   delivery?: string;
 };
 
@@ -72,7 +73,7 @@ export async function POST(
 
   if (delivery === "day_before_17" && sendImmediateCancelNotice) {
     return NextResponse.json(
-      { error: "前日17:00予約と即時メールは同時に指定できません" },
+      { error: "前日一括送信予約と即時メールは同時に指定できません" },
       { status: 422 }
     );
   }
@@ -139,15 +140,34 @@ export async function POST(
       .final_day_before_notice_completed_at;
     if (fin) {
       return NextResponse.json(
-        { error: "最終通知が完了しているため、前日17:00の雨天中止予約はできません" },
+        { error: "最終通知が完了しているため、前日一括での雨天中止予約はできません" },
         { status: 409 }
       );
     }
     if (st !== "confirmed" && st !== "locked") {
       return NextResponse.json(
-        { error: "前日17:00の雨天中止予約は、確定または締切済の開催日のみ設定できます" },
+        { error: "前日一括での雨天中止予約は、確定または締切済の開催日のみ設定できます" },
         { status: 409 }
       );
+    }
+  }
+
+  if (decisionRaw === "go") {
+    const prevSnapshot = ed.status_before_weather_cancel as string | null;
+    const nextStatusAfterGo =
+      st === "cancelled_weather"
+        ? prevSnapshot === "open" || prevSnapshot === "locked"
+          ? prevSnapshot
+          : "confirmed"
+        : st;
+    if (st === "cancelled_weather" && nextStatusAfterGo === "open") {
+      const lunch = await assertEventDayAcceptsBookableLunchMenus(
+        supabase,
+        eventDayId
+      );
+      if (!lunch.ok) {
+        return NextResponse.json({ error: lunch.message }, { status: 422 });
+      }
     }
   }
 

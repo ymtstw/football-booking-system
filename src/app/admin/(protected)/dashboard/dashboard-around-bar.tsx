@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
+import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
 /** 直近の開催: 一覧と同じ「基準日」で最初のカードを切り替え（1 行） */
 export function DashboardAroundBar({ anchorEventDate, explicitAround }: Props) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [draft, setDraft] = useState(anchorEventDate);
 
   useEffect(() => {
@@ -23,7 +25,9 @@ export function DashboardAroundBar({ anchorEventDate, explicitAround }: Props) {
 
   function apply() {
     if (!draft) return;
-    router.push(`/admin/dashboard?around=${encodeURIComponent(draft)}`);
+    startTransition(() => {
+      router.push(`/admin/dashboard?around=${encodeURIComponent(draft)}`);
+    });
   }
 
   return (
@@ -40,8 +44,11 @@ export function DashboardAroundBar({ anchorEventDate, explicitAround }: Props) {
         <button
           type="button"
           onClick={() => void apply()}
-          className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+          disabled={isPending}
+          aria-busy={isPending || undefined}
+          className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70"
         >
+          {isPending ? <InlineSpinner variant="onDark" /> : null}
           表示
         </button>
         {explicitAround ? (

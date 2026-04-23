@@ -4,12 +4,29 @@
  * SCR-03: 確認コードで照会・変更・取消。API 側で open かつ締切前を検証。
  * 仕様: docs/spec/implemented-behavior-catalog.md §1
  */
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { FieldLabel } from "../_components/field-label";
 import { LunchOrderSummary } from "../_components/lunch-order-summary";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
-import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import {
+  RESERVE_LUNCH_ORDER_HELP_JA,
+  RESERVE_PARTICIPANT_COUNT_HINT_JA,
+} from "@/lib/copy/reserve-participant-lunch-hints";
+import {
+  RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA,
+  RESERVATION_CHANGE_CANCEL_DEADLINE_SENTENCE_JA,
+} from "@/lib/copy/reserve-public-mail-schedule";
+import {
+  formatDateTimeTokyoWithWeekday,
+  formatIsoDateWithWeekdayJa,
+} from "@/lib/dates/format-jp-display";
+import {
+  isAtLeastFourDigitCount,
+  RESERVE_COUNT_MAX_ALLOWED,
+  RESERVE_COUNT_REJECT_FROM,
+} from "@/lib/reservations/reserve-numeric-sanity";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 import {
   normalizeReservationTokenPlain,
@@ -23,6 +40,11 @@ import { inputAsciiDigitsOnly } from "@/lib/validators/digits-input";
 import type { LunchMenuItemPublic, ReservationLunchLinePublic } from "@/lib/lunch/types";
 import { parseLunchQuantityField } from "@/lib/lunch/parse-lunch-qty-field";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
+import {
+  reserveFlowApiErrorDisplay,
+  reserveFlowUserVisibleMessage,
+  RESERVE_FLOW_NETWORK_ERROR_JA,
+} from "@/lib/reserve/reserve-flow-user-message";
 
 type ReservationJson = {
   reservation?: {
@@ -110,8 +132,14 @@ export default function ReserveManagePage() {
   }
 
   useEffect(() => {
+    const eventDayId = reservation?.eventDay?.id?.trim();
+    if (!eventDayId) {
+      setLunchMenus(null);
+      return;
+    }
+
     let cancelled = false;
-    fetch("/api/lunch-menu")
+    fetch(`/api/lunch-menu?eventDayId=${encodeURIComponent(eventDayId)}`)
       .then(async (res) => {
         const j = (await res.json().catch(() => ({}))) as {
           items?: LunchMenuItemPublic[];
@@ -125,7 +153,7 @@ export default function ReserveManagePage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reservation?.eventDay?.id]);
 
   useEffect(() => {
     if (!reservation || lunchMenus === null) return;
@@ -160,18 +188,36 @@ export default function ReserveManagePage() {
       return;
     }
     setLoading(true);
-    const res = await fetch(`/api/reservations/${encodeURIComponent(token)}`);
-    const json = (await res.json().catch(() => ({}))) as ReservationJson;
-    setLoading(false);
-    if (!res.ok) {
+    try {
+      const res = await fetch(`/api/reservations/${encodeURIComponent(token)}`);
+      const json = (await res.json().catch(() => ({}))) as ReservationJson;
+      if (!res.ok) {
+        setReservation(null);
+        clearEditFields();
+        setLookupError(
+          reserveFlowApiErrorDisplay(
+            res.status,
+            typeof json.error === "string" ? json.error : undefined,
+            "確認できませんでした"
+          )
+        );
+        return;
+      }
+      const resv = json.reservation ?? null;
+      setReservation(resv);
+      if (!resv) clearEditFields();
+    } catch (e) {
       setReservation(null);
       clearEditFields();
-      setLookupError(json.error ?? "確認できませんでした");
-      return;
+      setLookupError(
+        reserveFlowUserVisibleMessage(
+          e instanceof Error ? e.message : String(e),
+          RESERVE_FLOW_NETWORK_ERROR_JA
+        )
+      );
+    } finally {
+      setLoading(false);
     }
-    const resv = json.reservation ?? null;
-    setReservation(resv);
-    if (!resv) clearEditFields();
   }
 
   async function saveEdits() {
@@ -191,13 +237,22 @@ export default function ReserveManagePage() {
       return;
     }
     if (!isBeforeDeadline(reservation.eventDay.reservationDeadlineAt)) {
-      setSaveError("締切を過ぎているため、ここからは変更できません");
+      setSaveError(
+        `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎているため、ここからは変更できません`
+      );
       return;
     }
 
     const pc = parseInt(editParticipant, 10);
     if (!Number.isInteger(pc) || pc < 1) {
       setSaveError("参加人数は 1 以上の整数にしてください");
+      return;
+    }
+    if (isAtLeastFourDigitCount(pc)) {
+      window.alert(
+        `参加人数が ${RESERVE_COUNT_REJECT_FROM} 以上です。\n誤入力でないかご確認ください。`
+      );
+      setSaveError(`参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください。`);
       return;
     }
     if (!lunchMenus?.length) {
@@ -221,6 +276,13 @@ export default function ReserveManagePage() {
       setSaveError("昼食は、必ずご予約が必要です。");
       return;
     }
+    if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+      window.alert(
+        `昼食の食数の合計が ${RESERVE_COUNT_REJECT_FROM} 以上です。\n誤入力でないかご確認ください。`
+      );
+      setSaveError(`昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください。`);
+      return;
+    }
     if (!editContactName.trim()) {
       setSaveError("チーム代表者名を入力してください");
       return;
@@ -234,38 +296,54 @@ export default function ReserveManagePage() {
     }
 
     setSaving(true);
-    const res = await fetch(`/api/reservations/${encodeURIComponent(token)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participantCount: pc,
-        lunchItems,
-        contactName: editContactName.trim(),
-        contactPhone: phoneDigits,
-      }),
-    });
-    const json = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      reservation?: ReservationJson["reservation"];
-    };
-    setSaving(false);
-
-    if (!res.ok) {
-      setSaveError(json.error ?? `保存に失敗しました（${res.status}）`);
-      return;
-    }
-    if (json.reservation) {
-      setReservation(json.reservation);
-    } else {
-      await lookup();
-    }
-    setSaveOk("変更が完了しました。内容は下記のとおり保存されています。");
-    requestAnimationFrame(() => {
-      saveNoticeRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
+    try {
+      const res = await fetch(`/api/reservations/${encodeURIComponent(token)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          participantCount: pc,
+          lunchItems,
+          contactName: editContactName.trim(),
+          contactPhone: phoneDigits,
+        }),
       });
-    });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        reservation?: ReservationJson["reservation"];
+      };
+
+      if (!res.ok) {
+        setSaveError(
+          reserveFlowApiErrorDisplay(
+            res.status,
+            typeof json.error === "string" ? json.error : undefined,
+            `保存に失敗しました（${res.status}）`
+          )
+        );
+        return;
+      }
+      if (json.reservation) {
+        setReservation(json.reservation);
+      } else {
+        await lookup();
+      }
+      setSaveOk("変更が完了しました。内容は下記のとおり保存されています。");
+      requestAnimationFrame(() => {
+        saveNoticeRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
+    } catch (e) {
+      setSaveError(
+        reserveFlowUserVisibleMessage(
+          e instanceof Error ? e.message : String(e),
+          RESERVE_FLOW_NETWORK_ERROR_JA
+        )
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function cancel() {
@@ -285,7 +363,9 @@ export default function ReserveManagePage() {
     }
     const deadline = new Date(reservation.eventDay.reservationDeadlineAt).getTime();
     if (!Number.isFinite(deadline) || Date.now() >= deadline) {
-      setCancelMessage("締切を過ぎているため、ここからはキャンセルできません");
+      setCancelMessage(
+        `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎているため、ここからはキャンセルできません`
+      );
       return;
     }
     if (
@@ -296,23 +376,39 @@ export default function ReserveManagePage() {
       return;
     }
     setCancelling(true);
-    const res = await fetch(
-      `/api/reservations/${encodeURIComponent(token)}/cancel`,
-      { method: "POST" }
-    );
-    const json = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      alreadyCancelled?: boolean;
-    };
-    setCancelling(false);
-    if (!res.ok) {
-      setCancelMessage(json.error ?? `キャンセルに失敗しました（${res.status}）`);
-      return;
+    try {
+      const res = await fetch(
+        `/api/reservations/${encodeURIComponent(token)}/cancel`,
+        { method: "POST" }
+      );
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        alreadyCancelled?: boolean;
+      };
+      if (!res.ok) {
+        setCancelMessage(
+          reserveFlowApiErrorDisplay(
+            res.status,
+            typeof json.error === "string" ? json.error : undefined,
+            `キャンセルに失敗しました（${res.status}）`
+          )
+        );
+        return;
+      }
+      setCancelMessage(
+        json.alreadyCancelled ? "すでにキャンセル済みです" : "キャンセルしました"
+      );
+      await lookup();
+    } catch (e) {
+      setCancelMessage(
+        reserveFlowUserVisibleMessage(
+          e instanceof Error ? e.message : String(e),
+          RESERVE_FLOW_NETWORK_ERROR_JA
+        )
+      );
+    } finally {
+      setCancelling(false);
     }
-    setCancelMessage(
-      json.alreadyCancelled ? "すでにキャンセル済みです" : "キャンセルしました"
-    );
-    await lookup();
   }
 
   const canMutate =
@@ -332,6 +428,17 @@ export default function ReserveManagePage() {
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
           ご予約内容の確認やキャンセルは、以下の情報を入力してご利用ください。
         </p>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
+          開催日ごとの午前枠の状況・確定後の対戦表は確認コードなしで閲覧できます（
+          <Link href="/reserve/schedule" className="font-semibold text-rp-brand underline">
+            対戦表・スケジュール
+          </Link>
+          ）。
+        </p>
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+          <p className="font-semibold text-amber-900">変更・キャンセルの締切</p>
+          <p className="mt-1.5">{RESERVATION_CHANGE_CANCEL_DEADLINE_SENTENCE_JA}</p>
+        </div>
       </div>
 
       <div className="grid min-w-0 gap-6 lg:grid-cols-2 lg:gap-8">
@@ -377,7 +484,12 @@ export default function ReserveManagePage() {
             <div>
               <h2 className="text-base font-bold text-rp-navy">ご予約のキャンセルについて</h2>
               <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-relaxed text-zinc-800">
-                <li>締切前であれば、この画面からキャンセルできます。</li>
+                <li>
+                  <span className="font-semibold text-zinc-900">
+                    {RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}
+                  </span>
+                  までであれば、この画面から変更・キャンセルできます（上記の締切と同じです）。
+                </li>
                 <li>締切後のキャンセルや無断欠席はお控えください。</li>
                 <li>開催可否は原則として締切日時をもって判断されます。</li>
                 <li>不明点はお問い合わせください。</li>
@@ -446,6 +558,18 @@ export default function ReserveManagePage() {
                     ? `${formatHm(reservation.morningSlot.startTime)}–${formatHm(reservation.morningSlot.endTime)}`
                     : "—"}
                 </dd>
+                <dt className="text-zinc-500">変更・キャンセル締切</dt>
+                <dd className="min-w-0 text-sm font-medium leading-snug text-zinc-900">
+                  <span className="block">
+                    原則: {RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}
+                  </span>
+                  <span className="mt-1 block text-xs font-normal text-zinc-600">
+                    この予約の締切日時:{" "}
+                    {formatDateTimeTokyoWithWeekday(
+                      reservation.eventDay.reservationDeadlineAt
+                    )}
+                  </span>
+                </dd>
                 <dt className="text-zinc-500">チームカテゴリ</dt>
                 <dd className="min-w-0">
                   {strengthCategoryLabelJa(reservation.team.strengthCategory)}
@@ -466,7 +590,7 @@ export default function ReserveManagePage() {
           {canEdit ? (
             <div className="space-y-3 border-t border-zinc-200 bg-zinc-50/80 px-4 py-5 sm:px-6">
               <h3 className="text-sm font-semibold text-zinc-800">
-                締切前のみ変更可能
+                {RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}まで変更可能
               </h3>
               <div ref={saveNoticeRef} className="space-y-2">
                 {saveOk ? (
@@ -531,6 +655,9 @@ export default function ReserveManagePage() {
                       setEditParticipant(inputAsciiDigitsOnly(e.target.value));
                     }}
                   />
+                  <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+                    {RESERVE_PARTICIPANT_COUNT_HINT_JA}
+                  </span>
                 </label>
                 {lunchMenus && lunchMenus.length > 0 ? (
                   <div className="sm:col-span-2 space-y-2">
@@ -538,8 +665,8 @@ export default function ReserveManagePage() {
                       <span className="block text-sm font-medium text-zinc-700">
                         昼食（数量・税込単価）
                       </span>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        昼食は、必ずご予約が必要です。複数メニューがある場合、片方だけ入力でも構いません。
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                        {RESERVE_LUNCH_ORDER_HELP_JA}
                       </p>
                     </div>
                     <div className="overflow-x-auto rounded border border-zinc-200 bg-white">
@@ -612,7 +739,7 @@ export default function ReserveManagePage() {
             <p className="border-t border-zinc-100 pt-4 text-sm text-zinc-600">
               {reservation.eventDay.status !== "open"
                 ? "受付を終了したため、Web からは内容を変更できません。"
-                : "締切を過ぎたため、Web からは内容を変更できません。"}
+                : `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎたため、Web からは内容を変更できません。`}
             </p>
           ) : null}
 

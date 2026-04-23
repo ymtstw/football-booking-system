@@ -2,6 +2,7 @@ import "server-only";
 
 import { Resend } from "resend";
 
+import type { ReservationScheduleRow } from "@/lib/day-before/reservation-schedule-lines";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -24,8 +25,61 @@ function escaped(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function formatGradeBandForMail(gradeBand: string | null): string | null {
+  const g = gradeBand?.trim();
+  if (!g) return null;
+  if (g === "1-2" || g === "3-4" || g === "5-6") return `${g}年`;
+  if (/^\d+-\d+$/.test(g)) return `${g}年`;
+  return g;
+}
+
+function reserveContactUrl(): string | null {
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (!base) return null;
+  return `${base}/reserve/contact`;
+}
+
+function rowsToPlainSchedule(rows: ReservationScheduleRow[]): string {
+  if (rows.length === 0) {
+    return "（対戦スケジュールの行はまだありません。運営で調整中の場合があります）";
+  }
+  return rows
+    .map((r) => {
+      const refPart = r.referee ? `／審判：${r.referee}` : "";
+      return `${r.startHm}〜${r.endHm}　${r.teamA} vs ${r.teamB}${refPart}`;
+    })
+    .join("\n");
+}
+
+function rowsToScheduleTableHtml(rows: ReservationScheduleRow[]): string {
+  if (rows.length === 0) {
+    return "<p>（対戦スケジュールの行はまだありません。運営で調整中の場合があります）</p>";
+  }
+  const head =
+    '<thead><tr style="background:#f4f4f5;border-bottom:2px solid #e4e4e7">' +
+    '<th style="text-align:left;padding:10px 12px;border:1px solid #e4e4e7;font-size:13px">時間</th>' +
+    '<th style="text-align:left;padding:10px 12px;border:1px solid #e4e4e7;font-size:13px">対戦</th>' +
+    '<th style="text-align:left;padding:10px 12px;border:1px solid #e4e4e7;font-size:13px">審判</th>' +
+    "</tr></thead>";
+  const bodyRows = rows
+    .map((r) => {
+      const timeCell = `${escaped(r.startHm)}〜${escaped(r.endHm)}`;
+      const vsCell = `${escaped(r.teamA)} vs ${escaped(r.teamB)}`;
+      const refCell = r.referee ? escaped(r.referee) : "—";
+      return (
+        "<tr>" +
+        `<td style="padding:10px 12px;border:1px solid #e4e4e7;vertical-align:top">${timeCell}</td>` +
+        `<td style="padding:10px 12px;border:1px solid #e4e4e7;vertical-align:top">${vsCell}</td>` +
+        `<td style="padding:10px 12px;border:1px solid #e4e4e7;vertical-align:top">${refCell}</td>` +
+        "</tr>"
+      );
+    })
+    .join("");
+  return `<table style="border-collapse:collapse;width:100%;max-width:640px;font-size:14px;margin-top:8px">${head}<tbody>${bodyRows}</tbody></table>`;
+}
+
 /**
- * 締切翌（開催 2 日前）16:30 のマッチング案内（運営確認前提の暫定案内）。
+ * 締切翌（開催 2 日前）16:00 JST 想定バッチのマッチング案内（運営確認前提の暫定案内）。
  */
 export async function sendMatchingProposalEmailAndUpdateNotification(params: {
   supabase: SupabaseClient;
@@ -35,7 +89,7 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
   teamName: string;
   eventDateIso: string | null;
   gradeBand: string | null;
-  scheduleLines: string[];
+  scheduleRows: ReservationScheduleRow[];
 }): Promise<void> {
   const {
     supabase,
@@ -45,7 +99,7 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
     teamName,
     eventDateIso,
     gradeBand,
-    scheduleLines,
+    scheduleRows,
   } = params;
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
@@ -61,47 +115,60 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
     eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
-  const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
-  const subject = `${MAIL_SUBJECT_BRAND_USER}対戦・枠の案内（確定前・変更の可能性あり）`;
+  const gradeFormatted = formatGradeBandForMail(gradeBand);
+  const subject = `${MAIL_SUBJECT_BRAND_USER}対戦スケジュールのご案内`;
 
-  const scheduleBlock =
-    scheduleLines.length > 0
-      ? scheduleLines.map((l) => `・${l}`).join("\n")
-      : "・（対戦・枠の行はまだありません。管理側で調整中の場合があります）";
+  const schedulePlain = rowsToPlainSchedule(scheduleRows);
+  const contactUrl = reserveContactUrl();
+  const contactText = contactUrl
+    ? `ご不明な点がございましたら、お問い合わせページ（${contactUrl}）よりご連絡ください。`
+    : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。";
+  const contactHtml = contactUrl
+    ? `<p>ご不明な点がございましたら、<a href="${escaped(contactUrl)}">お問い合わせページ</a>よりご連絡ください。</p>`
+    : "<p>ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。</p>";
+
+  const reservationLines = [
+    `チーム名\uFF1A${teamName}`,
+    `開催日\uFF1A${eventLine}`,
+    ...(gradeFormatted ? [`学年帯\uFF1A${gradeFormatted}`] : []),
+  ];
 
   const text = [
     `${contactName} 様`,
     "",
-    `「${MAIL_BODY_SERVICE_NAME}」より、締切後の自動編成に基づく対戦・枠の案内です。`,
-    "開催前日の最終案内（17:00 頃）まで、運営側で内容を確認・変更する場合があります。",
+    `${MAIL_BODY_SERVICE_NAME}の対戦スケジュールをご案内いたします。`,
     "",
-    `チーム名: ${teamName}`,
-    `開催日: ${eventLine}`,
-    ...(gradeLine ? [gradeLine] : []),
+    "本スケジュールは、締切後の自動編成に基づいて作成しています。",
+    "当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて問題ありません。",
+    "なお、開催可否については、天候状況を踏まえたうえで、開催前日18:00頃に最終案内をお送りします。",
     "",
-    "▼ 現在の対戦・枠（案）",
-    scheduleBlock,
+    "【ご予約内容】",
+    ...reservationLines,
     "",
-    "本メールに心当たりがない場合は破棄してください。",
+    "【対戦スケジュール】",
+    schedulePlain,
+    "",
+    contactText,
+    "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
+    "",
+    "よろしくお願いいたします。",
   ].join("\n");
 
-  const scheduleHtml =
-    scheduleLines.length > 0
-      ? `<ul>${scheduleLines.map((l) => `<li>${escaped(l)}</li>`).join("")}</ul>`
-      : "<p>（対戦・枠の行はまだありません）</p>";
+  const reservationListHtml = reservationLines.map((l) => `<li>${escaped(l)}</li>`).join("");
 
-  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
 <p>${escaped(contactName)} 様</p>
-<p>「${escaped(MAIL_BODY_SERVICE_NAME)}」より、締切後の自動編成に基づく<strong>対戦・枠の案内</strong>です。<br/>
-開催前日の最終案内（17:00 頃）まで、運営で変更がある場合があります。</p>
-<ul>
-<li>チーム名: ${escaped(teamName)}</li>
-<li>開催日: ${escaped(eventLine)}</li>
-${gradeLine ? `<li>${escaped(gradeLine)}</li>` : ""}
-</ul>
-<p><strong>現在の対戦・枠（案）</strong></p>
-${scheduleHtml}
-<p style="font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
+<p>${escaped(MAIL_BODY_SERVICE_NAME)}の対戦スケジュールをご案内いたします。</p>
+<p>本スケジュールは、締切後の自動編成に基づいて作成しています。<br/>
+当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて問題ありません。<br/>
+なお、開催可否については、天候状況を踏まえたうえで、開催前日18:00頃に最終案内をお送りします。</p>
+<p><strong>【ご予約内容】</strong></p>
+<ul style="margin:8px 0;padding-left:1.25rem">${reservationListHtml}</ul>
+<p><strong>【対戦スケジュール】</strong></p>
+${rowsToScheduleTableHtml(scheduleRows)}
+${contactHtml}
+<p>なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>
+<p>よろしくお願いいたします。</p>
 </body></html>`;
 
   const resend = new Resend(apiKey);

@@ -195,12 +195,29 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
             <label htmlFor="wd-notes" className="block text-sm font-medium text-zinc-800">
               メモ（参加者向けメールに載る場合があります）
             </label>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              中止（cancel）かつ「前日の一括で送信」を選んだ場合、開催前日の一括メール（JOB03）で雨天中止と判断したときに、次の流れで使われます。見出しの直後に、下の欄の内容がそのまま続きます。
+            </p>
+            <div className="mt-2 rounded-md border border-sky-200 bg-sky-50/90 px-3 py-2 text-[11px] leading-relaxed text-sky-950">
+              <p className="font-semibold text-sky-900">差し込みイメージ（抜粋）</p>
+              <p className="mt-1 whitespace-pre-wrap font-mono text-zinc-800">
+                {`明日の開催は中止といたします。
+
+チーム名: （予約データ）
+開催日: （開催日）
+
+【中止理由・ご連絡事項】
+← ここに、このメモ欄に入力した文章がそのまま入ります
+
+ご不明な点がございましたら、サイトのお問い合わせページより…`}
+              </p>
+            </div>
             <textarea
               id="wd-notes"
               value={notes}
               onChange={(ev) => setNotes(ev.target.value)}
               rows={3}
-              className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+              className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
               placeholder="例: 午前中の雨のため人工芝は使用可、試合は実施"
             />
           </div>
@@ -235,8 +252,8 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
                   className="mt-1"
                 />
                 <span>
-                  <strong>前日 17:00 に送信</strong>
-                  ：開催前日の最終メール（Cron）で雨天中止文面を送ります。即時確定はしません（二重送信しません）。
+                  <strong>前日の一括で送信（16:30頃開始）</strong>
+                  ：開催前日の最終メール（JOB03）で雨天中止文面を送ります。参加者向けの到着目安は17:30までと案内しています。即時確定はしません（二重送信しません）。
                 </span>
               </label>
               {cancelDelivery === "immediate" ? (

@@ -14,6 +14,11 @@ import {
   emptyCampInquiryFormState,
   type CampInquiryFieldDef,
 } from "@/lib/camp-inquiry/camp-inquiry-field-registry";
+import {
+  reserveFlowApiErrorDisplay,
+  reserveFlowUserVisibleMessage,
+  RESERVE_FLOW_NETWORK_ERROR_JA,
+} from "@/lib/reserve/reserve-flow-user-message";
 
 export type CampInquiryFormProps = {
   sourcePath?: string;
@@ -152,7 +157,13 @@ export function CampInquiryForm({
         message?: string;
       };
       if (!res.ok) {
-        setError(json.error ?? "送信に失敗しました");
+        setError(
+          reserveFlowApiErrorDisplay(
+            res.status,
+            typeof json.error === "string" ? json.error : undefined,
+            "送信に失敗しました"
+          )
+        );
         return;
       }
       setDoneMessage(
@@ -160,6 +171,13 @@ export function CampInquiryForm({
           "お問い合わせを受け付けました。内容を確認のうえ、運営よりご連絡します。この時点では予約確定ではありません。"
       );
       setValues(emptyCampInquiryFormState());
+    } catch (e) {
+      setError(
+        reserveFlowUserVisibleMessage(
+          e instanceof Error ? e.message : String(e),
+          RESERVE_FLOW_NETWORK_ERROR_JA
+        )
+      );
     } finally {
       setSubmitting(false);
     }

@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";
+import {
+  isAtLeastFourDigitCount,
+  RESERVE_COUNT_MAX_ALLOWED,
+} from "@/lib/reservations/reserve-numeric-sanity";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 const UUID_RE =
@@ -73,6 +77,12 @@ export async function PATCH(
     if (!Number.isInteger(n) || n < 1) {
       return NextResponse.json(
         { error: "参加人数は 1 以上の整数で指定してください" },
+        { status: 422 }
+      );
+    }
+    if (isAtLeastFourDigitCount(n)) {
+      return NextResponse.json(
+        { error: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数で指定してください` },
         { status: 422 }
       );
     }

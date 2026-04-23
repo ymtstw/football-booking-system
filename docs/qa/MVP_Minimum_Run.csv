@@ -5,8 +5,8 @@
 アクセス/権限,テストケース,AL-001,管理アクセス制御,未ログインで保護 URL にアクセスするとログインへ,未認証漏れを防ぐ,Master_TestSpec,,PASS,,manual,staging,no,なし,未ログインCookieで保護URL。staging-smoke は fetch のみのため未カバー。Playwright 等で将来自動化可
 アクセス/権限,テストケース,AL-002,管理アクセス制御,ログイン済みだが app_admins に無いユーザーは保護ページ不可,権限漏れを防ぐ,Master_TestSpec,,PASS,,manual,staging,no,非adminのログイン済みアカウント,403/リダイレクトはブラウザ確認が主
 アクセス/権限,テストケース,AL-003,管理アクセス制御,app_admins ユーザーは保護ページが表示される,本番管理導線の成立確認,Master_TestSpec,,PASS,,manual,staging,no,app_admins ユーザーのログイン済みセッション,管理画面表示の目視確認
-アクセス/権限,テストケース,MVP-DASH-400,管理ダッシュボード,after 欠落または暦日無効は 400,管理導線APIの入力防御,Master_TestSpec,,,,staging-smoke,staging,partial,admin cookie必要（STAGING_ADMIN_COOKIE）,tests/staging/staging-smoke.staging.test.ts。Cookie 未設定時は it skip
-アクセス/権限,テストケース,MVP-DASH-200,管理ダッシュボード,after より後に開催日なしは day null／ありは 1 件,次開催取得の正常動作,Master_TestSpec,,,,staging-smoke,staging,partial,admin cookie必要,同上。after=2099-12-31 で day:null を検証。別分岐（開催日あり）はデータ依存のため未網羅
+アクセス/権限,テストケース,MVP-DASH-400,管理ダッシュボード,after 欠落または暦日無効は 400,管理導線APIの入力防御,Master_TestSpec,,,,staging-smoke,staging,yes,.env.staging に STAGING_ADMIN_COOKIE,tests/staging/staging-smoke.staging.test.ts。未設定時は it skip。設定時は Vitest で 400 を自動担保
+アクセス/権限,テストケース,MVP-DASH-200,管理ダッシュボード,after より後に開催日なしは day null／ありは 1 件,次開催取得の正常動作,Master_TestSpec,,,,staging-smoke,staging,partial,.env.staging に STAGING_ADMIN_COOKIE,同上。after=2099-12-31 で day:null を検証。開催日あり分岐はデータ依存のため未網羅
 公開予約,テストケース,API-ED-001,公開カレンダー,acceptingReservations は status=open かつ締切未来のみ true,公開カレンダーの受付可否表示,Master_TestSpec,,,,staging-smoke,staging,yes,なし,staging-smoke.staging.test.ts（acceptingReservations 整合）
 公開予約,テストケース,API-AV-001,公開カレンダー,日付形式不正は 400、該当なしは 404,日付別空き状況の境界確認,Master_TestSpec,,,,staging-smoke,staging,yes,なし,400 と 404 の2ケースを同一IDで自動化
 公開予約,テストケース,RSV-001,公開予約,確認へ進む前に必須未入力（枠未選択）で止まる,予約前の必須入力防御,Master_TestSpec,,,,manual,local,partial,なし（UI）,【MVP・将来の最優先自動化候補】公開予約の必須バリデーション（枠未選択で止まる）。現状は manual（目視）。自動化の候補レイヤー: ①component test（フォーム・バリデーション最短）②local-integration（必要なら MSW 等で submit 前まで）③Playwright/E2E（実ブラウザの最終確認）。①→②の順で効果が大きい想定。
@@ -47,7 +47,7 @@
 当日運用/例外操作,テストケース,MRG-001,管理API｜team-merge,source team を target team へ統合できる,チーム重複整理の成立,Master_TestSpec,,,,local-integration,local,partial,2チーム・関連テーブル seed,データ破壊的のため staging 非推奨
 当日運用/例外操作,テストケース,TC-EX-WX-200GO,管理API｜weather-decision,go 正常,天候判断の正常復帰,Master_TestSpec,,,,local-integration,local,partial,開催日・admin,
 当日運用/例外操作,テストケース,TC-EX-WX-200CIM,管理API｜weather-decision,cancel immediate 正常,即時雨天中止と通知,Master_TestSpec,,,,local-integration,local,partial,同上,
-当日運用/例外操作,テストケース,TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,前日17時予約の成立,Master_TestSpec,,,,local-integration,local,partial,同上,
+当日運用/例外操作,テストケース,TC-EX-WX-200CDB,管理API｜weather-decision,cancel day_before_17 フラグ,前日一括（day_before_17）予約の成立,Master_TestSpec,,,,local-integration,local,partial,同上,
 当日運用/例外操作,テストケース,TC-EX-OP-200,管理API｜operational-cancel,正常中止,運営中止の正常経路,Master_TestSpec,,,,local-integration,local,partial,運営中止対象 seed・admin,
 当日運用/例外操作,テストケース,TC-EX-OP-200IM,管理API｜operational-cancel,即時通知付き,即時通知付き運営中止,Master_TestSpec,,,,local-integration,local,partial,同上＋即時通知モック,
 当日運用/例外操作,テストケース,TC-EX-UN-200,管理API｜matching undo,admin_undo_afternoon_matching: 成功,編成やり直しの正規経路,Master_TestSpec,,,,local-integration,local,partial,編成済みデータ・admin,

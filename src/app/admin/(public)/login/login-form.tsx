@@ -1,22 +1,60 @@
 "use client";
 
-/** メール／パスワードで signInWithPassword。成功後は ?next または開催日管理へ。 */
+/** メール／パスワードで signInWithPassword。app_admins 確認後に ?next または開催日管理へ。 */
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { createClient } from "@/lib/supabase/client";
 
+const MSG_NO_ADMIN_PERMISSION =
+  "ログイン権限がありません。このアカウントは管理画面用リストに登録されていません。開発者にお問い合わせください。";
+
+/** Supabase Auth の英語メッセージを画面用の日本語に寄せる */
+function signInErrorMessageJa(signError: { message?: string }): string {
+  const raw = (signError.message ?? "").trim();
+  const lower = raw.toLowerCase();
+  if (
+    lower.includes("invalid login credentials") ||
+    lower.includes("invalid email or password") ||
+    lower.includes("email and password") ||
+    raw.includes("Invalid login credentials")
+  ) {
+    return "メールアドレスまたはパスワードが正しくありません。";
+  }
+  if (lower.includes("email not confirmed")) {
+    return "メールアドレスの確認が完了していません。受信トレイの確認リンクを開いてから再度お試しください。";
+  }
+  if (lower.includes("too many requests") || lower.includes("rate limit")) {
+    return "試行回数が多すぎます。しばらく時間をおいてから再度お試しください。";
+  }
+  if (lower.includes("network") || lower.includes("fetch")) {
+    return "通信に失敗しました。接続を確認のうえ、しばらくしてから再度お試しください。";
+  }
+  if (raw.length > 0 && /^[\x00-\x7F]+$/.test(raw)) {
+    return "ログインに失敗しました。入力内容をご確認ください。";
+  }
+  return raw.length > 0 ? raw : "ログインに失敗しました。入力内容をご確認ください。";
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/admin/event-days";
+  const forbidden = searchParams.get("forbidden") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  /** 保護画面から弾かれた直後など、URL の forbidden を一度だけ画面に出す */
+  useEffect(() => {
+    if (!forbidden) return;
+    setError(MSG_NO_ADMIN_PERMISSION);
+    router.replace("/admin/login", { scroll: false });
+  }, [forbidden, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,13 +65,37 @@ export function LoginForm() {
       email,
       password,
     });
-    setLoading(false);
     if (signError) {
-      setError(signError.message);
+      setLoading(false);
+      setError(signInErrorMessageJa(signError));
       return;
     }
-    router.push(next);
-    router.refresh();
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      setLoading(false);
+      setError("セッションの確立に失敗しました。もう一度お試しください。");
+      return;
+    }
+
+    const checkRes = await fetch("/api/admin/auth-check", {
+      credentials: "same-origin",
+    });
+
+    if (checkRes.ok) {
+      setLoading(false);
+      router.push(next);
+      router.refresh();
+      return;
+    }
+
+    await supabase.auth.signOut();
+    setLoading(false);
+    if (checkRes.status === 403) {
+      setError(MSG_NO_ADMIN_PERMISSION);
+      return;
+    }
+    setError("サーバーとの通信に失敗しました。しばらくしてから再度お試しください。");
   }
 
   return (

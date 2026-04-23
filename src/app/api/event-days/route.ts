@@ -6,6 +6,10 @@
 import { NextResponse } from "next/server";
 
 import { sumMorningRemainingVacanciesByEventDay } from "@/lib/event-days/morning-remaining-vacancies";
+import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_READ_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 /**
@@ -27,8 +31,9 @@ export async function GET() {
     .order("event_date", { ascending: true });
 
   if (error) {
+    logPublicReserveApiSupabaseError("GET /api/event-days", error);
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: error.code },
       { status: 500 }
     );
   }

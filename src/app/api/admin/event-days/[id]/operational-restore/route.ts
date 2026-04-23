@@ -4,6 +4,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -60,6 +61,13 @@ export async function POST(
       { error: "取り消し先の状態が不明です（履歴がない可能性があります）" },
       { status: 409 }
     );
+  }
+
+  if (nextStatus === "open") {
+    const lunch = await assertEventDayAcceptsBookableLunchMenus(supabase, eventDayId);
+    if (!lunch.ok) {
+      return NextResponse.json({ error: lunch.message }, { status: 422 });
+    }
   }
 
   const { error: upErr } = await supabase

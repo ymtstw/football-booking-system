@@ -15,6 +15,10 @@ type Props = {
 export function EventDayOpsBreadcrumb({ eventDayId, items }: Props) {
   return (
     <nav aria-label="開催日まわりのパンくず" className="mb-4 text-sm text-zinc-600">
+      <Link href="/admin/dashboard" className={linkMuted}>
+        ダッシュボード
+      </Link>
+      <span className="mx-1.5 text-zinc-400">·</span>
       <Link href={`/admin/event-days/${eventDayId}`} className={linkMuted}>
         ← この開催のまとめ
       </Link>

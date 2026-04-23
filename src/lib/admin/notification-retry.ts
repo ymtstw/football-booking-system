@@ -1,6 +1,9 @@
 import "server-only";
 
-import { buildReservationScheduleLines } from "@/lib/day-before/reservation-schedule-lines";
+import {
+  buildReservationScheduleLines,
+  buildReservationScheduleRows,
+} from "@/lib/day-before/reservation-schedule-lines";
 import {
   sendDayBeforeFinalEmailAndUpdateNotification,
   sendOperationalCancelImmediateEmailAndUpdateNotification,
@@ -18,6 +21,11 @@ import {
   sendMinimumCancelNoticeEmailAndUpdateNotification,
   TEMPLATE_MINIMUM_CANCEL_NOTICE,
 } from "@/lib/email/minimum-cancel-mail";
+import {
+  parseMorningSlotForceChangedPayloadSummary,
+  sendMorningSlotForceChangedEmailAndUpdateNotification,
+  TEMPLATE_MORNING_SLOT_FORCE_CHANGED,
+} from "@/lib/email/morning-slot-force-changed-mail";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const TEMPLATE_RESERVATION_CREATED = "reservation_created";
@@ -222,7 +230,7 @@ export async function retryFailedNotificationById(
         .select("event_date, grade_band")
         .eq("id", eventDayId)
         .maybeSingle();
-      const scheduleLines = await buildReservationScheduleLines(
+      const scheduleRows = await buildReservationScheduleRows(
         supabase,
         eventDayId,
         reservationId
@@ -235,7 +243,7 @@ export async function retryFailedNotificationById(
         teamName: contact.teamName,
         eventDateIso: (ed?.event_date as string) ?? null,
         gradeBand: (ed?.grade_band as string) ?? null,
-        scheduleLines,
+        scheduleRows,
       });
     } else if (templateKey === TEMPLATE_MINIMUM_CANCEL_NOTICE) {
       const { data: ed } = await supabase
@@ -300,6 +308,49 @@ export async function retryFailedNotificationById(
         eventDateIso: (ed?.event_date as string) ?? null,
         gradeBand: (ed?.grade_band as string) ?? null,
         weatherNotes: notes,
+      });
+    } else if (templateKey === TEMPLATE_MORNING_SLOT_FORCE_CHANGED) {
+      const payload = parseMorningSlotForceChangedPayloadSummary(row.payload_summary);
+      if (!payload) {
+        await supabase
+          .from("notifications")
+          .update({
+            status: "failed",
+            error_message: "朝枠変更通知の payload_summary が不正のため再送できません",
+          })
+          .eq("id", notificationId);
+        return {
+          ok: false,
+          error: "通知の保存内容（枠・時刻）が取得できません。開催日を確認してください。",
+          statusCode: 422,
+        };
+      }
+      const { data: ed } = await supabase
+        .from("event_days")
+        .select("event_date, grade_band")
+        .eq("id", eventDayId)
+        .maybeSingle();
+      const eventDateIso =
+        payload.event_date_iso ??
+        ((ed?.event_date as string | undefined) ?? null);
+      const teamName = payload.team_name?.trim()
+        ? payload.team_name.trim()
+        : contact.teamName;
+      const gradeBand =
+        payload.grade_band != null && String(payload.grade_band).trim() !== ""
+          ? String(payload.grade_band).trim()
+          : ((ed?.grade_band as string | null) ?? null);
+      await sendMorningSlotForceChangedEmailAndUpdateNotification({
+        supabase,
+        notificationId,
+        to: contact.contactEmail,
+        contactName: contact.contactName,
+        teamName,
+        eventDateIso,
+        gradeBand,
+        slotCode: payload.slot_code,
+        morningStartHm: payload.morning_start_hm,
+        morningEndHm: payload.morning_end_hm,
       });
     } else if (templateKey === TEMPLATE_OPERATIONAL_CANCEL_IMMEDIATE) {
       const { data: ed } = await supabase

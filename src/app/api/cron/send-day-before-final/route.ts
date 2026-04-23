@@ -1,7 +1,8 @@
 /**
- * Cron JOB03: 開催前日 17:00 JST 想定の「最終通知」（開催確定 / 雨天中止 / 運営中止 / 編成待ち）。
+ * Cron JOB03: 開催前日 16:30 JST 想定の「最終通知」（開催確定 / 雨天中止 / 運営中止 / 編成待ち）。
  *
- * `vercel.json`: `0 8 * * *`（UTC 08:00 = 同日 17:00 Asia/Tokyo）。
+ * `vercel.json`: `30 7 * * *`（UTC 07:30 = 同日 16:30 Asia/Tokyo）。
+ * マッチング案内（`0 7` = 16:00 JST）と重ならないよう 30 分ずらしている。
  * 雨天: `weather_day_before_rain_scheduled` かつ中止判断があれば、この処理で `cancelled_weather` に確定してから送る。
  * 即時 `weather_cancel_immediate` 済みの予約には `day_before_final` を送らない（二重防止）。
  */

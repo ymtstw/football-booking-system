@@ -21,6 +21,8 @@ type SummaryJson = {
     matchingProposal: { sent: number; pendingOrFailed: number };
     weatherCancelImmediate: { sent: number; pendingOrFailed: number };
     dayBeforeFinal: { sent: number; pendingOrFailed: number };
+    /** 枠強制 PATCH 後の朝枠変更メール（API が未更新の環境では欠ける） */
+    morningSlotForceChanged?: { sent: number; pendingOrFailed: number };
   };
 };
 
@@ -62,13 +64,6 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
         >
           枠・時刻
         </Link>
-        {" · "}
-        <Link
-          href="/admin/notifications/failed"
-          className="font-medium text-indigo-800 underline decoration-indigo-600/60 underline-offset-2"
-        >
-          全開催の送信失敗
-        </Link>
       </p>
       <button
         type="button"
@@ -105,15 +100,15 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dd className="wrap-break-word text-xs">{data.reservationDeadlineAt}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">前日17:00 雨天中止の予約送信</dt>
+            <dt className="text-zinc-500">前日一括 雨天中止の予約送信（JOB03・16:30頃）</dt>
             <dd>{data.weatherDayBeforeRainScheduled ? "あり" : "なし"}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">マッチング案内メール（定時）</dt>
+            <dt className="text-zinc-500">マッチング案内メール（16:00頃・目安17:00まで）</dt>
             <dd>{data.matchingProposalNoticeSentAt ? "送信済" : "未"}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-zinc-500">前日17:00 最終メール</dt>
+            <dt className="text-zinc-500">前日最終メール（16:30頃・目安17:30まで）</dt>
             <dd>{data.finalDayBeforeNoticeCompletedAt ? "完了記録あり" : "未完了"}</dd>
           </div>
           <div className="sm:col-span-2 border-t border-zinc-100 pt-3">
@@ -134,6 +129,11 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
               <p>
                 前日最終: 送信 {data.notifications.dayBeforeFinal.sent} 件 / 未送信・失敗{" "}
                 {data.notifications.dayBeforeFinal.pendingOrFailed} 件
+              </p>
+              <p>
+                朝枠・時刻の変更案内（枠の強制変更後）: 送信{" "}
+                {data.notifications.morningSlotForceChanged?.sent ?? 0} 件 / 未送信・失敗{" "}
+                {data.notifications.morningSlotForceChanged?.pendingOrFailed ?? 0} 件
               </p>
             </dd>
           </div>

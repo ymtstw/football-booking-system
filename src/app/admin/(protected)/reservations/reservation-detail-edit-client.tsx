@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { RESERVE_PARTICIPANT_COUNT_HINT_JA } from "@/lib/copy/reserve-participant-lunch-hints";
+
 type Strength = "strong" | "potential";
 
 type Props = {
@@ -171,6 +173,9 @@ export function ReservationDetailEditClient({ reservationId, initial }: Props) {
             onChange={(e) => setParticipantCount(e.target.value)}
             disabled={saving}
           />
+          <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+            {RESERVE_PARTICIPANT_COUNT_HINT_JA}
+          </span>
         </label>
         <label className="block text-sm sm:col-span-2">
           <span className="font-medium text-zinc-800">表示名（任意）</span>

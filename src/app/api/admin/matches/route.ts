@@ -15,6 +15,7 @@ type EventDayRow = {
   event_date: string;
   grade_band: string;
   status: string;
+  reservation_deadline_at: string | null;
 };
 
 type MatchingRunRow = {
@@ -126,7 +127,7 @@ export async function GET(request: NextRequest) {
 
   const { data: eventDay, error: dayErr } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status")
+    .select("id, event_date, grade_band, status, reservation_deadline_at")
     .eq("event_date", date)
     .maybeSingle();
 

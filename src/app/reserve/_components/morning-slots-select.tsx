@@ -28,7 +28,7 @@ function formatHm(t: string): string {
   return t.length >= 5 ? t.slice(0, 5) : t;
 }
 
-/** 午前枠ラジオ一覧（開催日選択・予約入力で共用） */
+/** 午前枠ラジオ一覧（開催日選択・予約入力で共用）。readOnly で対戦表ページの閲覧のみ表示にも使う */
 export function MorningSlotsSelect({
   morningSlots,
   acceptingReservations,
@@ -38,6 +38,7 @@ export function MorningSlotsSelect({
   subheading = "チームごとにどれか1枠を選択してください",
   variant = "full",
   showCategoryLegend = true,
+  readOnly = false,
 }: {
   morningSlots: MorningSlotSelectRow[];
   acceptingReservations: boolean;
@@ -48,11 +49,18 @@ export function MorningSlotsSelect({
   /** compact: モックの「1: 5年 ハイレベル」形式。full: チーム名付き */
   variant?: "compact" | "full";
   showCategoryLegend?: boolean;
+  /** true のときラジオなし（対戦表・スケジュールの閲覧専用） */
+  readOnly?: boolean;
 }) {
+  const cancelled =
+    eventDayStatus === "cancelled_weather" ||
+    eventDayStatus === "cancelled_operational" ||
+    eventDayStatus === "cancelled_minimum";
+
   return (
     <section className="min-w-0 rounded-[20px] border border-green-200 bg-white p-4 shadow-sm sm:p-5">
       <h2 className="text-lg font-bold text-green-800 sm:text-xl">
-        午前の対戦枠（選択可）
+        {readOnly ? "午前の対戦枠（状況）" : "午前の対戦枠（選択可）"}
       </h2>
       <p className="mt-1 text-sm text-slate-600">{subheading}</p>
       {showCategoryLegend ? (
@@ -67,60 +75,78 @@ export function MorningSlotsSelect({
           </li>
         </ul>
       ) : null}
+      {readOnly && acceptingReservations ? (
+        <p className="mt-3 text-sm text-slate-600">
+          閲覧のみです。枠の選択・予約は「予約する」からお進みください。
+        </p>
+      ) : null}
       {!acceptingReservations && (
-        <p className="mt-3 text-sm text-red-700">
-          {eventDayStatus === "cancelled_weather"
-            ? "雨天のため開催中止です。新規の予約はできません。"
-            : eventDayStatus === "cancelled_operational"
-              ? "運営の都合により開催中止です。新規の予約はできません。"
-              : eventDayStatus === "cancelled_minimum"
-                ? "最少催行に満たないため開催中止です。新規の予約はできません。"
-                : eventDayStatus === "confirmed"
-                  ? "編成が確定済みのため、新規の予約はできません。"
-                  : eventDayStatus === "locked"
-                    ? "締切後のため、新規の予約はできません。"
-                    : "予約締切を過ぎているため、新規の予約はできません。"}
+        <p
+          className={`mt-3 text-sm ${
+            readOnly && !cancelled ? "text-slate-600" : "text-red-700"
+          }`}
+        >
+          {readOnly && !cancelled ? (
+            <>
+              閲覧のみです。新規予約・変更は「予約する」「予約の確認・キャンセル」からお手続きください。
+            </>
+          ) : eventDayStatus === "cancelled_weather" ? (
+            "雨天のため開催中止です。新規の予約はできません。"
+          ) : eventDayStatus === "cancelled_operational" ? (
+            "運営の都合により開催中止です。新規の予約はできません。"
+          ) : eventDayStatus === "cancelled_minimum" ? (
+            "最少催行に満たないため開催中止です。新規の予約はできません。"
+          ) : eventDayStatus === "confirmed" ? (
+            "編成が確定済みのため、新規の予約はできません。"
+          ) : eventDayStatus === "locked" ? (
+            "締切後のため、新規の予約はできません。"
+          ) : (
+            "予約締切を過ぎているため、新規の予約はできません。"
+          )}
         </p>
       )}
       <ul className="mt-4 space-y-3">
         {morningSlots.map((s) => {
-          const disabled = !s.bookable || !acceptingReservations;
+          const disabled = !readOnly && (!s.bookable || !acceptingReservations);
           const isFull = s.full;
           const teams = s.bookedTeams ?? [];
           const remain = Math.max(0, s.capacity - s.activeCount);
           const slotHeadline = s.full
             ? `${formatHm(s.startTime)}–${formatHm(s.endTime)}（満席）`
             : `${formatHm(s.startTime)}–${formatHm(s.endTime)}（残り${remain}枠）`;
+          const boxClass = readOnly
+            ? "flex min-h-12 items-start gap-3 rounded-[16px] border-2 border-slate-200 bg-white p-3.5 sm:p-4"
+            : `flex min-h-12 items-start gap-3 rounded-[16px] border-2 p-3.5 transition-colors sm:p-4 ${
+                disabled
+                  ? isFull
+                    ? "cursor-not-allowed border-slate-300 bg-slate-300/90 text-slate-700"
+                    : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
+                  : "cursor-pointer " +
+                    (selectedSlotId === s.id
+                      ? "border-green-600 bg-green-50 shadow-sm ring-2 ring-green-600/20"
+                      : "border-slate-200 bg-white hover:border-green-200")
+              }`;
           return (
             <li key={s.id}>
-              <label
-                className={`flex min-h-12 items-start gap-3 rounded-[16px] border-2 p-3.5 transition-colors sm:p-4 ${
-                  disabled
-                    ? isFull
-                      ? "cursor-not-allowed border-slate-300 bg-slate-300/90 text-slate-700"
-                      : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500"
-                    : "cursor-pointer " +
-                      (selectedSlotId === s.id
-                        ? "border-green-600 bg-green-50 shadow-sm ring-2 ring-green-600/20"
-                        : "border-slate-200 bg-white hover:border-green-200")
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="morning-slot"
-                  value={s.id}
-                  className={
-                    disabled && isFull
-                      ? "mt-1 h-4 w-4 shrink-0 cursor-not-allowed appearance-none rounded-full border-2 border-slate-600 bg-zinc-900 sm:mt-1.5"
-                      : "mt-1 h-4 w-4 shrink-0 accent-green-600 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-1.5"
-                  }
-                  checked={selectedSlotId === s.id}
-                  disabled={disabled}
-                  onChange={() => onSelectSlot(s.id)}
-                />
+              <div className={boxClass}>
+                {!readOnly ? (
+                  <input
+                    type="radio"
+                    name="morning-slot"
+                    value={s.id}
+                    className={
+                      disabled && isFull
+                        ? "mt-1 h-4 w-4 shrink-0 cursor-not-allowed appearance-none rounded-full border-2 border-slate-600 bg-zinc-900 sm:mt-1.5"
+                        : "mt-1 h-4 w-4 shrink-0 accent-green-600 disabled:cursor-not-allowed disabled:opacity-60 sm:mt-1.5"
+                    }
+                    checked={selectedSlotId === s.id}
+                    disabled={disabled}
+                    onChange={() => onSelectSlot(s.id)}
+                  />
+                ) : null}
                 <div className="min-w-0 flex-1 space-y-2 text-sm">
                   <div
-                    className={`font-semibold ${disabled ? "text-slate-700" : "text-slate-900"}`}
+                    className={`font-semibold ${readOnly ? "text-slate-900" : disabled ? "text-slate-700" : "text-slate-900"}`}
                   >
                     {slotHeadline}
                     {s.isLocked ? (
@@ -162,7 +188,7 @@ export function MorningSlotsSelect({
                     )}
                   </div>
                 </div>
-              </label>
+              </div>
             </li>
           );
         })}

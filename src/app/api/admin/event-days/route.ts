@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 
 import { toEventDaySlotRows } from "@/domains/event-days/default-slots";
 import { getAdminUser } from "@/lib/auth/require-admin";
+import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
+import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 type EventDayStatus =
@@ -71,7 +73,6 @@ export async function POST(request: Request) {
   const parsed = parseCreateBody(json);
   const eventDate = parsed?.eventDate?.trim();
   const gradeBand = parsed?.gradeBand?.trim();
-  const reservationDeadlineAt = parsed?.reservationDeadlineAt?.trim();
   const status: EventDayStatus =
     parsed?.status && ALLOWED_STATUS.includes(parsed.status)
       ? parsed.status
@@ -89,17 +90,14 @@ export async function POST(request: Request) {
       { status: 422 }
     );
   }
-  if (!reservationDeadlineAt) {
-    return NextResponse.json(
-      { error: "reservationDeadlineAt は必須です（ISO 8601 推奨）" },
-      { status: 422 }
-    );
-  }
 
-  const deadline = new Date(reservationDeadlineAt);
-  if (Number.isNaN(deadline.getTime())) {
+  /** 締切は Cron・案内メールの前提に合わせ、作成時は標準のみ（クライアント指定は使わない）。 */
+  const canonicalDeadlineIso =
+    defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate);
+  const deadlineMs = new Date(canonicalDeadlineIso).getTime();
+  if (!Number.isFinite(deadlineMs)) {
     return NextResponse.json(
-      { error: "reservationDeadlineAt が解釈できません" },
+      { error: "開催日から予約締切を算出できません" },
       { status: 422 }
     );
   }
@@ -112,7 +110,7 @@ export async function POST(request: Request) {
       event_date: eventDate,
       grade_band: gradeBand,
       status,
-      reservation_deadline_at: deadline.toISOString(),
+      reservation_deadline_at: new Date(deadlineMs).toISOString(),
     })
     .select("id, event_date, grade_band, status, reservation_deadline_at")
     .single();
@@ -166,6 +164,14 @@ export async function POST(request: Request) {
       { error: slotsErr.message, code: slotsErr.code },
       { status: 500 }
     );
+  }
+
+  if (status === "open") {
+    const lunch = await assertEventDayAcceptsBookableLunchMenus(supabase, day.id);
+    if (!lunch.ok) {
+      await supabase.from("event_days").delete().eq("id", day.id);
+      return NextResponse.json({ error: lunch.message }, { status: 422 });
+    }
   }
 
   return NextResponse.json(

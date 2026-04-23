@@ -1,9 +1,14 @@
 import Link from "next/link";
 
 import {
-  campInquiryStatusLabelJa,
-  isCampInquiryStatus,
-} from "@/lib/camp-inquiry/camp-inquiry-status";
+  type InquiryListPeriod,
+  type InquiryListTab,
+  inquiryListHref,
+  inquiryListSupabaseFilters,
+  parseInquiryListQuery,
+  rollingThirtyDaysCutoffIso,
+} from "@/lib/admin/inquiry-admin-list-query";
+import { campInquiryStatusLabelJa } from "@/lib/camp-inquiry/camp-inquiry-status";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
@@ -34,20 +39,33 @@ function previewMessage(text: string, max = 72): string {
   return `${t.slice(0, max)}…`;
 }
 
+function emptyMessageTournament(tab: InquiryListTab, period: InquiryListPeriod): string {
+  if (tab === "todo") return "未対応・要再対応のお問い合わせはありません。";
+  if (tab === "in_progress") return "対応中のお問い合わせはありません。";
+  if (tab === "done") {
+    return period === "recent"
+      ? "直近30日以内に対応済みになったお問い合わせはありません。"
+      : "30日より前に対応済みになったお問い合わせはありません。";
+  }
+  return period === "recent"
+    ? "直近30日以内のお問い合わせはありません。"
+    : "30日より前のお問い合わせはありません。";
+}
+
 /** 管理: 大会・お問い合わせ一覧 */
 export default async function AdminTournamentInquiriesPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ status?: string | string[] | undefined }>;
+  searchParams?: Promise<{
+    tab?: string | string[] | undefined;
+    period?: string | string[] | undefined;
+    status?: string | string[] | undefined;
+  }>;
 }) {
   const sp = searchParams ? await searchParams : {};
-  const raw =
-    typeof sp.status === "string"
-      ? sp.status
-      : Array.isArray(sp.status)
-        ? sp.status[0]
-        : undefined;
-  const statusFilter = raw && isCampInquiryStatus(raw) ? raw : null;
+  const { tab, period } = parseInquiryListQuery(sp);
+  const cutoffIso = rollingThirtyDaysCutoffIso();
+  const filters = inquiryListSupabaseFilters(tab, period, cutoffIso);
 
   const supabase = await createClient();
   let query = supabase
@@ -58,8 +76,17 @@ export default async function AdminTournamentInquiriesPage({
     .order("created_at", { ascending: false })
     .limit(200);
 
-  if (statusFilter) {
-    query = query.eq("status", statusFilter);
+  if (filters.statusIn) {
+    query = query.in("status", [...filters.statusIn]);
+  }
+  if (filters.statusEq) {
+    query = query.eq("status", filters.statusEq);
+  }
+  if (filters.createdGte) {
+    query = query.gte("created_at", filters.createdGte);
+  }
+  if (filters.createdLt) {
+    query = query.lt("created_at", filters.createdLt);
   }
 
   const { data, error } = await query;
@@ -68,9 +95,7 @@ export default async function AdminTournamentInquiriesPage({
   return (
     <div className="min-w-0 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
-          お問い合わせ（大会）
-        </h1>
+        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">お問い合わせ</h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           公開の「お問い合わせ」フォームから届いた内容です。合宿相談（
           <Link
@@ -90,42 +115,59 @@ export default async function AdminTournamentInquiriesPage({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/admin/tournament-inquiries"
-          className={tabClass(statusFilter === null)}
-          aria-current={statusFilter === null ? "page" : undefined}
-        >
-          すべて
-        </Link>
-        <Link
-          href="/admin/tournament-inquiries?status=new"
-          className={tabClass(statusFilter === "new")}
-          aria-current={statusFilter === "new" ? "page" : undefined}
-        >
-          未対応
-        </Link>
-        <Link
-          href="/admin/tournament-inquiries?status=in_progress"
-          className={tabClass(statusFilter === "in_progress")}
-          aria-current={statusFilter === "in_progress" ? "page" : undefined}
-        >
-          対応中
-        </Link>
-        <Link
-          href="/admin/tournament-inquiries?status=follow_up"
-          className={tabClass(statusFilter === "follow_up")}
-          aria-current={statusFilter === "follow_up" ? "page" : undefined}
-        >
-          要再対応
-        </Link>
-        <Link
-          href="/admin/tournament-inquiries?status=done"
-          className={tabClass(statusFilter === "done")}
-          aria-current={statusFilter === "done" ? "page" : undefined}
-        >
-          対応済み
-        </Link>
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={inquiryListHref("/admin/tournament-inquiries", "todo", "recent")}
+            className={tabClass(tab === "todo")}
+            aria-current={tab === "todo" ? "page" : undefined}
+          >
+            要対応
+          </Link>
+          <Link
+            href={inquiryListHref("/admin/tournament-inquiries", "in_progress", "recent")}
+            className={tabClass(tab === "in_progress")}
+            aria-current={tab === "in_progress" ? "page" : undefined}
+          >
+            対応中
+          </Link>
+          <Link
+            href={inquiryListHref("/admin/tournament-inquiries", "done", "recent")}
+            className={tabClass(tab === "done")}
+            aria-current={tab === "done" ? "page" : undefined}
+          >
+            対応済み
+          </Link>
+          <Link
+            href={inquiryListHref("/admin/tournament-inquiries", "all", "recent")}
+            className={tabClass(tab === "all")}
+            aria-current={tab === "all" ? "page" : undefined}
+          >
+            すべて
+          </Link>
+        </div>
+        {(tab === "done" || tab === "all") && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-zinc-500">受付日時</span>
+            <Link
+              href={inquiryListHref("/admin/tournament-inquiries", tab, "recent")}
+              className={tabClass(period === "recent")}
+              aria-current={period === "recent" ? "page" : undefined}
+            >
+              直近30日
+            </Link>
+            <Link
+              href={inquiryListHref("/admin/tournament-inquiries", tab, "older")}
+              className={tabClass(period === "older")}
+              aria-current={period === "older" ? "page" : undefined}
+            >
+              それ以前
+            </Link>
+          </div>
+        )}
+        <p className="text-xs leading-relaxed text-zinc-500">
+          要対応・対応中はステータスで全期間を表示します。対応済み・すべては受付日時が直近30日以内か、それより前かで切り替えます（いずれも最大200件）。
+        </p>
       </div>
 
       {error ? (
@@ -133,11 +175,7 @@ export default async function AdminTournamentInquiriesPage({
           取得に失敗しました: {error.message}
         </p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-zinc-600">
-          {statusFilter
-            ? "このステータスのお問い合わせはありません。"
-            : "まだお問い合わせの受付がありません。"}
-        </p>
+        <p className="text-sm text-zinc-600">{emptyMessageTournament(tab, period)}</p>
       ) : (
         <>
           <div className="space-y-3 md:hidden">
@@ -198,12 +236,14 @@ export default async function AdminTournamentInquiriesPage({
                     <th className="min-w-[8rem] px-3 py-2.5 sm:px-4">電話</th>
                     <th className="min-w-[14rem] px-3 py-2.5 sm:px-4">内容（抜粋）</th>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">ステータス</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">操作</th>
+                    <th className="sticky right-0 z-20 min-w-[6.5rem] whitespace-nowrap border-l border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] sm:px-4">
+                      操作
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
                   {rows.map((row) => (
-                    <tr key={row.id} className="align-top text-zinc-900">
+                    <tr key={row.id} className="group align-top text-zinc-900">
                       <td className="whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
                         {formatDateTimeTokyoWithWeekday(row.created_at)}
                       </td>
@@ -233,10 +273,10 @@ export default async function AdminTournamentInquiriesPage({
                       <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
                         {campInquiryStatusLabelJa(row.status)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                      <td className="sticky right-0 z-10 min-w-[6.5rem] whitespace-nowrap border-l border-zinc-200 bg-white px-2 py-2 shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] group-hover:bg-zinc-50 sm:px-3">
                         <Link
                           href={`/admin/tournament-inquiries/${row.id}`}
-                          className="font-medium text-sky-800 underline underline-offset-2 hover:text-sky-950"
+                          className="inline-flex min-h-9 w-full min-w-[4.75rem] items-center justify-center rounded-md border border-zinc-300 bg-white px-2 text-sm font-semibold text-zinc-800 shadow-sm hover:border-zinc-400 hover:bg-zinc-50"
                         >
                           詳細
                         </Link>

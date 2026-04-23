@@ -3,11 +3,13 @@
 /** 枠の時刻の編集と「6枠運用／8枠運用」の切替（API 連携）。 */
 import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { defaultSlotTimesByCode } from "@/domains/event-days/default-slots";
 import {
   EVENT_DAY_SLOT_COUNT_POLICY_HELP_JA,
   eventDaySlotPhaseCountsOk,
 } from "@/lib/event-days/event-day-slot-count-policy";
 import { eventSlotLabelJa, slotCodeOrderKey } from "@/lib/admin/operator-display";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -31,6 +33,13 @@ function timeInputValue(pg: string): string {
 
 function phaseLabelJa(phase: string): string {
   return phase === "morning" ? "午前" : phase === "afternoon" ? "午後" : phase;
+}
+
+/** 予約締切を過去とみなすか（未設定・不正なら false） */
+function isReservationDeadlinePassed(iso: string): boolean {
+  const t = iso.trim() ? new Date(iso).getTime() : NaN;
+  if (!Number.isFinite(t)) return false;
+  return Date.now() >= t;
 }
 
 function sortSlotsByCode(rows: EventDaySlotEditorRow[]): EventDaySlotEditorRow[] {
@@ -83,17 +92,35 @@ function applyOperationalSixEight(
   });
 }
 
+/** 8枠へ切替時: 各フェーズ4枠目を標準テンプレ（40分刻み・昼休憩後から午後）に揃えてから有効化 */
+function applyEightWithStandardFourthSlotTimes(prev: EventDaySlotEditorRow[]): EventDaySlotEditorRow[] {
+  const byCode = defaultSlotTimesByCode();
+  const patched = prev.map((s) => {
+    if (s.slot_code !== "MORNING_4" && s.slot_code !== "AFTERNOON_4") return s;
+    const t = byCode.get(s.slot_code);
+    if (!t) return s;
+    return { ...s, start_time: t.startTime, end_time: t.endTime };
+  });
+  return applyOperationalSixEight(patched, "eight");
+}
+
 export function SlotsEditorClient({
   eventDayId,
   initialSlots,
   editable,
   mutationMode = "normal",
+  activeReservationCount = 0,
+  reservationDeadlineAt = "",
 }: {
   eventDayId: string;
   initialSlots: EventDaySlotEditorRow[];
   editable: boolean;
   /** `force` のときは `/slots/force` API と `acknowledgeReservationRisk` を使う */
   mutationMode?: "normal" | "force";
+  /** アクティブ予約件数（通常モードで編集不可の理由表示に使用） */
+  activeReservationCount?: number;
+  /** 開催日の予約締切（ISO）。過去なら保存前に確認 */
+  reservationDeadlineAt?: string;
 }) {
   const router = useRouter();
   const [slots, setSlots] = useState<EventDaySlotEditorRow[]>(initialSlots);
@@ -143,6 +170,13 @@ export function SlotsEditorClient({
 
   async function handleSave() {
     if (!editable) return;
+    if (isReservationDeadlinePassed(reservationDeadlineAt)) {
+      const ok = window.confirm(
+        "予約締切の日時をすでに過ぎています。この内容で枠（時刻・運用）を保存してもよいですか？\n\n" +
+          "（開催日のステータスはここでは自動では変わりません。必要なら開催日詳細の締切取りこぼし処理などをご確認ください。）"
+      );
+      if (!ok) return;
+    }
     setError(null);
     setBusy("save");
     try {
@@ -182,77 +216,102 @@ export function SlotsEditorClient({
 
   const saving = busy === "save";
 
-  function renderRows(rows: EventDaySlotEditorRow[]) {
-    // 現場向けには「6枠運用なら3行」「8枠運用なら4行」にするため、非有効枠は非表示にする。
-    // 旧データ（3+3 等）では行ごとの有効チェックも必要なので、4+4 でないときは全行表示する。
-    const sorted = sortSlotsByCode(rows);
-    const visible =
-      morning.length === 4 && afternoon.length === 4
-        ? sorted.filter((s) => s.is_active)
-        : sorted;
-    if (visible.length === 0) {
-      return (
-        <p className="px-3 py-4 text-sm text-zinc-500">枠がありません</p>
-      );
-    }
+  function renderSlotRow(s: EventDaySlotEditorRow, opts?: { muted?: boolean }) {
+    const muted = opts?.muted ?? false;
     return (
-      <div className="divide-y divide-zinc-100">
-        {visible.map((s) => (
-          <div
-            key={s.id}
-            className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4"
-          >
-            <div className="min-w-0 sm:w-24 sm:pb-1.5">
-              <p className="text-sm font-medium text-zinc-900">
-                {eventSlotLabelJa(s.slot_code, s.phase)}
-              </p>
-            </div>
-            <label className="block min-w-34">
-              <span className="text-xs font-medium text-zinc-500">開始</span>
-              <DateInputWithPicker
-                type="time"
-                disabled={!editable}
-                value={timeInputValue(s.start_time)}
-                onChange={(e) =>
-                  updateSlot(s.id, {
-                    start_time: `${e.target.value}:00`,
-                  })
-                }
-                className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:bg-zinc-100"
-              />
-            </label>
-            <label className="block min-w-34">
-              <span className="text-xs font-medium text-zinc-500">終了</span>
-              <DateInputWithPicker
-                type="time"
-                disabled={!editable}
-                value={timeInputValue(s.end_time)}
-                onChange={(e) =>
-                  updateSlot(s.id, { end_time: `${e.target.value}:00` })
-                }
-                className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:bg-zinc-100"
-              />
-            </label>
-            {showRowActiveCheckbox ? (
-              <label className="flex items-center gap-2 pb-0.5 sm:pb-1.5">
-                <input
-                  type="checkbox"
-                  disabled={!editable}
-                  checked={s.is_active}
-                  onChange={(e) =>
-                    updateSlot(s.id, { is_active: e.target.checked })
-                  }
-                  className="h-4 w-4 rounded border-zinc-300"
-                />
-                <span className="text-sm text-zinc-800">有効（予約・編成）</span>
-              </label>
-            ) : null}
-            {s.is_locked ? (
-              <span className="text-xs text-amber-800">枠ロック中</span>
-            ) : null}
-          </div>
-        ))}
+      <div
+        key={s.id}
+        className={`flex flex-col gap-3 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 ${
+          muted ? "bg-zinc-50/80" : ""
+        }`}
+      >
+        <div className="min-w-0 sm:w-24 sm:pb-1.5">
+          <p className="text-sm font-medium text-zinc-900">
+            {eventSlotLabelJa(s.slot_code, s.phase)}
+          </p>
+        </div>
+        <label className="block min-w-34">
+          <span className="text-xs font-medium text-zinc-500">開始</span>
+          <DateInputWithPicker
+            type="time"
+            step={60}
+            disabled={!editable}
+            value={timeInputValue(s.start_time)}
+            onChange={(e) =>
+              updateSlot(s.id, {
+                start_time: `${e.target.value}:00`,
+              })
+            }
+            className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:bg-zinc-100"
+          />
+        </label>
+        <label className="block min-w-34">
+          <span className="text-xs font-medium text-zinc-500">終了</span>
+          <DateInputWithPicker
+            type="time"
+            step={60}
+            disabled={!editable}
+            value={timeInputValue(s.end_time)}
+            onChange={(e) =>
+              updateSlot(s.id, { end_time: `${e.target.value}:00` })
+            }
+            className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:bg-zinc-100"
+          />
+        </label>
+        {showRowActiveCheckbox ? (
+          <label className="flex items-center gap-2 pb-0.5 sm:pb-1.5">
+            <input
+              type="checkbox"
+              disabled={!editable}
+              checked={s.is_active}
+              onChange={(e) =>
+                updateSlot(s.id, { is_active: e.target.checked })
+              }
+              className="h-4 w-4 rounded border-zinc-300"
+            />
+            <span className="text-sm text-zinc-800">有効（予約・編成）</span>
+          </label>
+        ) : null}
+        {s.is_locked ? (
+          <span className="text-xs text-amber-800">枠ロック中</span>
+        ) : null}
       </div>
+    );
+  }
+
+  function renderRows(rows: EventDaySlotEditorRow[]) {
+    const sorted = sortSlotsByCode(rows);
+    const splitFourEach =
+      morning.length === 4 && afternoon.length === 4 && !showRowActiveCheckbox;
+    const activeRows = splitFourEach ? sorted.filter((s) => s.is_active) : sorted;
+    const inactiveRows = splitFourEach ? sorted.filter((s) => !s.is_active) : [];
+
+    if (activeRows.length === 0 && inactiveRows.length === 0) {
+      return <p className="px-3 py-4 text-sm text-zinc-500">枠がありません</p>;
+    }
+
+    return (
+      <>
+        {activeRows.length > 0 ? (
+          <div className="divide-y divide-zinc-100">
+            {activeRows.map((s) => renderSlotRow(s))}
+          </div>
+        ) : (
+          <p className="px-3 py-4 text-sm text-zinc-500">枠がありません</p>
+        )}
+        {inactiveRows.length > 0 ? (
+          <div className="border-t border-dashed border-zinc-300 bg-zinc-50/70">
+            <p className="px-3 pt-3 text-xs leading-relaxed text-zinc-700">
+              6枠運用では以下は予約・編成の対象外ですが、
+              <strong className="font-semibold text-zinc-900">時刻はここで先行調整</strong>
+              できます。標準テンプレは各40分連続で、12:00–13:00は昼休憩のため枠を置きません（午前は12:00前まで、午後は13:00から）。8枠に切り替えると4枠目はテンプレ時刻に揃ったうえで有効になります。昼休み帯に枠を置く場合は、分単位で開始・終了を編集してください。
+            </p>
+            <div className="divide-y divide-zinc-100">
+              {inactiveRows.map((s) => renderSlotRow(s, { muted: true }))}
+            </div>
+          </div>
+        ) : null}
+      </>
     );
   }
 
@@ -261,9 +320,36 @@ export function SlotsEditorClient({
       <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs leading-relaxed text-sky-950 sm:text-sm">
         <p className="font-medium text-sky-950">枠運用について</p>
         <p className="mt-1">{EVENT_DAY_SLOT_COUNT_POLICY_HELP_JA}</p>
-        {mutationMode === "normal" ? (
-          <p className="mt-2 text-sky-900">
-            アクティブな予約が1件でもある開催日では、通常の枠画面からの編集はできません（予約がある場合の変更は「枠の強制変更」画面から）。
+        {mutationMode === "normal" && activeReservationCount > 0 ? (
+          <div
+            role="note"
+            className="mt-3 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-3 sm:px-4"
+          >
+            <p className="text-sm font-bold text-amber-950 sm:text-base">
+              下の一覧は参照のみです（有効な予約あり）
+            </p>
+            <p className="mt-2 text-xs leading-relaxed text-amber-900 sm:text-sm">
+              アクティブな予約が{" "}
+              <span className="text-lg font-extrabold tabular-nums text-amber-950 sm:text-xl">
+                {activeReservationCount}
+              </span>{" "}
+              <span className="font-semibold">件</span>
+              あるため、ここからは保存できません。変更は強制変更フローで行ってください。
+            </p>
+            <Link
+              href={`/admin/event-days/${eventDayId}/slots/force`}
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-amber-900 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-950 sm:w-auto"
+            >
+              枠の強制変更へ
+            </Link>
+          </div>
+        ) : mutationMode === "normal" && !editable && activeReservationCount === 0 ? (
+          <p className="mt-2 text-xs leading-relaxed text-sky-900 sm:text-sm">
+            この開催日の状態（公開終了・確定など）のため、この一覧からの保存はできません（参照のみ）。
+          </p>
+        ) : mutationMode === "normal" ? (
+          <p className="mt-2 text-xs leading-relaxed text-sky-900 sm:text-sm">
+            有効な予約がないときのみ、この一覧から時刻や枠の有効を保存できます。
           </p>
         ) : (
           <p className="mt-2 font-medium text-sky-950">
@@ -285,6 +371,8 @@ export function SlotsEditorClient({
           <p className="mt-1.5 text-xs leading-relaxed text-emerald-950/90 sm:text-sm">
             公開の予約フォームとマッチング編成に載せる枠数を「6枠」または「8枠」から選びます
             （6枠のときは各フェーズの4枠目を対象外にします。DBの枠行は残ります）。
+            <strong className="font-semibold text-emerald-950">8枠運用</strong>
+            に切り替えると、各4枠目の時刻は標準テンプレ（40分連続・12:00–13:00は休憩）に自動で揃えます。
           </p>
           <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2">
             <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-emerald-950">
@@ -307,7 +395,7 @@ export function SlotsEditorClient({
                 disabled={!editable}
                 checked={operationalSixEight === "eight"}
                 onChange={() => {
-                  setSlots((prev) => applyOperationalSixEight(prev, "eight"));
+                  setSlots((prev) => applyEightWithStandardFourthSlotTimes(prev));
                 }}
                 className="h-4 w-4 border-emerald-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
               />

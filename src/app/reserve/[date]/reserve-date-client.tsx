@@ -24,10 +24,29 @@ import {
   gradeYearLabelJa,
   representativeGradeYearChoicesForBand,
 } from "@/lib/reservations/grade-year";
+import {
+  isAtLeastFourDigitCount,
+  RESERVE_COUNT_MAX_ALLOWED,
+  RESERVE_COUNT_REJECT_FROM,
+} from "@/lib/reservations/reserve-numeric-sanity";
 import { RESERVE_STRENGTH_OPTIONS } from "@/lib/reservations/strength-labels";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
 import { parseLunchQuantityField } from "@/lib/lunch/parse-lunch-qty-field";
 import type { LunchMenuItemPublic } from "@/lib/lunch/types";
+import { getDefaultSlotDisplayIntervalsForPhase } from "@/domains/event-days/default-slots";
+import {
+  RESERVE_LUNCH_ORDER_HELP_JA,
+  RESERVE_PARTICIPANT_COUNT_HINT_JA,
+} from "@/lib/copy/reserve-participant-lunch-hints";
+import {
+  RESERVE_MAIL_PUBLIC_JA,
+  RESERVE_MAIL_TIMING_NOTE_JA,
+} from "@/lib/copy/reserve-public-mail-schedule";
+import {
+  reserveFlowApiErrorDisplay,
+  reserveFlowUserVisibleMessage,
+  RESERVE_FLOW_NETWORK_ERROR_JA,
+} from "@/lib/reserve/reserve-flow-user-message";
 
 const SESSION_COMPLETE_KEY = "football_reservation_complete_v1";
 
@@ -85,12 +104,6 @@ function gradeBandLabelJa(band: string): string {
   return g;
 }
 
-const PM_DISPLAY_SLOTS = [
-  { start: "13:30", end: "14:30" },
-  { start: "14:30", end: "15:30" },
-  { start: "15:30", end: "16:30" },
-] as const;
-
 type AvailabilityLoadIssue =
   | null
   /** 公開中の開催日が無い（404）。DB リセット直後・未公開・ブックマークの古い日付など */
@@ -145,10 +158,11 @@ export function ReserveDateClient({
           }
           setLoadIssue({
             kind: "error",
-            message:
-              typeof json.error === "string" && json.error.trim()
-                ? json.error
-                : `空き状況を取得できませんでした（${res.status}）`,
+            message: reserveFlowApiErrorDisplay(
+              res.status,
+              typeof json.error === "string" ? json.error : undefined,
+              `空き状況を取得できませんでした（${res.status}）`
+            ),
           });
           return;
         }
@@ -163,7 +177,7 @@ export function ReserveDateClient({
       .catch(() => {
         if (cancelled) return;
         setData(null);
-        setLoadIssue({ kind: "error", message: "通信に失敗しました" });
+        setLoadIssue({ kind: "error", message: RESERVE_FLOW_NETWORK_ERROR_JA });
       });
     return () => {
       cancelled = true;
@@ -171,8 +185,18 @@ export function ReserveDateClient({
   }, [eventDate, initialMorningSlotId]);
 
   useEffect(() => {
+    const eventDayId = data?.eventDayId?.trim();
+    if (!eventDayId) {
+      setLunchMenus(null);
+      setLunchMenuLoadError(null);
+      setQtyByMenuId({});
+      return;
+    }
+
     let cancelled = false;
-    fetch("/api/lunch-menu")
+    fetch(
+      `/api/lunch-menu?eventDayId=${encodeURIComponent(eventDayId)}`
+    )
       .then(async (res) => {
         const j = (await res.json().catch(() => ({}))) as {
           items?: LunchMenuItemPublic[];
@@ -185,9 +209,11 @@ export function ReserveDateClient({
         if (!res.ok) {
           setLunchMenus([]);
           setLunchMenuLoadError(
-            typeof j.error === "string" && j.error.trim()
-              ? j.error
-              : "昼食メニューを取得できませんでした"
+            reserveFlowApiErrorDisplay(
+              res.status,
+              typeof j.error === "string" ? j.error : undefined,
+              "昼食メニューを取得できませんでした"
+            )
           );
           return;
         }
@@ -199,12 +225,12 @@ export function ReserveDateClient({
       .catch(() => {
         if (cancelled) return;
         setLunchMenus([]);
-        setLunchMenuLoadError("昼食メニューの取得に失敗しました");
+        setLunchMenuLoadError(RESERVE_FLOW_NETWORK_ERROR_JA);
       });
     return () => {
       cancelled = true;
     };
-  }, [eventDate]);
+  }, [data?.eventDayId]);
 
   useEffect(() => {
     if (phase !== "confirm") return;
@@ -233,6 +259,13 @@ export function ReserveDateClient({
     if (!Number.isInteger(pc) || pc < 1) {
       return { ok: false, message: "参加人数は 1 以上の整数にしてください" };
     }
+    if (isAtLeastFourDigitCount(pc)) {
+      return {
+        ok: false,
+        message: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください。`,
+        alert: `参加人数が ${RESERVE_COUNT_REJECT_FROM} 以上です。\n誤入力でないかご確認ください。`,
+      };
+    }
     if (!lunchMenus || lunchMenus.length === 0) {
       return {
         ok: false,
@@ -257,6 +290,13 @@ export function ReserveDateClient({
     }
     if (lunchTotalUnits === 0) {
       return { ok: false, message: "昼食は、必ずご予約が必要です。", alert: "昼食は、必ずご予約が必要です。" };
+    }
+    if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+      return {
+        ok: false,
+        message: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください。`,
+        alert: `昼食の食数の合計が ${RESERVE_COUNT_REJECT_FROM} 以上です。\n誤入力でないかご確認ください。`,
+      };
     }
     if (
       !teamName.trim() ||
@@ -327,56 +367,80 @@ export function ReserveDateClient({
     if (!data?.eventDayId) return;
 
     setSubmitting(true);
-    const res = await fetch("/api/reservations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        eventDayId: data.eventDayId,
-        selectedMorningSlotId: selectedSlotId,
-        team: {
-          teamName: teamName.trim(),
-          strengthCategory,
-          representativeGradeYear: v.representativeGradeYear,
-          contactName: contactName.trim(),
-          contactEmail: contactEmail.trim(),
-          contactPhone: v.phoneDigits,
-        },
-        participantCount: v.participantCount,
-        lunchItems: v.lunchItems,
-      }),
-    });
-    const json = (await res.json().catch(() => ({}))) as {
-      error?: string;
-      detail?: string;
-      reservationId?: string;
-      reservationToken?: string;
-    };
-    setSubmitting(false);
-
-    if (!res.ok) {
-      setSubmitError(json.detail ?? json.error ?? `送信に失敗しました（${res.status}）`);
-      return;
-    }
-    if (!json.reservationToken || !json.reservationId) {
-      setSubmitError("予約は完了したが表示用データが返りませんでした。運営へ連絡してください。");
-      return;
-    }
-
     try {
-      sessionStorage.setItem(
-        SESSION_COMPLETE_KEY,
-        JSON.stringify({
-          reservationToken: json.reservationToken,
-          reservationId: json.reservationId,
-          eventDate: data.eventDate,
-        })
-      );
-    } catch {
-      setSubmitError("ブラウザの保存領域に書き込めませんでした。別ブラウザでお試しください。");
-      return;
-    }
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventDayId: data.eventDayId,
+          selectedMorningSlotId: selectedSlotId,
+          team: {
+            teamName: teamName.trim(),
+            strengthCategory,
+            representativeGradeYear: v.representativeGradeYear,
+            contactName: contactName.trim(),
+            contactEmail: contactEmail.trim(),
+            contactPhone: v.phoneDigits,
+          },
+          participantCount: v.participantCount,
+          lunchItems: v.lunchItems,
+        }),
+      });
+      const json = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        detail?: string;
+        reservationId?: string;
+        reservationToken?: string;
+      };
 
-    router.push("/reserve/complete");
+      if (!res.ok) {
+        const combined =
+          typeof json.detail === "string" && json.detail.trim()
+            ? json.detail
+            : json.error;
+        setSubmitError(
+          reserveFlowApiErrorDisplay(
+            res.status,
+            combined,
+            `送信に失敗しました（${res.status}）`
+          )
+        );
+        return;
+      }
+      if (!json.reservationToken || !json.reservationId) {
+        setSubmitError(
+          "予約は完了したが表示用データが返りませんでした。運営へ連絡してください。"
+        );
+        return;
+      }
+
+      try {
+        sessionStorage.setItem(
+          SESSION_COMPLETE_KEY,
+          JSON.stringify({
+            reservationToken: json.reservationToken,
+            reservationId: json.reservationId,
+            eventDate: data.eventDate,
+          })
+        );
+      } catch {
+        setSubmitError(
+          "ブラウザの保存領域に書き込めませんでした。別ブラウザでお試しください。"
+        );
+        return;
+      }
+
+      router.push("/reserve/complete");
+    } catch (e) {
+      setSubmitError(
+        reserveFlowUserVisibleMessage(
+          e instanceof Error ? e.message : String(e),
+          RESERVE_FLOW_NETWORK_ERROR_JA
+        )
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const strengthLabel =
@@ -470,10 +534,18 @@ export function ReserveDateClient({
                 午後の対戦枠（選択不可・調整中）
               </h2>
               <p className="mt-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">
-                開催日の2日前15:00締切後、16:30に登録メールアドレス宛へお送りします。午前1試合・午後1試合を原則としています。
+                開催日の2日前15:00が予約締切です。締切後、午後の対戦枠案内メールは締切日の
+                {RESERVE_MAIL_PUBLIC_JA.matchingBy}（日本時間）までにお届けする予定です。送信処理は
+                {RESERVE_MAIL_PUBLIC_JA.matchingCronHint}を目安に開始します。午前1試合・午後1試合を原則としています。
+                {RESERVE_MAIL_TIMING_NOTE_JA}
+              </p>
+              <p className="mt-3 rounded-lg border border-zinc-200 bg-white/90 px-3 py-2 text-xs leading-relaxed text-zinc-700">
+                午後の例は運営の標準テンプレに基づく<strong className="font-semibold text-zinc-900">40分刻み</strong>
+                です。<strong className="font-semibold text-zinc-900">12:00–13:00は昼休憩</strong>
+                のため枠を置きません（実際の割当は締切後の編成で確定します）。
               </p>
               <ul className="mt-4 space-y-2">
-                {PM_DISPLAY_SLOTS.map((slot) => (
+                {getDefaultSlotDisplayIntervalsForPhase("afternoon").map((slot) => (
                   <li
                     key={`${slot.start}-${slot.end}`}
                     className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white/80 px-3 py-3 text-sm text-zinc-500"
@@ -634,6 +706,9 @@ export function ReserveDateClient({
                       setParticipantCount(inputAsciiDigitsOnly(e.target.value))
                     }
                   />
+                  <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+                    {RESERVE_PARTICIPANT_COUNT_HINT_JA}
+                  </span>
                 </label>
                 <div className="space-y-3">
                   <div>
@@ -641,7 +716,7 @@ export function ReserveDateClient({
                       <FieldLabel required>昼食のご注文</FieldLabel>
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                      昼食は、必ずご予約が必要です。メニューが複数ある場合、片方のメニューだけ数量を入力しても構いません。
+                      {RESERVE_LUNCH_ORDER_HELP_JA}
                     </p>
                   </div>
                   {lunchMenuLoadError ? (

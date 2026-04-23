@@ -26,6 +26,10 @@ import {
   IconYen,
 } from "./_components/reserve-icons";
 import {
+  RESERVE_MAIL_PUBLIC_JA,
+  RESERVE_MAIL_TIMING_NOTE_JA,
+} from "@/lib/copy/reserve-public-mail-schedule";
+import {
   ReserveInfoCard,
   ReserveInfoGrid,
   ReserveMainShell,
@@ -66,11 +70,12 @@ export default function ReserveEventGuidePage() {
               <p className="font-bold text-amber-900">
                 予約締切: 開催日の2日前 15:00
                 <span className="ml-2 font-normal text-amber-800 sm:inline">
-                  ／ 悪天候判断: 前日 17:00 まで
+                  ／ 悪天候判断: 開催前日 {RESERVE_MAIL_PUBLIC_JA.dayBeforeBy} まで（目安）
                 </span>
               </p>
               <p className="mt-0.5 text-xs text-amber-800 sm:text-sm">
-                当日の試合スケジュールは締切日 16:30 に登録メール宛へお送りします。
+                対戦・枠の案内メールは締切日の{RESERVE_MAIL_PUBLIC_JA.matchingBy}（日本時間）までにお届けする予定です。送信処理は
+                {RESERVE_MAIL_PUBLIC_JA.matchingCronHint}を目安に開始します。{RESERVE_MAIL_TIMING_NOTE_JA}
               </p>
             </div>
           </div>
@@ -104,7 +109,8 @@ export default function ReserveEventGuidePage() {
               title="悪天候の判断"
               icon={<IconCloudRain className="h-5 w-5 sm:h-6 sm:w-6" />}
             >
-              前日17:00までに開催可否をご連絡します。
+              開催可否は開催前日の{RESERVE_MAIL_PUBLIC_JA.dayBeforeBy}（日本時間）までにご連絡する予定です。送信処理は
+              {RESERVE_MAIL_PUBLIC_JA.dayBeforeCronHint}を目安に開始します。{RESERVE_MAIL_TIMING_NOTE_JA}
             </ReserveInfoCard>
           </ReserveInfoGrid>
         </section>
@@ -119,10 +125,14 @@ export default function ReserveEventGuidePage() {
             title="予約ルール・注意事項"
           >
             <p>
-              予約締切は原則として開催日の2日前15:00です。当日の試合スケジュールは締切日の16:30に登録メールアドレス宛にお送りします。
+              予約締切は原則として開催日の2日前15:00です。締切後の試合スケジュール案内メールは締切日の
+              {RESERVE_MAIL_PUBLIC_JA.matchingBy}（日本時間）までにお届けする予定です。送信処理は
+              {RESERVE_MAIL_PUBLIC_JA.matchingCronHint}を目安に開始します。{RESERVE_MAIL_TIMING_NOTE_JA}
             </p>
             <p>
-              雨天などの悪天候による開催可否は遅くとも前日17:00までにお知らせします。天気予報次第では中止判断が早まる場合があります。
+              雨天などの悪天候による開催可否は、開催前日の{RESERVE_MAIL_PUBLIC_JA.dayBeforeBy}（日本時間）までにお知らせする予定です。送信処理は
+              {RESERVE_MAIL_PUBLIC_JA.dayBeforeCronHint}を目安に開始します。天気予報次第では中止判断が早まる場合があります。
+              {RESERVE_MAIL_TIMING_NOTE_JA}
             </p>
           </DetailsBlock>
           <DetailsBlock

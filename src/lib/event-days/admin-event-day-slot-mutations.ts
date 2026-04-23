@@ -61,12 +61,17 @@ function timeLessThan(a: string, b: string): boolean {
 }
 
 export function addOneHourPgTime(t: string): string {
+  return addMinutesPgTime(t, 60);
+}
+
+/** 既定枠と同様の連続40分枠など、分単位で終了時刻を求める（UTC 日付ダミー上の時刻演算）。 */
+export function addMinutesPgTime(t: string, minutes: number): string {
   const parts = t.split(":").map((x) => Number(x));
   const h = parts[0] ?? 0;
   const m = parts[1] ?? 0;
   const sec = parts[2] ?? 0;
   const d = new Date(Date.UTC(1970, 0, 1, h, m, sec));
-  d.setUTCHours(d.getUTCHours() + 1);
+  d.setUTCMinutes(d.getUTCMinutes() + minutes);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
@@ -283,17 +288,17 @@ export async function appendEventDaySlotRow(
   const slotCode = `${prefix}_${nextN}`;
 
   let startTime = "09:00:00";
-  let endTime = "10:00:00";
+  let endTime = addMinutesPgTime(startTime, 40);
   if (phase === "afternoon" && (!phaseSlots || phaseSlots.length === 0)) {
     startTime = "13:00:00";
-    endTime = "14:00:00";
+    endTime = addMinutesPgTime(startTime, 40);
   }
   if (phaseSlots && phaseSlots.length > 0) {
     const last = phaseSlots[phaseSlots.length - 1]!;
     const lastEndNorm = normalizePgTime(String(last.end_time));
     if (lastEndNorm) {
       startTime = lastEndNorm;
-      endTime = addOneHourPgTime(startTime);
+      endTime = addMinutesPgTime(startTime, 40);
     }
   }
 

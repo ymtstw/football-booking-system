@@ -1,11 +1,12 @@
 /**
- * Cron: 開催 2 日前 16:30 JST 想定でマッチング案内メール（matching_proposal）。
+ * Cron: 開催 2 日前 16:00 JST 想定でマッチング案内メール（matching_proposal）。
  *
- * `vercel.json`: `30 7 * * *`（UTC 07:30 = 同日 16:30 Asia/Tokyo）。
+ * `vercel.json`: `0 7 * * *`（UTC 07:00 = 同日 16:00 Asia/Tokyo）。
+ * 対象は `event_date === 東京の今日+2日` のみ（開催前日の参加者には送らない）。
  */
 import { type NextRequest, NextResponse } from "next/server";
 
-import { buildReservationScheduleLines } from "@/lib/day-before/reservation-schedule-lines";
+import { buildReservationScheduleRows } from "@/lib/day-before/reservation-schedule-lines";
 import {
   sendMatchingProposalEmailAndUpdateNotification,
   TEMPLATE_MATCHING_PROPOSAL,
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const scheduleLines = await buildReservationScheduleLines(
+      const scheduleRows = await buildReservationScheduleRows(
         supabase,
         eventDayId,
         reservationId
@@ -147,7 +148,7 @@ export async function GET(request: NextRequest) {
         teamName: teamName || "（チーム名未設定）",
         eventDateIso: eventDate,
         gradeBand: (ed.grade_band as string) ?? null,
-        scheduleLines,
+        scheduleRows,
       });
 
       const { data: after } = await supabase

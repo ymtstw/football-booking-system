@@ -11,6 +11,10 @@ import {
 import { resolveOpsNotifyEmail } from "@/lib/email/ops-batch-failure-notify";
 import { gradeYearLabelJa } from "@/lib/reservations/grade-year";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
+import {
+  dispatchReservationCreatedMailDeliveryEvent,
+  type ReservationCreatedMailDeliveryTrigger,
+} from "@/lib/integrations/reservation-created-mail-delivery";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const TEMPLATE_KEY = "reservation_created";
@@ -145,6 +149,10 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   /** 予約時に選択した代表学年（1〜6） */
   representativeGradeYear: number;
   reservationTokenPlain: string;
+  /** 指定時はこの通知行だけを sent/failed に更新（再送で pending を複数置いたときのため） */
+  notificationId?: string | null;
+  /** 統合イベント（将来 webhook）の発火元区別 */
+  deliveryTrigger?: ReservationCreatedMailDeliveryTrigger;
 }): Promise<void> {
   const {
     supabase,
@@ -156,7 +164,10 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     gradeBand,
     representativeGradeYear,
     reservationTokenPlain,
+    notificationId: notificationIdRaw,
+    deliveryTrigger = "public_reservation_created",
   } = params;
+  const notificationId = notificationIdRaw?.trim() || undefined;
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.RESEND_FROM?.trim();
@@ -164,6 +175,14 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     console.warn(
       "[reservation email] skipped: set RESEND_API_KEY and RESEND_FROM (notifications stay pending)"
     );
+    await dispatchReservationCreatedMailDeliveryEvent({
+      templateKey: "reservation_created",
+      reservationId,
+      notificationId,
+      trigger: deliveryTrigger,
+      outcome: "skipped_no_mailer",
+      occurredAt: new Date().toISOString(),
+    });
     return;
   }
 
@@ -171,15 +190,13 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面の開催日一覧でご確認ください。";
+  /** 本文ラベルは全角コロンで統一 */
+  const colon = "\uFF1A";
   const gradeLine = gradeBand?.trim()
-    ? `学年帯: ${gradeBand.trim()}`
+    ? `学年帯${colon}${gradeBand.trim()}`
     : null;
-  const repYearLine = `代表学年: ${gradeYearLabelJa(representativeGradeYear)}`;
+  const repYearLine = `代表学年${colon}${gradeYearLabelJa(representativeGradeYear)}`;
   const manageUrl = managePageUrl();
-  const manageLine = manageUrl
-    ? `予約の確認・変更（締切前）・キャンセル（締切前）:\n${manageUrl}`
-    : "予約の確認・変更は、サイトの「予約確認・キャンセル」から行えます。";
-
   const contactUrl = reserveContactPageUrl();
 
   const escaped = (s: string) =>
@@ -214,30 +231,29 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     };
     lunchTotal += Number(row.line_total) || 0;
     lunchLinesText.push(
-      `・${row.item_name_snapshot}  ${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 ＝ ${formatTaxIncludedYen(Number(row.line_total))}`
+      `${row.item_name_snapshot}　${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 ＝ ${formatTaxIncludedYen(Number(row.line_total))}`
     );
   }
   const lunchBlockText =
     lunchLinesText.length > 0
       ? [
           "",
-          "▼ 昼食のご注文（税込・予約時点の単価で確定）",
+          "【昼食のご注文】",
           ...lunchLinesText,
-          `昼食合計: ${formatTaxIncludedYen(lunchTotal)}`,
           "",
-          "昼食代は、各チームの代表者が現地でまとめてお支払いください。",
+          `昼食合計${colon}${formatTaxIncludedYen(lunchTotal)}`,
+          "",
+          "昼食代は、各チームの代表者様が当日まとめてお支払いください。",
         ]
       : [
           "",
-          "▼ 昼食",
+          "【昼食のご注文】",
           "今回の予約では昼食の申込はありません。",
-          "",
-          "昼食をご利用の場合は、当日会場の案内に従ってください。",
         ];
 
-  const lunchBlockHtml =
+  const lunchLinesHtml =
     lunchLinesText.length > 0
-      ? `<p><strong>昼食のご注文</strong>（税込・予約時点の単価で確定）</p><ul>${lunchSorted
+      ? lunchSorted
           .map((r) => {
             const row = r as {
               item_name_snapshot: string;
@@ -245,94 +261,115 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
               quantity: number;
               line_total: number;
             };
-            return `<li>${escaped(row.item_name_snapshot)}　${escaped(formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included)))} × ${row.quantity}食 ＝ ${escaped(formatTaxIncludedYen(Number(row.line_total)))}</li>`;
+            const line = `${row.item_name_snapshot}　${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 ＝ ${formatTaxIncludedYen(Number(row.line_total))}`;
+            return `<p style="margin:6px 0">${escaped(line)}</p>`;
           })
-          .join("")}</ul><p><strong>昼食合計:</strong> ${escaped(formatTaxIncludedYen(lunchTotal))}</p><p>${escaped("昼食代は、各チームの代表者が現地でまとめてお支払いください。")}</p>`
-      : `<p><strong>昼食</strong></p><p>今回の予約では昼食の申込はありません。</p>`;
+          .join("")
+      : `<p>今回の予約では昼食の申込はありません。</p>`;
 
-  const subject = `${MAIL_SUBJECT_BRAND_USER}予約を受け付けました`;
+  const lunchBlockHtml =
+    lunchLinesText.length > 0
+      ? `<p style="margin-top:20px;font-size:15px"><strong>【昼食のご注文】</strong></p>${lunchLinesHtml}<p style="margin-top:8px"><strong>昼食合計${colon}</strong>${escaped(formatTaxIncludedYen(lunchTotal))}</p><p>${escaped("昼食代は、各チームの代表者様が当日まとめてお支払いください。")}</p>`
+      : `<p style="margin-top:20px;font-size:15px"><strong>【昼食のご注文】</strong></p>${lunchLinesHtml}`;
 
-  const emailNotReceivedLines = [
+  const subject = `${MAIL_SUBJECT_BRAND_USER}お申し込み完了のお知らせ`;
+
+  const guideLines = [
+    "【ご案内】",
+    "・予約内容の確認・変更・キャンセルには、予約確認コード が必要です。",
+    "・予約確認コードは第三者に教えず、大切に保管してください。",
+    "・予約内容の変更・キャンセルは、開催2日前の15:00まで可能です。",
+    "・下記ページより、予約内容の確認・変更・キャンセルができます。",
     "",
-    "▼ メールが届かないとき",
-    "・迷惑メールフォルダ（除外・迷惑メール等）も必ずご確認ください。",
-    "・それでも見つからない場合は、ご登録のメールアドレスに誤りがある場合がございます。",
+    ...(manageUrl
+      ? ["予約の確認・キャンセルページを開く", manageUrl, ""]
+      : ["サイトの「予約の確認・キャンセル」ページより操作できます。", ""]),
+  ];
+
+  const footerLines = [
+    "",
     contactUrl
-      ? `・お手数ですが、次のお問い合わせフォームに、予約日・チーム名・電話番号をご記入のうえご連絡ください。\n${contactUrl}`
-      : "・お手数ですが、サイトの「お問い合わせ」フォームから、予約日・チーム名・電話番号をご記入のうえご連絡ください。（公開サイトのメニューからお進みください）",
+      ? `ご不明な点がございましたら、サイトのお問い合わせページ（${contactUrl}）よりご連絡ください。`
+      : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。",
+    "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
     "",
+    "よろしくお願いいたします。",
   ];
 
   const text = [
     `${contactName} 様`,
     "",
-    `「${MAIL_BODY_SERVICE_NAME}」にお申し込みいただき、ありがとうございます。`,
-    "日帰りの交流試合について、以下の内容でお申し込みを受け付けました。",
+    `このたびは、${MAIL_BODY_SERVICE_NAME}にお申し込みいただきありがとうございます。`,
+    "以下の内容でご予約を受け付けました。",
     "",
-    "▼ まずお願いしたいこと",
-    "・「予約確認コード」は他人に教えず、紛失しないよう保管してください（照会・変更・キャンセルに必要です）。",
-    "・締切前であれば、次のページから予約内容の確認やキャンセルができます。",
-    "",
-    manageLine,
-    "",
-    "▼ お申し込み内容",
-    `チーム名: ${teamName}`,
-    `開催日: ${eventLine}`,
+    ...guideLines,
+    "【お申し込み内容】",
+    `チーム名${colon}${teamName}`,
+    `開催日${colon}${eventLine}`,
     ...(gradeLine ? [gradeLine] : []),
     repYearLine,
     ...lunchBlockText,
     "",
-    "▼ 予約確認コード",
+    "【予約確認コード】",
     reservationTokenPlain,
-    ...emailNotReceivedLines,
-    "本メールに心当たりがない場合は、お手数ですが破棄してください。",
+    ...footerLines,
   ].join("\n");
 
   const tokenHtml = `<pre style="font-size:12px;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px;border:1px solid #e4e4e7">${escaped(reservationTokenPlain)}</pre>`;
   const manageHtml = manageUrl
-    ? `<p><a href="${escaped(manageUrl)}">予約の確認・キャンセルページを開く</a></p>`
-    : `<p>サイトの「予約確認・キャンセル」から操作できます。</p>`;
+    ? `<p style="margin-top:12px"><a href="${escaped(manageUrl)}">予約の確認・キャンセルページを開く</a></p>`
+    : `<p style="margin-top:12px">サイトの「予約の確認・キャンセル」ページより操作できます。</p>`;
 
-  const emailNotReceivedHtml = `<p style="margin-top:20px;font-size:15px"><strong>メールが届かないとき</strong></p>
-<ul style="margin-top:8px;font-size:14px">
-<li>迷惑メールフォルダ（除外・迷惑メール等）も<strong>必ず</strong>ご確認ください。</li>
-<li>それでも見つからない場合は、ご登録のメールアドレスに誤りがある場合がございます。</li>
-<li>お手数ですが、${
-    contactUrl
-      ? `<a href="${escaped(contactUrl)}">お問い合わせフォーム</a>から、`
-      : `サイトの「お問い合わせ」から、`
-  }予約日・チーム名・電話番号をご記入のうえご連絡ください。</li>
+  const guideHtml = `<p style="margin-top:20px;font-size:15px"><strong>【ご案内】</strong></p>
+<ul style="margin-top:8px;padding-left:1.25rem">
+<li>予約内容の確認・変更・キャンセルには、予約確認コード が必要です。</li>
+<li>予約確認コードは第三者に教えず、大切に保管してください。</li>
+<li>予約内容の変更・キャンセルは、開催2日前の15:00まで可能です。</li>
+<li>下記ページより、予約内容の確認・変更・キャンセルができます。</li>
+</ul>
+${manageHtml}`;
+
+  const applicationHtml = `<p style="margin-top:20px;font-size:15px"><strong>【お申し込み内容】</strong></p>
+<ul style="margin-top:8px;padding-left:1.25rem">
+<li>チーム名${colon}${escaped(teamName)}</li>
+<li>開催日${colon}${escaped(eventLine)}</li>
+${gradeBand?.trim() ? `<li>学年帯${colon}${escaped(gradeBand.trim())}</li>` : ""}
+<li>代表学年${colon}${escaped(gradeYearLabelJa(representativeGradeYear))}</li>
 </ul>`;
 
-  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
+  const footerHtml = `<p style="margin-top:20px">${contactUrl ? `ご不明な点がございましたら、<a href="${escaped(contactUrl)}">お問い合わせページ</a>よりご連絡ください。` : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。"}</p>
+<p>なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>
+<p>よろしくお願いいたします。</p>`;
+
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
 <p>${escaped(contactName)} 様</p>
-<p>「${escaped(MAIL_BODY_SERVICE_NAME)}」にお申し込みいただき、ありがとうございます。<br/>
-日帰りの交流試合について、以下の内容で<strong>お申し込みを受け付けました</strong>。</p>
-<p style="margin-top:16px;font-size:15px"><strong>まずお願いしたいこと</strong></p>
-<ul style="margin-top:8px">
-<li>「予約確認コード」は他人に教えず、紛失しないよう保管してください（照会・変更・キャンセルに必要です）。</li>
-<li>締切前であれば、次のページから予約内容の確認やキャンセルができます。</li>
-</ul>
-${manageHtml}
-<p style="margin-top:20px;font-size:15px"><strong>お申し込み内容</strong></p>
-<ul>
-<li>チーム名: ${escaped(teamName)}</li>
-<li>開催日: ${escaped(eventLine)}</li>
-${
-  gradeBand?.trim()
-    ? `<li>学年帯: ${escaped(gradeBand.trim())}</li>`
-    : ""
-}
-<li>代表学年: ${escaped(gradeYearLabelJa(representativeGradeYear))}</li>
-</ul>
+<p>このたびは、${escaped(MAIL_BODY_SERVICE_NAME)}にお申し込みいただきありがとうございます。<br/>
+以下の内容でご予約を受け付けました。</p>
+${guideHtml}
+${applicationHtml}
 ${lunchBlockHtml}
-<p style="margin-top:20px"><strong>予約確認コード</strong></p>
+<p style="margin-top:20px;font-size:15px"><strong>【予約確認コード】</strong></p>
 ${tokenHtml}
-${emailNotReceivedHtml}
-<p style="margin-top:16px;font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
+${footerHtml}
 </body></html>`;
 
   const resend = new Resend(apiKey);
+
+  async function patchPendingNotification(patch: {
+    status: string;
+    error_message: string | null;
+  }): Promise<void> {
+    let q = supabase
+      .from("notifications")
+      .update(patch)
+      .eq("reservation_id", reservationId)
+      .eq("template_key", TEMPLATE_KEY)
+      .eq("status", "pending");
+    if (notificationId) {
+      q = q.eq("id", notificationId);
+    }
+    await q;
+  }
 
   try {
     const { error } = await resend.emails.send({
@@ -347,42 +384,53 @@ ${emailNotReceivedHtml}
       const msg = truncateErrorMessage(
         typeof error.message === "string" ? error.message : String(error)
       );
-      await supabase
-        .from("notifications")
-        .update({ status: "failed", error_message: msg })
-        .eq("reservation_id", reservationId)
-        .eq("template_key", TEMPLATE_KEY)
-        .eq("status", "pending");
+      await patchPendingNotification({ status: "failed", error_message: msg });
       await notifyOpsReservationCreatedDeliveryFailed({
         reservationId,
         teamName,
         intendedTo: to,
         resendError: msg,
       });
+      await dispatchReservationCreatedMailDeliveryEvent({
+        templateKey: "reservation_created",
+        reservationId,
+        notificationId,
+        trigger: deliveryTrigger,
+        outcome: "failed",
+        occurredAt: new Date().toISOString(),
+        errorMessage: msg,
+      });
       return;
     }
 
-    await supabase
-      .from("notifications")
-      .update({ status: "sent", error_message: null })
-      .eq("reservation_id", reservationId)
-      .eq("template_key", TEMPLATE_KEY)
-      .eq("status", "pending");
+    await patchPendingNotification({ status: "sent", error_message: null });
+    await dispatchReservationCreatedMailDeliveryEvent({
+      templateKey: "reservation_created",
+      reservationId,
+      notificationId,
+      trigger: deliveryTrigger,
+      outcome: "sent",
+      occurredAt: new Date().toISOString(),
+    });
   } catch (e) {
     const msg = truncateErrorMessage(
       e instanceof Error ? e.message : "Unknown email error"
     );
-    await supabase
-      .from("notifications")
-      .update({ status: "failed", error_message: msg })
-      .eq("reservation_id", reservationId)
-      .eq("template_key", TEMPLATE_KEY)
-      .eq("status", "pending");
+    await patchPendingNotification({ status: "failed", error_message: msg });
     await notifyOpsReservationCreatedDeliveryFailed({
       reservationId,
       teamName,
       intendedTo: to,
       resendError: msg,
+    });
+    await dispatchReservationCreatedMailDeliveryEvent({
+      templateKey: "reservation_created",
+      reservationId,
+      notificationId,
+      trigger: deliveryTrigger,
+      outcome: "failed",
+      occurredAt: new Date().toISOString(),
+      errorMessage: msg,
     });
   }
 }

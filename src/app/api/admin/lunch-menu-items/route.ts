@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { countGloballyActiveLunchMenus } from "@/lib/lunch/admin-lunch-constraints";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -100,6 +101,22 @@ export async function POST(request: Request) {
       : 0;
 
   const supabase = createServiceRoleClient();
+
+  const { count: activeCount, error: cErr } =
+    await countGloballyActiveLunchMenus(supabase);
+  if (cErr) {
+    return NextResponse.json({ error: cErr }, { status: 500 });
+  }
+  if (activeCount === 0 && !isActive) {
+    return NextResponse.json(
+      {
+        error:
+          "有効な昼食メニューは常に1件以上必要です。初めて追加するときは公開（有効）のまま登録してください。",
+      },
+      { status: 422 }
+    );
+  }
+
   const { data, error } = await supabase
     .from("lunch_menu_items")
     .insert({

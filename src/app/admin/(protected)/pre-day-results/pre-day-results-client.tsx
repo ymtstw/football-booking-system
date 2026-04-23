@@ -9,7 +9,10 @@ import {
   formatAdminIdTail,
 } from "@/lib/admin/operator-display";
 import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { formatMatchingWarningsForDisplay } from "@/lib/matching/matching-warning-labels-ja";
 
 import { PreDayAdjustPanel } from "./pre-day-adjust-panel";
 
@@ -18,7 +21,19 @@ type EventDayJson = {
   event_date: string;
   grade_band: string;
   status: string;
+  reservation_deadline_at?: string | null;
 };
+
+/** 予約締切の DB 時刻（UTC 想定の ISO）を過ぎているか（クライアントの現在時刻で判定） */
+function isReservationDeadlinePassedClient(
+  deadlineIso: string | null | undefined
+): boolean {
+  const t = deadlineIso?.trim();
+  if (!t) return false;
+  const ms = Date.parse(t);
+  if (Number.isNaN(ms)) return false;
+  return ms <= Date.now();
+}
 
 type MatchingRunJson = {
   id: string;
@@ -103,12 +118,6 @@ type BuildMeta = {
   notes: string[];
 };
 
-function formatWarnings(w: unknown): string {
-  if (Array.isArray(w)) return (w as string[]).join(", ");
-  if (w == null) return "—";
-  return String(w);
-}
-
 function teamLabel(s: SideJson): string {
   return s.teamName ?? s.displayName ?? formatAdminIdTail(s.reservationId);
 }
@@ -150,7 +159,7 @@ function buildUnifiedSlotRows(
       aStr = `${teamLabel(asg.sideA)}${asg.sideA.strengthCategory ? ` (${asg.sideA.strengthCategory})` : ""}`;
       bStr = `${teamLabel(asg.sideB)}${asg.sideB.strengthCategory ? ` (${asg.sideB.strengthCategory})` : ""}`;
       refStr = asg.referee ? teamLabel(asg.referee) : "—";
-      warnStr = formatWarnings(asg.warningJson);
+      warnStr = formatMatchingWarningsForDisplay(asg.warningJson);
     } else if (slot.phase === "morning") {
       const occ = slot.morningOccupants;
       if (occ.length === 0) {
@@ -503,6 +512,11 @@ export function PreDayResultsClient({
   const status = data?.eventDay.status;
   const canRun = status === "locked";
   const canUndo = status === "confirmed";
+  const deadlinePassedAwaitingLock = Boolean(
+    data &&
+      data.eventDay.status === "open" &&
+      isReservationDeadlinePassedClient(data.eventDay.reservation_deadline_at)
+  );
 
   const afternoonRows = data?.assignments.filter((a) => a.matchPhase === "afternoon") ?? [];
   const morningRows = data?.assignments.filter((a) => a.matchPhase === "morning") ?? [];
@@ -598,14 +612,7 @@ export function PreDayResultsClient({
             この開催日の送信失敗
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/80">
-            宛先と「内容」を確認し、再送できる行は「再送」を押してください。全体一覧は{" "}
-            <a
-              href="/admin/notifications/failed"
-              className="font-medium text-red-950 underline underline-offset-2"
-            >
-              メール失敗
-            </a>
-            から。
+            宛先と「内容」を確認し、再送できる行は「再送」を押してください。
           </p>
           <div className="mt-3">
             {!data?.eventDay?.id ? (
@@ -638,7 +645,33 @@ export function PreDayResultsClient({
                 >
                   {eventDayStatusLabelJa(data.eventDay.status)}
                 </span>
+                {deadlinePassedAwaitingLock ? (
+                  <span className="inline-flex items-center rounded-full border border-amber-400 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-950">
+                    締切時刻は経過（DB は未ロック）
+                  </span>
+                ) : null}
               </div>
+              {deadlinePassedAwaitingLock ? (
+                <div className="mt-2 max-w-2xl rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950">
+                  <p className="font-semibold text-amber-950">
+                    予約締切の日時は過ぎていますが、開催日の状態はまだ「公開済み」のままです。
+                  </p>
+                  <p className="mt-1">
+                    「締切済み」への自動移行はロック用 Cron（または手動の取りこぼし処理）のタイミングで行われます。それまでは
+                    <strong className="font-semibold">自動編成は実行できません</strong>（API も
+                    <code className="rounded bg-amber-100/80 px-1">locked</code> のみ許可）。
+                  </p>
+                  <p className="mt-2">
+                    <Link
+                      href={`/admin/event-days/${encodeURIComponent(data.eventDay.id)}`}
+                      className="font-semibold text-amber-950 underline decoration-amber-800 underline-offset-2 hover:text-amber-900"
+                    >
+                      この開催日のまとめ（締切取りこぼし）
+                    </Link>
+                    から、手動で締切処理を進められます。
+                  </p>
+                </div>
+              ) : null}
               {data.eventDay.status === "confirmed" ? (
                 <p className="mt-2 max-w-xl text-xs leading-relaxed text-zinc-600">
                   下の「巻き戻し」で<strong className="font-medium text-zinc-800">締切済み</strong>
@@ -702,8 +735,8 @@ export function PreDayResultsClient({
               type="button"
               onClick={() => void runMatching()}
               disabled={!canRun || actionBusy !== null}
-              title={!canRun ? "締切済みのときのみ実行できます" : undefined}
-              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+              title={!canRun ? "締切済み（DB で locked）のときのみ実行できます" : undefined}
+              className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-zinc-100 disabled:opacity-100 disabled:hover:bg-zinc-400 sm:w-auto"
             >
               {actionBusy === "run" ? "実行中…" : "自動編成を実行"}
             </button>
@@ -725,7 +758,9 @@ export function PreDayResultsClient({
           </div>
           {!canRun && !canUndo ? (
             <p className="mt-2 text-xs text-zinc-600">
-              この状態では自動実行・巻き戻しボタンは無効です（締切済みまたは確定を想定）。
+              {deadlinePassedAwaitingLock
+                ? "上のとおり、締切時刻は過ぎていますが DB がまだ公開中のため、実行ボタンは無効です。"
+                : "この状態では自動実行・巻き戻しボタンは無効です（締切済みまたは確定を想定）。"}
             </p>
           ) : null}
         </div>

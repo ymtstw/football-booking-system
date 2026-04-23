@@ -1,13 +1,15 @@
 "use client";
 
 /** 画面2: 開催日を選ぶ（確認チェック + カレンダー + 午前枠） */
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  startTransition,
+  startTransition as runConcurrentTransition,
   useCallback,
   useEffect,
   useMemo,
   useState,
+  useTransition,
 } from "react";
 
 import { MorningSlotsSelect } from "../_components/morning-slots-select";
@@ -20,12 +22,17 @@ import { ReserveStepper } from "../_components/reserve-stepper";
 import { IconCalendar } from "../_components/reserve-icons";
 import {
   ReserveCallout,
-  ReserveOutlineRoundLink,
   ReservePrimaryCtaButton,
   ReserveSubPanel,
 } from "../_components/ui";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { initialYearMonthFromEvents } from "@/lib/dates/tokyo-calendar-grid";
+import {
+  reserveFlowApiErrorDisplay,
+  reserveFlowUserVisibleMessage,
+  RESERVE_FLOW_NETWORK_ERROR_JA,
+} from "@/lib/reserve/reserve-flow-user-message";
 
 import {
   ReserveEventDaysCalendar,
@@ -45,6 +52,7 @@ type AvailabilityJson = {
 
 export function ReserveCalendarClient() {
   const router = useRouter();
+  const [navPending, startNavTransition] = useTransition();
   const [checked, setChecked] = useState<boolean>(false);
   const [days, setDays] = useState<EventDayPublic[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,18 +71,31 @@ export function ReserveCalendarClient() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch("/api/event-days");
-      const json = (await res.json().catch(() => ({}))) as {
-        eventDays?: EventDayPublic[];
-        error?: string;
-      };
-      if (cancelled) return;
-      if (!res.ok) {
-        setError(json.error ?? "一覧の取得に失敗しました");
+      try {
+        const res = await fetch("/api/event-days");
+        const json = (await res.json().catch(() => ({}))) as {
+          eventDays?: EventDayPublic[];
+          error?: string;
+        };
+        if (cancelled) return;
+        if (!res.ok) {
+          setError(
+            reserveFlowApiErrorDisplay(res.status, json.error, "一覧の取得に失敗しました")
+          );
+          setDays([]);
+          return;
+        }
+        setDays(json.eventDays ?? []);
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          reserveFlowUserVisibleMessage(
+            e instanceof Error ? e.message : String(e),
+            RESERVE_FLOW_NETWORK_ERROR_JA
+          )
+        );
         setDays([]);
-        return;
       }
-      setDays(json.eventDays ?? []);
     })();
     return () => {
       cancelled = true;
@@ -88,7 +109,7 @@ export function ReserveCalendarClient() {
 
   useEffect(() => {
     let cancelled = false;
-    startTransition(() => {
+    runConcurrentTransition(() => {
       if (!selectedIsoDate) {
         setAvailability(null);
         setSelectedSlotId("");
@@ -183,6 +204,12 @@ export function ReserveCalendarClient() {
 
           {selectedIsoDate ? (
             <div className="space-y-3">
+              <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm sm:px-5">
+                <p className="text-xs font-semibold text-slate-500">選択中の開催日</p>
+                <p className="mt-0.5 text-lg font-bold tracking-tight text-slate-900 sm:text-xl">
+                  {formatIsoDateWithWeekdayJa(selectedIsoDate)}
+                </p>
+              </div>
               {availLoading ? (
                 <p className="text-sm text-slate-500" role="status">
                   枠を読み込み中…
@@ -207,15 +234,16 @@ export function ReserveCalendarClient() {
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 border-t border-slate-200 pt-8 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex w-full min-w-0 flex-col gap-2 lg:w-auto">
+      <div className="flex flex-col gap-4 border-t border-slate-200 pt-8">
+        <div className="flex w-full min-w-0 flex-col gap-2">
           {agreementHint ? (
             <p className="text-sm font-medium text-red-600" role="alert">
               {agreementHint}
             </p>
           ) : null}
           <ReservePrimaryCtaButton
-            disabled={!selectionReady}
+            disabled={!selectionReady || navPending}
+            pending={navPending}
             onClick={() => {
               if (!selectionReady || !selectedIsoDate || !selectedSlotId) return;
               if (!checksOk) {
@@ -223,15 +251,24 @@ export function ReserveCalendarClient() {
                 return;
               }
               setAgreementHint(null);
-              router.push(
-                `/reserve/${selectedIsoDate}?morningSlot=${encodeURIComponent(selectedSlotId)}`
-              );
+              startNavTransition(() => {
+                router.push(
+                  `/reserve/${selectedIsoDate}?morningSlot=${encodeURIComponent(selectedSlotId)}`
+                );
+              });
             }}
           >
             この日程で予約情報を入力する
           </ReservePrimaryCtaButton>
         </div>
-        <ReserveOutlineRoundLink href="/">イベント案内に戻る</ReserveOutlineRoundLink>
+        <p className="text-center text-sm">
+          <Link
+            href="/"
+            className="font-semibold text-slate-600 underline decoration-slate-400 underline-offset-2 hover:text-slate-900"
+          >
+            イベント案内に戻る
+          </Link>
+        </p>
       </div>
     </div>
   );

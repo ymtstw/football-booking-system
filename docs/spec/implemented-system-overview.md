@@ -28,7 +28,7 @@
 
 ## 外部 API（Route Handlers）
 
-- **公開:** `src/app/api/reservations/**`、`event-days/**`、`camp-inquiries`、`tournament-inquiries`、`lunch-menu` 等
+- **公開:** `src/app/api/reservations/**`、`event-days/**`、`camp-inquiries`、`tournament-inquiries`、`lunch-menu`（`eventDayId` で開催日別の有効昼食）等
 - **管理:** `src/app/api/admin/**`（Bearer セッション Cookie 相当の仕組みは Next の仕様に従う）
 - **Cron:** `src/app/api/cron/**`（`Authorization: Bearer ${CRON_SECRET}`）
 
@@ -41,9 +41,12 @@
 | スケジュール（UTC） | パス | 同日 JST目安 |
 |---------------------|------|----------------|
 | `0 6 * * *` | `/api/cron/lock-event-days` | 15:00 |
-| `1 6 * * *` | `/api/cron/run-matching-locked` | 15:01 |
-| `30 7 * * *` | `/api/cron/send-matching-proposal` | 16:30 |
-| `0 8 * * *` | `/api/cron/send-day-before-final` | 17:00 |
+| `0 7 * * *` | `/api/cron/send-matching-proposal` | 16:00 |
+| `30 7 * * *` | `/api/cron/send-day-before-final` | 16:30 |
+
+※ `GET /api/cron/run-matching-locked` は **Vercel 定期実行からは外してある**（手動・ローカル連鎖用）。**`locked` のまま編成が未完の日**の再試行に使う想定。締切 Cron は `open` のみ拾うため、滞留対応は運用で本ルートを叩くか定期追加かを決める（[implemented-behavior-catalog.md](./implemented-behavior-catalog.md) §1.6）。
+
+利用者向けの「○時までに届く目安」は **`src/lib/copy/reserve-public-mail-schedule.ts`**（案内 **17:00** まで・前日 **17:30** まで＋前後注記）と予約 UI で一致させる。
 
 ## 仕様ドキュメントのマップ
 

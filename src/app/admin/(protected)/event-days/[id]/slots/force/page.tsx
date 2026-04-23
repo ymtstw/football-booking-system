@@ -18,7 +18,7 @@ export default async function AdminEventDaySlotsForcePage({
   const supabase = await createClient();
   const { data: day, error } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status")
+    .select("id, event_date, grade_band, status, reservation_deadline_at")
     .eq("id", id)
     .maybeSingle();
   if (error || !day) {
@@ -85,6 +85,7 @@ export default async function AdminEventDaySlotsForcePage({
         eventDayId={id}
         initialSlots={slots ?? []}
         activeReservationCount={activeReservationCount}
+        reservationDeadlineAt={String(day.reservation_deadline_at ?? "")}
       />
     </div>
   );

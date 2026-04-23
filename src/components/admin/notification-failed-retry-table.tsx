@@ -7,6 +7,36 @@ import {
 } from "@/lib/admin/notification-failed-display";
 import { useCallback, useEffect, useState } from "react";
 
+const RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+const RETRY_COOLDOWN_STORAGE_PREFIX = "fb_admin_notif_retry_cd_v1_";
+
+function retryCooldownStorageKey(notificationId: string) {
+  return `${RETRY_COOLDOWN_STORAGE_PREFIX}${notificationId}`;
+}
+
+function readRetryCooldownUntil(notificationId: string): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(retryCooldownStorageKey(notificationId));
+  if (!raw) return null;
+  const until = Number(raw);
+  if (!Number.isFinite(until) || until <= Date.now()) {
+    window.sessionStorage.removeItem(retryCooldownStorageKey(notificationId));
+    return null;
+  }
+  return until;
+}
+
+function writeRetryCooldownUntil(notificationId: string, until: number) {
+  window.sessionStorage.setItem(retryCooldownStorageKey(notificationId), String(until));
+}
+
+function formatRetryRemainingMs(ms: number): string {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(s / 60);
+  const r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
 export type FailedNotificationRow = {
   id: string;
   channel: string;
@@ -78,6 +108,15 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  /** 再送ボタンのクールダウン残り表示用（1 秒ごと） */
+  const [, setRetryCooldownTick] = useState(0);
+
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setRetryCooldownTick((t) => t + 1);
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,6 +161,7 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
         setMessage(json.error ?? `再送失敗（${res.status}）`);
         return;
       }
+      writeRetryCooldownUntil(id, Date.now() + RETRY_COOLDOWN_MS);
       setMessage(
         json.status === "sent"
           ? "再送が完了しました。"
@@ -178,6 +218,9 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
           {/* スマホ・狭い幅: 横スクロールなしのカード */}
           <div className="space-y-3 md:hidden">
             {rows.map((n) => {
+              const cooldownUntil = readRetryCooldownUntil(n.id);
+              const cooldownRemainingMs =
+                cooldownUntil != null ? Math.max(0, cooldownUntil - Date.now()) : 0;
               const updatedUtc =
                 (n.updated_at ?? n.created_at)?.replace("T", " ").slice(0, 19) ?? "—";
               return (
@@ -233,12 +276,19 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                     ) : (
                       <button
                         type="button"
-                        disabled={retryingId !== null}
+                        disabled={
+                          retryingId !== null ||
+                          (cooldownRemainingMs > 0 && retryingId !== n.id)
+                        }
                         onClick={() => void retryOne(n.id)}
                         className="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-indigo-700 px-3 text-sm font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
                       >
                         {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
-                        {retryingId === n.id ? "送信中…" : "再送"}
+                        {retryingId === n.id
+                          ? "送信中…"
+                          : cooldownRemainingMs > 0
+                            ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
+                            : "再送"}
                       </button>
                     )}
                   </div>
@@ -264,7 +314,11 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {rows.map((n) => (
+                {rows.map((n) => {
+                  const cooldownUntil = readRetryCooldownUntil(n.id);
+                  const cooldownRemainingMs =
+                    cooldownUntil != null ? Math.max(0, cooldownUntil - Date.now()) : 0;
+                  return (
                   <tr key={n.id}>
                     {!eventDayId ? (
                       <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
@@ -305,17 +359,25 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                       ) : (
                         <button
                           type="button"
-                          disabled={retryingId !== null}
+                          disabled={
+                            retryingId !== null ||
+                            (cooldownRemainingMs > 0 && retryingId !== n.id)
+                          }
                           onClick={() => void retryOne(n.id)}
                           className="inline-flex min-h-9 items-center justify-center rounded-md bg-indigo-700 px-2.5 text-xs font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
                         >
                           {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
-                          {retryingId === n.id ? "送信中…" : "再送"}
+                          {retryingId === n.id
+                            ? "送信中…"
+                            : cooldownRemainingMs > 0
+                              ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
+                              : "再送"}
                         </button>
                       )}
                     </td>
                   </tr>
-                ))}
+                );
+                })}
               </tbody>
             </table>
           </div>

@@ -6,16 +6,12 @@
       "schedule": "0 6 * * *"
     },
     {
-      "path": "/api/cron/run-matching-locked",
-      "schedule": "1 6 * * *"
-    },
-    {
       "path": "/api/cron/send-matching-proposal",
-      "schedule": "30 7 * * *"
+      "schedule": "0 7 * * *"
     },
     {
       "path": "/api/cron/send-day-before-final",
-      "schedule": "0 8 * * *"
+      "schedule": "30 7 * * *"
     }
   ]
 }

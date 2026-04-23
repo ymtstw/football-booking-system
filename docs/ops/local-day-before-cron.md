@@ -1,8 +1,8 @@
 # ローカルで前日フロー（Cron 相当）を試す
 
-Vercel の Cron は **本番 URL にしか飛びません**。ローカルでロック → 編成 → 案内 → 前日メールまで試すには、次のどちらかです。
+Vercel の Cron は **本番 URL にしか飛びません**。ローカルでロック（同一リクエスト内で編成まで）→ 案内 → 前日メールまで試すには、次のどちらかです。
 
-- **`npm run cron:local-day-before`** … 下記スクリプトで **JOB01 → JOB02 → 案内 → JOB03** を **順に** `GET` する（開発サーバーが起動している必要あり）
+- **`npm run cron:local-day-before`** … 下記スクリプトで **JOB01（締切＋編成）→ 案内 → JOB03** を **順に** `GET` する（開発サーバーが起動している必要あり）。本番 Vercel の JST 目安は **案内 16:00**（`0 7` UTC）・**前日最終 16:30**（`30 7` UTC）。
 - 手動で同じ URL を `curl` + `Authorization: Bearer $CRON_SECRET` で叩く（運用は `docs/ops/mvp-day-before-runbook.md`）
 
 ## あなたが用意するもの（`.env.local`）

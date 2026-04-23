@@ -32,7 +32,7 @@ export function OperationalCancelForm({
     }
     const ok = window.confirm(
       "運営都合による開催中止として登録します。\n" +
-        "予約カレンダーでは中止表示になり、前日 17:00 の最終メールにこの文面が反映されます。\n" +
+        "予約カレンダーでは中止表示になり、前日の一括最終メール（16:30頃開始・目安17:30まで）にこの文面が反映されます。\n" +
         (immediate
           ? "「即時送信」がオンです。登録と同時に参加者へメールが送られます。\n"
           : "") +
@@ -89,8 +89,22 @@ export function OperationalCancelForm({
           参加者向けのお知らせ文（必須）
         </label>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          前日 17:00 の一括メールおよび、下の即時送信にそのまま載ります。電話番号・集合場所の変更など、ユーザーが取れる行動を書いてください。
+          前日の一括メール（16:30頃開始・目安17:30まで）および、下の即時送信にそのまま載ります。電話番号・集合場所の変更など、ユーザーが取れる行動を書いてください。
         </p>
+        <div className="mt-2 rounded-md border border-rose-200 bg-rose-50/90 px-3 py-2 text-[11px] leading-relaxed text-rose-950">
+          <p className="font-semibold text-rose-900">前日一括メールでの差し込みイメージ（抜粋）</p>
+          <p className="mt-1 whitespace-pre-wrap font-mono text-zinc-800">
+            {`明日の開催は中止といたします。
+
+チーム名: （予約データ）
+開催日: （開催日）
+
+【中止理由・ご連絡事項】
+← ここに、下の「参加者向けのお知らせ文」に入力した内容がそのまま入ります
+
+ご不明な点がございましたら、サイトのお問い合わせページより…`}
+          </p>
+        </div>
         <textarea
           id="op-notice"
           value={notice}
@@ -110,8 +124,7 @@ export function OperationalCancelForm({
           className="mt-1"
         />
         <span>
-          <strong>例外:</strong> 至急、上記の文面で運営中止のメールを即時送信する（通常は前日 17:00
-          の最終版に含めます）
+          <strong>例外:</strong> 至急、上記の文面で運営中止のメールを即時送信する（通常は前日の一括最終版に含めます）
         </span>
       </label>
 

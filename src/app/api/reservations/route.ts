@@ -13,9 +13,17 @@ import {
   parseLunchItemsInput,
   type ParsedLunchItem,
 } from "@/lib/lunch/parse-lunch-items-body";
+import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_WRITE_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
 import { rateLimitReservationCreate } from "@/lib/rate-limit/reservation-public";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import {
+  isAtLeastFourDigitCount,
+  RESERVE_COUNT_MAX_ALLOWED,
+} from "@/lib/reservations/reserve-numeric-sanity";
 import {
   isContactPhoneDigitsValid,
   normalizeContactPhoneDigits,
@@ -129,7 +137,7 @@ export async function POST(request: Request) {
   try {
     json = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "リクエストの形式が不正です" }, { status: 400 });
   }
 
   const parsed = parseBody(json);
@@ -197,6 +205,15 @@ export async function POST(request: Request) {
     );
   }
 
+  if (isAtLeastFourDigitCount(participantCount)) {
+    return NextResponse.json(
+      {
+        error: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください`,
+      },
+      { status: 422 }
+    );
+  }
+
   if (lunchItems === null) {
     return NextResponse.json(
       {
@@ -214,6 +231,16 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         error: "昼食は、必ずご予約が必要です。",
+      },
+      { status: 422 }
+    );
+  }
+
+  const lunchTotalUnits = lunchItems.reduce((s, item) => s + item.quantity, 0);
+  if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+    return NextResponse.json(
+      {
+        error: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください`,
       },
       { status: 422 }
     );
@@ -252,8 +279,9 @@ export async function POST(request: Request) {
     });
 
     if (error) {
+      logPublicReserveApiSupabaseError("POST /api/reservations create_public_reservation", error);
       return NextResponse.json(
-        { error: error.message, code: error.code },
+        { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error.code },
         { status: 500 }
       );
     }

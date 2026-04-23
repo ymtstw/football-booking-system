@@ -21,13 +21,13 @@
 ## 2. Cron
 
 - リポジトリの **`vercel.json`** に以下が含まれていること（UTC。JST は UTC+9）:
-  - `0 6 * * *` → `GET /api/cron/lock-event-days`（同日 **15:00** JST）
-  - `1 6 * * *` → `GET /api/cron/run-matching-locked`（**15:01** JST）
-  - `30 7 * * *` → `GET /api/cron/send-matching-proposal`（**16:30** JST）
-  - `0 8 * * *` → `GET /api/cron/send-day-before-final`（**17:00** JST）
+  - `0 6 * * *` → `GET /api/cron/lock-event-days`（同日 **15:00** JST。`locked` になった開催は **同一リクエスト内で自動編成まで**実行）
+  - `0 7 * * *` → `GET /api/cron/send-matching-proposal`（**16:00** JST。予約サイトでは利用者向けに **17:00 まで**の目安で案内）
+  - `30 7 * * *` → `GET /api/cron/send-day-before-final`（**16:30** JST。利用者向けに **17:30 まで**の目安で案内。マッチング案内と 30 分ずらし）
 - Vercel のプランによっては **Cron が無効または制限**される場合がある。ダッシュボードの **Cron** タブで有効・直近実行ログを確認する。
 - Cron リクエストには **`Authorization: Bearer <CRON_SECRET>`** が付与される（`CRON_SECRET` が未設定だと API は 503）。
-- **ローカルで同じ 4 本を順実行:** `npm run cron:local-day-before`（`.env.local` と `npm run dev` が前提。詳細は **`docs/ops/local-day-before-cron.md`**）。
+- **ローカルで同じ 3 本を順実行:** `npm run cron:local-day-before`（`.env.local` と `npm run dev` が前提。詳細は **`docs/ops/local-day-before-cron.md`**）。
+- **`locked` 滞留時:** 締切 Cron は翌日以降 **`open` の行しか再処理しない**。編成が未完で `locked` が残る場合は、運用で **`GET /api/cron/run-matching-locked`**（手動または定期の要否を決める）や管理の編成実行でリカバリする（仕様: **`docs/spec/implemented-behavior-catalog.md` §1.6**）。
 
 ## 3. Supabase（本番）
 

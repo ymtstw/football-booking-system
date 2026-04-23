@@ -18,6 +18,8 @@ export function notificationTemplateLabelJa(templateKey: string | null): string 
       return "雨天中止（即時）";
     case "operational_cancel_immediate":
       return "運営中止（即時）";
+    case "morning_slot_force_changed":
+      return "朝枠・時刻の変更案内";
     default:
       return k ? k : "（種別なし）";
   }

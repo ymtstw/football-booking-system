@@ -1,11 +1,13 @@
 /**
  * Cron JOB01 と同等の締切処理を 1 開催日だけ実行（Cron 失敗・手動リカバリ用）。
  * 本体: `applyReservationDeadlineCatchupForEventDayId`（最少催行中止分岐・通知含む）。
+ * `locked` になった場合は続けて自動編成（`applyMatchingForEventDayId`）まで実行する（Vercel の JOB02 Cron は廃止したため）。
  */
 import { NextResponse } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { applyReservationDeadlineCatchupForEventDayId } from "@/lib/event-days/process-reservation-deadline";
+import { applyMatchingForEventDayId } from "@/lib/matching/run-matching-for-event-day";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 function readAcknowledged(json: unknown): boolean {
@@ -71,7 +73,43 @@ export async function POST(
         { status: statusForCode(result.code) }
       );
     }
-    return NextResponse.json({ ok: true, outcome: result.outcome });
+    if (result.outcome !== "locked") {
+      return NextResponse.json({ ok: true, outcome: result.outcome });
+    }
+
+    try {
+      const applied = await applyMatchingForEventDayId(supabase, eventDayId);
+      if (!applied.ok) {
+        return NextResponse.json({
+          ok: true,
+          outcome: result.outcome,
+          matching: {
+            ok: false,
+            error: applied.error,
+            message: applied.message,
+          },
+        });
+      }
+      return NextResponse.json({
+        ok: true,
+        outcome: result.outcome,
+        matching: {
+          ok: true,
+          matchingRunId: applied.matchingRunId,
+          assignmentCount: applied.assignmentCount,
+        },
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "unknown error";
+      return NextResponse.json(
+        {
+          ok: true,
+          outcome: result.outcome,
+          matching: { ok: false, error: "exception", message },
+        },
+        { status: 200 }
+      );
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : "unknown error";
     return NextResponse.json({ ok: false, error: message, code: "db" }, { status: 500 });

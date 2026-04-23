@@ -10,6 +10,11 @@ import {
   rateLimitReservationTokenPatch,
 } from "@/lib/rate-limit/reservation-public";
 import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_READ_ERROR_JA,
+  PUBLIC_RESERVE_API_WRITE_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
+import {
   parseLunchItemsInput,
 } from "@/lib/lunch/parse-lunch-items-body";
 import { replaceReservationLunchItems } from "@/lib/lunch/replace-reservation-lunch-items";
@@ -21,6 +26,10 @@ import {
   normalizeReservationTokenPlain,
 } from "@/lib/reservations/token";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import {
+  isAtLeastFourDigitCount,
+  RESERVE_COUNT_MAX_ALLOWED,
+} from "@/lib/reservations/reserve-numeric-sanity";
 import {
   isContactPhoneDigitsValid,
   normalizeContactPhoneDigits,
@@ -230,8 +239,9 @@ export async function GET(
     .maybeSingle();
 
   if (error) {
+    logPublicReserveApiSupabaseError("GET /api/reservations/[token] reservations", error);
     return NextResponse.json(
-      { error: error.message, code: error.code },
+      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: error.code },
       { status: 500 }
     );
   }
@@ -271,7 +281,7 @@ export async function PATCH(
   try {
     json = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "リクエストの形式が不正です" }, { status: 400 });
   }
 
   const parsed = parsePatchBody(json);
@@ -297,6 +307,25 @@ export async function PATCH(
     );
   }
 
+  if (isAtLeastFourDigitCount(parsed.participantCount)) {
+    return NextResponse.json(
+      {
+        error: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください`,
+      },
+      { status: 422 }
+    );
+  }
+
+  const lunchTotalUnits = parsed.lunchItems.reduce((s, item) => s + item.quantity, 0);
+  if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+    return NextResponse.json(
+      {
+        error: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください`,
+      },
+      { status: 422 }
+    );
+  }
+
   const tokenHash = hashReservationTokenPlain(token);
   const supabase = createServiceRoleClient();
 
@@ -307,8 +336,9 @@ export async function PATCH(
     .maybeSingle();
 
   if (fetchErr) {
+    logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] fetch", fetchErr);
     return NextResponse.json(
-      { error: fetchErr.message, code: fetchErr.code },
+      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: fetchErr.code },
       { status: 500 }
     );
   }
@@ -356,8 +386,9 @@ export async function PATCH(
     .eq("status", "active");
 
   if (rErr) {
+    logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] update reservations", rErr);
     return NextResponse.json(
-      { error: rErr.message, code: rErr.code },
+      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: rErr.code },
       { status: 500 }
     );
   }
@@ -365,6 +396,7 @@ export async function PATCH(
   const lunchRes = await replaceReservationLunchItems(
     supabase,
     row.id,
+    ed.id,
     lunchItems
   );
   if (!lunchRes.ok) {
@@ -372,6 +404,16 @@ export async function PATCH(
       lunchRes.code === "lunch_menu_invalid" || lunchRes.code === "lunch_duplicate"
         ? 422
         : 500;
+    if (status === 500) {
+      logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] lunch items", {
+        message: lunchRes.message,
+        code: lunchRes.code,
+      });
+      return NextResponse.json(
+        { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: lunchRes.code },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: lunchRes.message }, { status });
   }
 
@@ -384,8 +426,9 @@ export async function PATCH(
     .eq("id", row.team_id);
 
   if (tErr) {
+    logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] update teams", tErr);
     return NextResponse.json(
-      { error: tErr.message, code: tErr.code },
+      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: tErr.code },
       { status: 500 }
     );
   }
@@ -397,6 +440,9 @@ export async function PATCH(
     .maybeSingle();
 
   if (afterErr || !after) {
+    if (afterErr) {
+      logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] refetch after", afterErr);
+    }
     return NextResponse.json({ updated: true });
   }
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { fetchEffectiveLunchMenuItemsForEventDay } from "./effective-lunch-menu-for-event-day";
 import type { ParsedLunchItem } from "./parse-lunch-items-body";
 
 export type ReplaceLunchItemsResult =
@@ -14,6 +15,7 @@ export type ReplaceLunchItemsResult =
 export async function replaceReservationLunchItems(
   supabase: SupabaseClient,
   reservationId: string,
+  eventDayId: string,
   items: ParsedLunchItem[]
 ): Promise<ReplaceLunchItemsResult> {
   const activeIds = new Set<string>();
@@ -31,30 +33,22 @@ export async function replaceReservationLunchItems(
     seen.add(menuItemId);
   }
 
-  const { data: menus, error: menuErr } = await supabase
-    .from("lunch_menu_items")
-    .select("id, name, price_tax_included, is_active")
-    .eq("is_active", true);
+  const { items: effectiveMenus, dbError: menuErr } =
+    await fetchEffectiveLunchMenuItemsForEventDay(supabase, eventDayId);
 
   if (menuErr) {
     return {
       ok: false,
       code: "db_error",
-      message: menuErr.message,
+      message: menuErr,
     };
   }
 
-  for (const m of menus ?? []) {
-    const row = m as {
-      id: string;
-      name: string;
-      price_tax_included: number;
-      is_active: boolean;
-    };
-    activeIds.add(row.id);
-    byId.set(row.id, {
-      name: row.name,
-      price_tax_included: Number(row.price_tax_included),
+  for (const m of effectiveMenus) {
+    activeIds.add(m.id);
+    byId.set(m.id, {
+      name: m.name,
+      price_tax_included: m.priceTaxIncluded,
     });
   }
 

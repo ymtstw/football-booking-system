@@ -1,5 +1,6 @@
 "use client";
 
+import { RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA } from "@/lib/copy/reserve-public-mail-schedule";
 import { IconClipboard } from "./reserve-icons";
 import { ReserveCallout, ReserveHeadingWithIcon } from "./ui";
 
@@ -9,7 +10,7 @@ const ITEMS: string[] = [
   "開催日の2日前15:00時点で3チーム以上の予約がある場合に開催します。",
   "開催時は午前1試合・午後1試合を確約し、参加チーム数に応じて試合数が増える場合があります。",
   "昼食代はチームごとに代表者がまとめて当日現地でお支払いください。",
-  "締切前のみ、Web上で予約内容の変更・取消ができます。",
+  `Web 上での予約内容の変更・取消は、${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}までに「予約の確認・キャンセル」からお手続きください。`,
   "当日の進行や対戦順等は、参加チーム同士でご相談のうえ、必要に応じて調整してください。",
   "無断キャンセルおよび締切後のキャンセルはご遠慮ください。",
 ];

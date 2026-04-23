@@ -7,7 +7,17 @@ type Props = {
   eventDayId: string;
 };
 
-type ApiOk = { ok: true; outcome: "locked" | "cancelled_minimum" };
+type ApiOk = {
+  ok: true;
+  outcome: "locked" | "cancelled_minimum";
+  matching?: {
+    ok: boolean;
+    message?: string;
+    error?: string;
+    matchingRunId?: string;
+    assignmentCount?: number;
+  };
+};
 type ApiErr = { ok?: false; error?: string; code?: string };
 
 export function DeadlineCatchupEmergencyClient({ eventDayId }: Props) {
@@ -46,11 +56,24 @@ export function DeadlineCatchupEmergencyClient({ eventDayId }: Props) {
         return;
       }
 
-      const label =
-        data.outcome === "cancelled_minimum"
-          ? "開催中止（人数不足）にしました。お知らせの送信結果は「送信結果を開く」で確認してください。"
-          : "予約を締め切りました。続きはいつもどおり自動処理か「試合の手直し」で進めてください。";
-      setBanner({ tone: "ok", text: label });
+      if (data.outcome === "cancelled_minimum") {
+        setBanner({
+          tone: "ok",
+          text: "開催中止（人数不足）にしました。お知らせの送信結果は「送信結果を開く」で確認してください。",
+        });
+      } else if (data.matching && !data.matching.ok) {
+        setBanner({
+          tone: "err",
+          text:
+            "締め切り（locked）は完了しましたが、自動編成に失敗しました。試合編成画面で再実行するか、開発者に連絡してください。" +
+            (data.matching.message ? `（${data.matching.message}）` : ""),
+        });
+      } else {
+        setBanner({
+          tone: "ok",
+          text: "予約を締め切り、自動編成まで実行しました。試合編成画面で内容を確認してください。",
+        });
+      }
       router.refresh();
     } catch {
       setBanner({ tone: "err", text: "通信に失敗しました。ネットワークを確認してください。" });

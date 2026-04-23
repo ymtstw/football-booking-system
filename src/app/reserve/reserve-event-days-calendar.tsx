@@ -65,6 +65,8 @@ export function ReserveEventDaysCalendar({
   bookableInteraction = "link",
   onBookableDateSelect,
   selectedIsoDate = null,
+  /** `schedule` のとき開催日セルはすべて対戦表ページへ（予約入力には進まない） */
+  navigationMode = "booking",
 }: {
   days: EventDayPublic[];
   /** 一覧取得後に最も早い開催日のある月へ合わせる */
@@ -74,6 +76,7 @@ export function ReserveEventDaysCalendar({
   onBookableDateSelect?: (isoDate: string) => void;
   /** 選択中の日付を強調 */
   selectedIsoDate?: string | null;
+  navigationMode?: "booking" | "schedule";
 }) {
   const byDate = useMemo(() => {
     const m = new Map<string, EventDayPublic>();
@@ -207,6 +210,51 @@ export function ReserveEventDaysCalendar({
                 );
               }
 
+              if (navigationMode === "schedule") {
+                const { label: stLabel, cancelled: isCancelled } =
+                  closedLabelFromStatus(event!.status);
+                const dayLineJa = formatIsoDateWithWeekdayJa(isoDate);
+                const yearsJa = gradeYearsDisplay(event!.grade_band);
+                const title = `締切: ${formatDateTimeTokyoWithWeekday(
+                  event!.reservation_deadline_at
+                )}`;
+                const aria = `${dayLineJa}。${yearsJa}（学年帯）。${title}。${stLabel}。タップで対戦表・午前枠の状況を表示します。`;
+                const cellClass =
+                  `${baseCell} w-full text-left ring-1 transition-colors ` +
+                  (isCancelled
+                    ? "bg-rose-50/90 ring-rose-200 hover:bg-rose-100/90"
+                    : event!.acceptingReservations
+                      ? "bg-rp-mint ring-rp-brand/20 hover:bg-rp-mint-2/90"
+                      : "bg-zinc-100 ring-zinc-200 hover:bg-zinc-200/80");
+                return (
+                  <Link
+                    key={isoDate + idx}
+                    href={`/reserve/schedule/${isoDate}`}
+                    title={title}
+                    aria-label={aria}
+                    className={cellClass}
+                  >
+                    <span
+                      className={`text-xs font-bold tabular-nums sm:text-base ${
+                        isCancelled ? "text-rose-800" : "text-rp-navy"
+                      }`}
+                    >
+                      {dom}
+                    </span>
+                    <span className="mt-0.5 line-clamp-3 text-[9px] font-semibold leading-tight text-rp-navy sm:text-xs">
+                      {yearsJa}
+                    </span>
+                    <span
+                      className={`mt-0.5 line-clamp-2 text-[8px] font-medium leading-tight sm:text-[10px] ${
+                        isCancelled ? "text-rose-800" : "text-slate-600"
+                      }`}
+                    >
+                      {stLabel}
+                    </span>
+                  </Link>
+                );
+              }
+
               const title = `締切: ${formatDateTimeTokyoWithWeekday(
                 event!.reservation_deadline_at
               )}`;
@@ -313,20 +361,20 @@ export function ReserveEventDaysCalendar({
 
       <ul className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-600 sm:text-sm">
         <li className="flex items-center gap-2">
-          <span className="h-4 w-4 shrink-0 rounded-full bg-rp-brand" />
-          受付中（タップで午前枠を選べます）
+          <span className="h-4 w-4 shrink-0 rounded-full bg-rp-brand" aria-hidden />
+          <span>緑：受付中</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="h-4 w-4 shrink-0 rounded-full bg-zinc-300" />
-          開催はあるが受付不可（締切済・締切後・確定済）
+          <span className="h-4 w-4 shrink-0 rounded-full bg-zinc-300" aria-hidden />
+          <span>灰：受付不可</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="h-4 w-4 shrink-0 rounded-full bg-red-400" />
-          開催中止（雨天／運営／最少催行）
+          <span className="h-4 w-4 shrink-0 rounded-full bg-red-400" aria-hidden />
+          <span>赤：中止</span>
         </li>
         <li className="flex items-center gap-2">
-          <span className="h-4 w-4 shrink-0 rounded-full bg-white ring-2 ring-zinc-200" />
-          開催なし
+          <span className="h-4 w-4 shrink-0 rounded-full bg-white ring-2 ring-zinc-200" aria-hidden />
+          <span>白：開催なし</span>
         </li>
       </ul>
     </div>

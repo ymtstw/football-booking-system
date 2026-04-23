@@ -10,7 +10,7 @@
 
 - 一般向け: 開催日カレンダー、空き状況、予約作成・変更・取消（条件付き）
 - 管理向け: 開催日・枠・予約・通知・雨天／運営中止・編成の実行と参照
-- バッチ: Vercel Cron による締切処理・編成・案内・前日最終メール
+- バッチ: Vercel Cron による締切処理（締切直後に自動編成まで）・マッチング案内・前日最終メール（スケジュールは `vercel.json` 正本）
 - 付帯: 昼食メニューマスタ、合宿／大会問い合わせの受付と管理画面
 
 ## スコープ外・将来
@@ -21,7 +21,7 @@
 ## 成功条件（運用観点）
 
 - 締切時刻に応じて `open` が `locked` または最少中止に遷移し、必要な通知が生成される
-- 編成 RPC が `locked` 日に対して一貫して適用され、`confirmed` まで到達できる
+- 編成 RPC が `locked` 日に対して一貫して適用され、`confirmed` まで到達できる（**主経路は締切 Cron 内の自動編成**。`locked` は滞留時・取り消し後などに意味を持つ。再編成の補助は `run-matching-locked` 等、詳細は [implemented-behavior-catalog.md](./implemented-behavior-catalog.md) §1.6）
 - 公開 API は RLS ではなく **Route Handler + service_role + RPC** で整合した権限制御になる
 
 詳細な **Given / When / Then** レベルは [implemented-behavior-catalog.md](./implemented-behavior-catalog.md) を正とする。

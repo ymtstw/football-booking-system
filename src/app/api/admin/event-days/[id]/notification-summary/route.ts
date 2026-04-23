@@ -9,6 +9,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { TEMPLATE_MATCHING_PROPOSAL } from "@/lib/email/matching-proposal-mail";
 import { TEMPLATE_MINIMUM_CANCEL_NOTICE } from "@/lib/email/minimum-cancel-mail";
 import { TEMPLATE_DAY_BEFORE_FINAL } from "@/lib/email/day-before-final-mail";
+import { TEMPLATE_MORNING_SLOT_FORCE_CHANGED } from "@/lib/email/morning-slot-force-changed-mail";
 
 const TEMPLATE_WEATHER_CANCEL_IMMEDIATE = "weather_cancel_immediate";
 
@@ -112,6 +113,10 @@ export async function GET(
       dayBeforeFinal: {
         sent: countSent(TEMPLATE_DAY_BEFORE_FINAL),
         pendingOrFailed: countPendingOrFailed(TEMPLATE_DAY_BEFORE_FINAL),
+      },
+      morningSlotForceChanged: {
+        sent: countSent(TEMPLATE_MORNING_SLOT_FORCE_CHANGED),
+        pendingOrFailed: countPendingOrFailed(TEMPLATE_MORNING_SLOT_FORCE_CHANGED),
       },
     },
   });

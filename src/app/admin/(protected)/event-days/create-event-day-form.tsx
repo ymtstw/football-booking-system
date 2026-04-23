@@ -1,21 +1,16 @@
 "use client";
 
-/** 開催日・学年帯・締切を入力し公開前（draft）で作成。POST /api/admin/event-days（既定枠付与は API 側）。 */
+/** 開催日・学年帯を入力し公開前（draft）で作成。作成直後に公開確認モーダルを出す。POST /api/admin/event-days。 */
 import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT } from "@/domains/event-days/default-slots";
+import {
+  formatDateTimeTokyoWithWeekday,
+  formatIsoDateWithWeekdayJa,
+} from "@/lib/dates/format-jp-display";
 import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-/** 開催日の 2 日前 15:00（JST）締切を `datetime-local` 用に組み立て（ブラウザローカル表示）。 */
-function defaultDeadlineLocalForEventDate(eventDate: string): string {
-  const iso = defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate);
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** DB は text だが、UI では仕様どおりの値だけ選べるようにする（MVP。仕様は docs/spec/implemented-behavior-catalog.md）。 */
 const GRADE_BAND_OPTIONS = [
@@ -28,28 +23,56 @@ export function CreateEventDayForm() {
   const router = useRouter();
   const [eventDate, setEventDate] = useState("");
   const [gradeBand, setGradeBand] = useState("3-4");
-  const [deadlineLocal, setDeadlineLocal] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [createdDay, setCreatedDay] = useState<{ id: string; eventDate: string } | null>(
+    null
+  );
+  const [publishBusy, setPublishBusy] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [completionBanner, setCompletionBanner] = useState<string | null>(null);
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
+  const createdDayRef = useRef(createdDay);
+  createdDayRef.current = createdDay;
 
-  function onEventDateChange(v: string) {
-    setEventDate(v);
-    if (v) setDeadlineLocal(defaultDeadlineLocalForEventDate(v));
-  }
+  const declinePublish = useCallback(() => {
+    const d = createdDayRef.current;
+    setPublishDialogOpen(false);
+    setCreatedDay(null);
+    if (d) {
+      const label = formatIsoDateWithWeekdayJa(d.eventDate);
+      setCompletionBanner(
+        `「${label}」の開催日と既定枠の作成が完了しました（公開前のままです）。一覧の「公開」からいつでも公開できます。`
+      );
+      router.refresh();
+    }
+  }, [router]);
+
+  useEffect(() => {
+    if (!publishDialogOpen || publishBusy) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        declinePublish();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    queueMicrotask(() => yesButtonRef.current?.focus());
+    return () => window.removeEventListener("keydown", onKey);
+  }, [publishDialogOpen, publishBusy, declinePublish]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage(null);
+    setCompletionBanner(null);
     const form = e.currentTarget;
     const eventDateVal = (form.elements.namedItem("eventDate") as HTMLInputElement)
       .value;
     const gradeBandVal = (form.elements.namedItem("gradeBand") as HTMLSelectElement)
       .value;
-    const deadlineVal = (
-      form.elements.namedItem("deadlineLocal") as HTMLInputElement
-    ).value;
-    if (!eventDateVal || !deadlineVal) {
-      setMessage("開催日と締切を入力してください");
+    if (!eventDateVal) {
+      setMessage("開催日を入力してください");
       return;
     }
     if (!gradeBandVal) {
@@ -57,7 +80,6 @@ export function CreateEventDayForm() {
       return;
     }
     setLoading(true);
-    const reservationDeadlineAt = new Date(deadlineVal).toISOString();
     const res = await fetch("/api/admin/event-days", {
       method: "POST",
       credentials: "include",
@@ -65,23 +87,57 @@ export function CreateEventDayForm() {
       body: JSON.stringify({
         eventDate: eventDateVal,
         gradeBand: gradeBandVal,
-        reservationDeadlineAt,
         status: "draft",
       }),
     });
     setLoading(false);
     const json = (await res.json().catch(() => ({}))) as {
       error?: string;
+      eventDay?: { id: string; event_date: string };
     };
     if (!res.ok) {
       setMessage(json.error ?? `エラー（${res.status}）`);
       return;
     }
+    const day = json.eventDay;
+    if (!day?.id || !day.event_date) {
+      setMessage("作成は成功しましたが、応答内容が不正です。一覧を確認してください。");
+      router.refresh();
+      return;
+    }
     setEventDate("");
     setGradeBand("3-4");
-    setDeadlineLocal("");
-    setMessage("作成しました");
-    router.refresh();
+    setPublishError(null);
+    setCreatedDay({ id: day.id, eventDate: day.event_date });
+    setPublishDialogOpen(true);
+  }
+
+  async function confirmPublish() {
+    if (!createdDay) return;
+    setPublishBusy(true);
+    setPublishError(null);
+    try {
+      const res = await fetch(`/api/admin/event-days/${createdDay.id}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "open" }),
+      });
+      const j = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setPublishError(j.error ?? `公開に失敗しました（${res.status}）`);
+        return;
+      }
+      const label = formatIsoDateWithWeekdayJa(createdDay.eventDate);
+      setPublishDialogOpen(false);
+      setCreatedDay(null);
+      setCompletionBanner(
+        `「${label}」の開催日と既定枠の作成、および一般向けへの公開が完了しました。`
+      );
+      router.refresh();
+    } finally {
+      setPublishBusy(false);
+    }
   }
 
   return (
@@ -106,8 +162,10 @@ export function CreateEventDayForm() {
           </h2>
         </div>
         <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">
-          このフォームで開催日データを追加します（最初は<strong className="font-medium text-zinc-800">公開前</strong>。
-          一般公開は下の一覧から「公開」）。
+          このフォームで開催日と既定枠（{DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT}
+          枠運用）を追加します。作成直後に<strong className="font-medium text-zinc-800">公開するか確認</strong>
+          します（公開し忘れ防止）。予約締切は<strong className="font-medium text-zinc-800">開催2日前 15:00（日本時間）</strong>
+          のみで、画面からは変更できません（特例は DB 運用または将来の機能）。
         </p>
       </div>
       <form
@@ -120,7 +178,7 @@ export function CreateEventDayForm() {
             name="eventDate"
             type="date"
             value={eventDate}
-            onChange={(e) => onEventDateChange(e.target.value)}
+            onChange={(e) => setEventDate(e.target.value)}
             required
             className="min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
           />
@@ -141,19 +199,16 @@ export function CreateEventDayForm() {
             ))}
           </select>
         </label>
-        <label className="flex min-w-0 w-full flex-col gap-1 text-sm sm:min-w-[min(100%,14rem)] sm:w-auto sm:flex-1">
-          <span className="text-zinc-600">
-            予約締切（既定: 開催 2 日前 15:00・ローカル表示）
-          </span>
-          <DateInputWithPicker
-            name="deadlineLocal"
-            type="datetime-local"
-            value={deadlineLocal}
-            onChange={(e) => setDeadlineLocal(e.target.value)}
-            required
-            className="min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
-          />
-        </label>
+        <div className="flex min-w-0 w-full flex-col gap-1 text-sm sm:min-w-[min(100%,18rem)] sm:w-auto sm:flex-1">
+          <span className="text-zinc-600">予約締切（自動・変更不可）</span>
+          <p className="min-h-11 rounded border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm leading-snug text-zinc-800 sm:min-h-10">
+            {eventDate.trim()
+              ? formatDateTimeTokyoWithWeekday(
+                  defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate.trim())
+                )
+              : "開催日を選ぶと表示されます"}
+          </p>
+        </div>
         <button
           type="submit"
           disabled={loading}
@@ -163,10 +218,69 @@ export function CreateEventDayForm() {
           {loading ? "作成中…" : `公開前で作成（${DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT}枠運用で開始）`}
         </button>
       </form>
-      {message ? (
-        <p className={`mt-2 text-sm ${message.startsWith("作成") ? "text-green-700" : "text-red-600"}`}>
-          {message}
-        </p>
+      {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
+
+      {completionBanner ? (
+        <div
+          role="status"
+          className="mt-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-950"
+        >
+          {completionBanner}
+        </div>
+      ) : null}
+
+      {publishDialogOpen && createdDay ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 p-4 backdrop-blur-[1px]"
+          role="presentation"
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="publish-dialog-title"
+            className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl ring-1 ring-zinc-200/80"
+          >
+            <h3
+              id="publish-dialog-title"
+              className="text-base font-bold text-zinc-900"
+            >
+              公開しますか？
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+              <span className="font-semibold text-zinc-900">
+                {formatIsoDateWithWeekdayJa(createdDay.eventDate)}
+              </span>
+              の開催日と枠を作成しました。
+              <strong className="font-semibold text-zinc-900"> はい（公開する）</strong>
+              を選ぶと、一般向けの予約カレンダーにすぐ載せます。
+            </p>
+            {publishError ? (
+              <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+                {publishError}
+              </p>
+            ) : null}
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                disabled={publishBusy}
+                onClick={() => declinePublish()}
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:w-auto"
+              >
+                いいえ（公開前のまま）
+              </button>
+              <button
+                ref={yesButtonRef}
+                type="button"
+                disabled={publishBusy}
+                onClick={() => void confirmPublish()}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+              >
+                {publishBusy ? <InlineSpinner variant="onDark" /> : null}
+                {publishBusy ? "公開処理中…" : "はい（公開する）"}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </section>
   );

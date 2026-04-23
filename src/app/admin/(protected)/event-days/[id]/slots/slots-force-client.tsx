@@ -11,10 +11,13 @@ export function SlotsForcePageClient({
   eventDayId,
   initialSlots,
   activeReservationCount,
+  reservationDeadlineAt,
 }: {
   eventDayId: string;
   initialSlots: EventDaySlotEditorRow[];
   activeReservationCount: number;
+  /** ISO。締切後の保存前に確認ダイアログに使う */
+  reservationDeadlineAt: string;
 }) {
   const [acknowledged, setAcknowledged] = useState(false);
 
@@ -55,6 +58,7 @@ export function SlotsForcePageClient({
         initialSlots={initialSlots}
         editable={acknowledged}
         mutationMode="force"
+        reservationDeadlineAt={reservationDeadlineAt}
       />
     </div>
   );

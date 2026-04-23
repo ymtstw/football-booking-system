@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { sendTournamentInquiryNotifyEmail } from "@/lib/email/tournament-inquiry-notify-mail";
+import {
+  logPublicReserveApiSupabaseError,
+  PUBLIC_RESERVE_API_WRITE_ERROR_JA,
+} from "@/lib/http/public-reserve-api-error";
 import { rateLimitTournamentInquiryCreate } from "@/lib/rate-limit/tournament-inquiry-public";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -91,8 +95,11 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !row?.id) {
+    if (error) {
+      logPublicReserveApiSupabaseError("POST /api/tournament-inquiries insert", error);
+    }
     return NextResponse.json(
-      { error: error?.message ?? "保存に失敗しました" },
+      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error?.code },
       { status: 500 }
     );
   }

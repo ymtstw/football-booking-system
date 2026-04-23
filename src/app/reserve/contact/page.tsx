@@ -3,6 +3,11 @@
 /** お問い合わせ → POST /api/tournament-inquiries で保存・運営通知（任意） */
 import { useState } from "react";
 
+import {
+  reserveFlowApiErrorDisplay,
+  reserveFlowUserVisibleMessage,
+  RESERVE_FLOW_NETWORK_ERROR_JA,
+} from "@/lib/reserve/reserve-flow-user-message";
 import { IconInfoCircle } from "../_components/reserve-icons";
 import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-icon";
 
@@ -36,7 +41,13 @@ export default function ReserveContactPage() {
         message?: string;
       };
       if (!res.ok) {
-        setError(json.error ?? "送信に失敗しました");
+        setError(
+          reserveFlowApiErrorDisplay(
+            res.status,
+            typeof json.error === "string" ? json.error : undefined,
+            "送信に失敗しました"
+          )
+        );
         return;
       }
       setDoneMessage(
@@ -47,6 +58,13 @@ export default function ReserveContactPage() {
       setEmail("");
       setPhone("");
       setMessage("");
+    } catch (e) {
+      setError(
+        reserveFlowUserVisibleMessage(
+          e instanceof Error ? e.message : String(e),
+          RESERVE_FLOW_NETWORK_ERROR_JA
+        )
+      );
     } finally {
       setSubmitting(false);
     }
@@ -64,7 +82,10 @@ export default function ReserveContactPage() {
           お問い合わせ
         </ReserveHeadingWithIcon>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
-          大会運営へのご連絡用です。フォーム送信後、運営側で内容を確認します。メールの誤記などに備え、電話番号もご入力ください。
+          大会運営へのご連絡用です。フォーム送信後、運営側で内容を確認します。
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-600 sm:text-base">
+          予約完了メールが届かない場合は、「予約日」「チーム名」も分かる範囲でご記入ください。
         </p>
       </div>
 

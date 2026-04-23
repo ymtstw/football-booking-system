@@ -965,7 +965,7 @@
     {
       "id": "a2e0a0d5d441c691",
       "section": "2. Phase 2 — 締切・編成・前日確定",
-      "text": "vercel.json で締切・編成・案内・最終を登録する（UTC **`0 6`** 締切15:00 / **`1 6`** 編成15:01 / **`30 7`** 案内16:30 / **`0 8`** 最終17:00 JST 目安）",
+      "text": "vercel.json で締切・案内・前日最終を登録する（UTC **`0 6`** 締切15:00 / **`0 7`** マッチング案内16:00 / **`30 7`** 前日最終16:30 JST 目安。編成は締切 Cron 内が主・`1 6` 定期は廃止）",
       "defaultDone": true,
       "sourceLine": 273
     },
@@ -1098,7 +1098,7 @@
     {
       "id": "a0e3ae992ff21ea8",
       "section": "3. Phase 3 — 運用補正・本番",
-      "text": "雨天判断を前日17:00の最終メールに含める（例外: 即時 `weather_cancel_immediate`・`day_before_17` 雨天予約）",
+      "text": "雨天判断を前日一括最終メール（16:30頃・目安17:30まで）に含める（例外: 即時 `weather_cancel_immediate`・`day_before_17` 雨天予約）",
       "defaultDone": true,
       "sourceLine": 310
     },
@@ -1721,21 +1721,21 @@
     {
       "id": "2ba2462f9db777b1",
       "section": "MVP完了の最終確認",
-      "text": "JOB02 午前補完・午後一括編成（**15:01 JST** 想定）※`GET /api/cron/run-matching-locked`・`POST /api/admin/matching/run` と同一ロジック・**`1 6 * * *`**",
+      "text": "午前補完・午後一括編成（**締切直後**が主）※`POST /api/admin/matching/run`・`GET /api/cron/run-matching-locked` と同一ロジック。定期 **`1 6 * * *` は廃止**（手動・ローカル用ルートは残す）",
       "defaultDone": true,
       "sourceLine": 444
     },
     {
       "id": "1c559cdc0f3b2b1a",
       "section": "MVP完了の最終確認",
-      "text": "マッチング案内メール（**16:30 JST** 想定）※`GET /api/cron/send-matching-proposal`・**`30 7 * * *`**",
+      "text": "マッチング案内メール（**16:00 JST** 想定）※`GET /api/cron/send-matching-proposal`・**`0 7 * * *`**",
       "defaultDone": true,
       "sourceLine": 445
     },
     {
       "id": "474fc1ff7f992ce2",
       "section": "MVP完了の最終確認",
-      "text": "JOB03 前日最終メール（**17:00 JST** 想定）※`GET /api/cron/send-day-before-final`（`day_before_final`）・**`0 8 * * *`**",
+      "text": "JOB03 前日最終メール（**16:30 JST** 想定）※`GET /api/cron/send-day-before-final`（`day_before_final`）・**`30 7 * * *`**",
       "defaultDone": true,
       "sourceLine": 446
     },

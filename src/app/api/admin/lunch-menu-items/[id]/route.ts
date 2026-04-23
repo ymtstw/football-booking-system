@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 
+import {
+  assertCustomDayMenusStayValid,
+  CUSTOM_DAY_LUNCH_NEEDS_ACTIVE,
+  loadLunchMenuRowsForAdmin,
+  menuOptionsExcluding,
+  MIN_ACTIVE_LUNCH_MENUS,
+  simulateGlobalActiveCount,
+} from "@/lib/lunch/admin-lunch-constraints";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -119,6 +127,86 @@ export async function PATCH(
   }
 
   const supabase = createServiceRoleClient();
+
+  if (patch.is_active === false) {
+    const coRaw = b.co_activate_menu_item_id;
+    let coActivateId: string | null = null;
+    if (coRaw !== undefined && coRaw !== null) {
+      if (typeof coRaw !== "string" || !UUID_RE.test(coRaw)) {
+        return NextResponse.json(
+          { error: "co_activate_menu_item_id は UUID 文字列で指定してください" },
+          { status: 422 }
+        );
+      }
+      coActivateId = coRaw;
+    }
+
+    if (coActivateId === id) {
+      return NextResponse.json(
+        { error: "co_activate_menu_item_id は更新対象と別のメニューを指定してください" },
+        { status: 422 }
+      );
+    }
+
+    const { rows, error: rowErr } = await loadLunchMenuRowsForAdmin(supabase);
+    if (rowErr) {
+      return NextResponse.json({ error: rowErr }, { status: 500 });
+    }
+    if (coActivateId && !rows.some((r) => r.id === coActivateId)) {
+      return NextResponse.json(
+        { error: "co_activate_menu_item_id が見つかりません" },
+        { status: 422 }
+      );
+    }
+
+    const custom = await assertCustomDayMenusStayValid(
+      supabase,
+      id,
+      "deactivate",
+      coActivateId
+    );
+    if (!custom.ok) {
+      return NextResponse.json(
+        {
+          error: custom.message,
+          code: CUSTOM_DAY_LUNCH_NEEDS_ACTIVE,
+        },
+        { status: 422 }
+      );
+    }
+
+    const activeAfter = simulateGlobalActiveCount(
+      rows,
+      id,
+      "deactivate",
+      coActivateId
+    );
+    if (activeAfter < 1) {
+      return NextResponse.json(
+        {
+          error:
+            "有効な昼食メニューは常に1件以上必要です。別のメニューを公開にするか、co_activate_menu_item_id で同時に公開するメニューを指定してください。",
+          code: MIN_ACTIVE_LUNCH_MENUS,
+          menuOptions: menuOptionsExcluding(rows, id),
+        },
+        { status: 422 }
+      );
+    }
+
+    if (coActivateId) {
+      const { error: coErr } = await supabase
+        .from("lunch_menu_items")
+        .update({ is_active: true })
+        .eq("id", coActivateId);
+      if (coErr) {
+        return NextResponse.json(
+          { error: coErr.message, code: coErr.code },
+          { status: 500 }
+        );
+      }
+    }
+  }
+
   const { data, error } = await supabase
     .from("lunch_menu_items")
     .update(patch)
@@ -141,9 +229,12 @@ export async function PATCH(
   return NextResponse.json({ item: data as Row });
 }
 
-/** 管理者: 昼食メニュー削除（既存予約の menu_item_id は SET NULL） */
+/**
+ * 管理者: 昼食メニュー削除（既存予約の menu_item_id は SET NULL）。
+ * 有効メニューが0件になる削除は拒否。`?promote_active_first=<uuid>` で先に別メニューを公開してから削除可。
+ */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
   if (!(await getAdminUser())) {
@@ -155,7 +246,84 @@ export async function DELETE(
     return NextResponse.json({ error: "ID が不正です" }, { status: 400 });
   }
 
+  const url = new URL(request.url);
+  const promoteRaw = url.searchParams.get("promote_active_first");
+  const promoteId =
+    promoteRaw && UUID_RE.test(promoteRaw) && promoteRaw !== id
+      ? promoteRaw
+      : null;
+
   const supabase = createServiceRoleClient();
+
+  const { rows, error: rowErr } = await loadLunchMenuRowsForAdmin(supabase);
+  if (rowErr) {
+    return NextResponse.json({ error: rowErr }, { status: 500 });
+  }
+
+  if (!rows.some((r) => r.id === id)) {
+    return NextResponse.json({ error: "メニューが見つかりません" }, { status: 404 });
+  }
+
+  if (rows.length <= 1) {
+    return NextResponse.json(
+      {
+        error:
+          "昼食メニューはマスタ上1件以上残す必要があります。削除の代わりに非公開にしてください。",
+        code: MIN_ACTIVE_LUNCH_MENUS,
+      },
+      { status: 422 }
+    );
+  }
+
+  if (promoteId && !rows.some((r) => r.id === promoteId)) {
+    return NextResponse.json(
+      { error: "promote_active_first が見つかりません" },
+      { status: 422 }
+    );
+  }
+
+  const custom = await assertCustomDayMenusStayValid(
+    supabase,
+    id,
+    "delete",
+    promoteId
+  );
+  if (!custom.ok) {
+    return NextResponse.json(
+      {
+        error: custom.message,
+        code: CUSTOM_DAY_LUNCH_NEEDS_ACTIVE,
+      },
+      { status: 422 }
+    );
+  }
+
+  const activeAfter = simulateGlobalActiveCount(rows, id, "delete", promoteId);
+  if (activeAfter < 1) {
+    return NextResponse.json(
+      {
+        error:
+          "削除後に有効な昼食が0件になります。別メニューを先に公開するか、クエリ promote_active_first で公開するメニューを指定してください。",
+        code: MIN_ACTIVE_LUNCH_MENUS,
+        menuOptions: menuOptionsExcluding(rows, id),
+      },
+      { status: 422 }
+    );
+  }
+
+  if (promoteId) {
+    const { error: prErr } = await supabase
+      .from("lunch_menu_items")
+      .update({ is_active: true })
+      .eq("id", promoteId);
+    if (prErr) {
+      return NextResponse.json(
+        { error: prErr.message, code: prErr.code },
+        { status: 500 }
+      );
+    }
+  }
+
   const { error } = await supabase.from("lunch_menu_items").delete().eq("id", id);
 
   if (error) {
