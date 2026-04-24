@@ -3,10 +3,10 @@
  * POST 開催日時に `event_day_slots` へコピーする元データ。
  *
  * 運用パターンは「6枠運用」または「8枠運用」の2択に限定：
- *  - 6枠運用: 4枠目（MORNING_4 / AFTERNOON_4）を is_active=false にして対象外にする
- *  - 8枠運用: 4枠すべて is_active=true
+ *  - 6枠運用: 4枠目（MORNING_4 / AFTERNOON_4）を is_active=false。有効な1〜3枠は **1時間単位**。
+ *  - 8枠運用: 4枠すべて is_active=true。**45分連続**の標準テンプレ。
  *
- * 開催日作成時は「6枠運用」からスタート（4枠目 is_active=false）。管理画面のラジオで切り替える。
+ * 開催日作成時は「6枠運用」からスタート。管理画面のラジオで切替時に、該当モードの標準時刻へ揃える。
  * 枠行自体は常に 4+4=8 で保持し、DB から行を追加・削除することはしない。
  */
 
@@ -29,10 +29,79 @@ export type DefaultSlotDefinition = {
 };
 
 /**
- * 芝1面・40分1枠（連続・端数なし）・各枠最大2チーム（capacity=2）。
- * 12:00–13:00 は休憩のため枠を置かない（午前は 12:00 前まで、午後は 13:00 から）。
- * 午前: 予約で確定。午後: 締切後の自動編成対象。
- * 枠コード順が表示・編成の時間順になる。
+ * 8枠運用の標準テンプレ（45分×4・連続）。
+ * 12:00–13:00 は休憩のため枠を置かない（午前は 12:00 まで、午後は 13:00 から）。
+ */
+export const EIGHT_SLOT_STANDARD_DEFINITIONS: readonly DefaultSlotDefinition[] = [
+  {
+    slotCode: "MORNING_1",
+    phase: "morning",
+    startTime: "09:00:00",
+    endTime: "09:45:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "MORNING_2",
+    phase: "morning",
+    startTime: "09:45:00",
+    endTime: "10:30:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "MORNING_3",
+    phase: "morning",
+    startTime: "10:30:00",
+    endTime: "11:15:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "MORNING_4",
+    phase: "morning",
+    startTime: "11:15:00",
+    endTime: "12:00:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "AFTERNOON_1",
+    phase: "afternoon",
+    startTime: "13:00:00",
+    endTime: "13:45:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "AFTERNOON_2",
+    phase: "afternoon",
+    startTime: "13:45:00",
+    endTime: "14:30:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "AFTERNOON_3",
+    phase: "afternoon",
+    startTime: "14:30:00",
+    endTime: "15:15:00",
+    capacity: 2,
+    isActive: true,
+  },
+  {
+    slotCode: "AFTERNOON_4",
+    phase: "afternoon",
+    startTime: "15:15:00",
+    endTime: "16:00:00",
+    capacity: 2,
+    isActive: true,
+  },
+] as const;
+
+/**
+ * 開催日INSERT・「通常（6枠）」の既定。
+ * 有効な1〜3枠は1時間。4枠目は無効だが時刻は8枠テンプレの4枠目（切替時の整合用）。
  */
 export const DEFAULT_EVENT_DAY_SLOT_DEFINITIONS: readonly DefaultSlotDefinition[] =
   [
@@ -40,31 +109,31 @@ export const DEFAULT_EVENT_DAY_SLOT_DEFINITIONS: readonly DefaultSlotDefinition[
       slotCode: "MORNING_1",
       phase: "morning",
       startTime: "09:00:00",
-      endTime: "09:40:00",
+      endTime: "10:00:00",
       capacity: 2,
       isActive: true,
     },
     {
       slotCode: "MORNING_2",
       phase: "morning",
-      startTime: "09:40:00",
-      endTime: "10:20:00",
+      startTime: "10:00:00",
+      endTime: "11:00:00",
       capacity: 2,
       isActive: true,
     },
     {
       slotCode: "MORNING_3",
       phase: "morning",
-      startTime: "10:20:00",
-      endTime: "11:00:00",
+      startTime: "11:00:00",
+      endTime: "12:00:00",
       capacity: 2,
       isActive: true,
     },
     {
       slotCode: "MORNING_4",
       phase: "morning",
-      startTime: "11:00:00",
-      endTime: "11:40:00",
+      startTime: "11:15:00",
+      endTime: "12:00:00",
       capacity: 2,
       isActive: false,
     },
@@ -72,31 +141,31 @@ export const DEFAULT_EVENT_DAY_SLOT_DEFINITIONS: readonly DefaultSlotDefinition[
       slotCode: "AFTERNOON_1",
       phase: "afternoon",
       startTime: "13:00:00",
-      endTime: "13:40:00",
+      endTime: "14:00:00",
       capacity: 2,
       isActive: true,
     },
     {
       slotCode: "AFTERNOON_2",
       phase: "afternoon",
-      startTime: "13:40:00",
-      endTime: "14:20:00",
+      startTime: "14:00:00",
+      endTime: "15:00:00",
       capacity: 2,
       isActive: true,
     },
     {
       slotCode: "AFTERNOON_3",
       phase: "afternoon",
-      startTime: "14:20:00",
-      endTime: "15:00:00",
+      startTime: "15:00:00",
+      endTime: "16:00:00",
       capacity: 2,
       isActive: true,
     },
     {
       slotCode: "AFTERNOON_4",
       phase: "afternoon",
-      startTime: "15:00:00",
-      endTime: "15:40:00",
+      startTime: "15:15:00",
+      endTime: "16:00:00",
       capacity: 2,
       isActive: false,
     },
@@ -116,24 +185,56 @@ export function getDefaultEventDaySlotDefinitions(): DefaultSlotDefinition[] {
   return [...DEFAULT_EVENT_DAY_SLOT_DEFINITIONS];
 }
 
-/** 予約画面など「例示の時刻帯」用。実テンプレと同じ 40 分刻み（HH:MM）。 */
-export function getDefaultSlotDisplayIntervalsForPhase(
-  phase: DefaultSlotPhase
-): readonly { start: string; end: string }[] {
-  return DEFAULT_EVENT_DAY_SLOT_DEFINITIONS.filter((s) => s.phase === phase).map((s) => ({
-    start: s.startTime.slice(0, 5),
-    end: s.endTime.slice(0, 5),
-  }));
-}
-
-/** 4枠目（6枠運用で非表示になりがち）をテンプレ時刻に戻す */
-export function defaultSlotTimesByCode(): ReadonlyMap<string, { startTime: string; endTime: string }> {
+/** 6枠運用テンプレの slot_code → 時刻（管理画面「通常」選択時に全行へ適用） */
+export function sixSlotTimesByCode(): ReadonlyMap<
+  string,
+  { startTime: string; endTime: string }
+> {
   return new Map(
-    getDefaultEventDaySlotDefinitions().map((d) => [
+    DEFAULT_EVENT_DAY_SLOT_DEFINITIONS.map((d) => [
       d.slotCode,
       { startTime: d.startTime, endTime: d.endTime },
     ])
   );
+}
+
+/** 8枠運用テンプレの slot_code → 時刻（管理画面「すべて有効」選択時に全行へ適用） */
+export function eightSlotTimesByCode(): ReadonlyMap<
+  string,
+  { startTime: string; endTime: string }
+> {
+  return new Map(
+    EIGHT_SLOT_STANDARD_DEFINITIONS.map((d) => [
+      d.slotCode,
+      { startTime: d.startTime, endTime: d.endTime },
+    ])
+  );
+}
+
+/**
+ * 8枠標準テンプレの時刻マップ（後方互換・既存呼び出し用）。
+ * 新規コードは `eightSlotTimesByCode()` を推奨。
+ */
+export function defaultSlotTimesByCode(): ReadonlyMap<
+  string,
+  { startTime: string; endTime: string }
+> {
+  return eightSlotTimesByCode();
+}
+
+/**
+ * 予約画面など「例示の時刻帯」用。
+ * 通常（6枠）の **有効枠のみ** を HH:MM で返す（1時間刻みの例）。
+ */
+export function getDefaultSlotDisplayIntervalsForPhase(
+  phase: DefaultSlotPhase
+): readonly { start: string; end: string }[] {
+  return DEFAULT_EVENT_DAY_SLOT_DEFINITIONS.filter(
+    (s) => s.phase === phase && s.isActive
+  ).map((s) => ({
+    start: s.startTime.slice(0, 5),
+    end: s.endTime.slice(0, 5),
+  }));
 }
 
 /** Supabase insert 用の行オブジェクト（event_day_id のみ後付け） */

@@ -64,7 +64,7 @@ export function addOneHourPgTime(t: string): string {
   return addMinutesPgTime(t, 60);
 }
 
-/** 既定枠と同様の連続40分枠など、分単位で終了時刻を求める（UTC 日付ダミー上の時刻演算）。 */
+/** 既定枠と同様の連続45分枠など、分単位で終了時刻を求める（UTC 日付ダミー上の時刻演算）。 */
 export function addMinutesPgTime(t: string, minutes: number): string {
   const parts = t.split(":").map((x) => Number(x));
   const h = parts[0] ?? 0;

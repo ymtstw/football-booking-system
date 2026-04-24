@@ -14,6 +14,7 @@ import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-i
 export default function ReserveContactPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [emailConfirm, setEmailConfirm] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -23,6 +24,12 @@ export default function ReserveContactPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    const emailA = email.trim().toLowerCase();
+    const emailB = emailConfirm.trim().toLowerCase();
+    if (emailA !== emailB) {
+      setError("メールアドレスが一致しません。同じ内容を2回入力してください。");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/tournament-inquiries", {
@@ -31,6 +38,7 @@ export default function ReserveContactPage() {
         body: JSON.stringify({
           contactName: name.trim(),
           contactEmail: email.trim(),
+          contactEmailConfirm: emailConfirm.trim(),
           contactPhone: phone.trim(),
           message: message.trim(),
           sourcePath: "/reserve/contact",
@@ -56,6 +64,7 @@ export default function ReserveContactPage() {
       );
       setName("");
       setEmail("");
+      setEmailConfirm("");
       setPhone("");
       setMessage("");
     } catch (e) {
@@ -81,16 +90,17 @@ export default function ReserveContactPage() {
         >
           お問い合わせ
         </ReserveHeadingWithIcon>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
-          大会運営へのご連絡用です。フォーム送信後、運営側で内容を確認します。
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600 sm:text-base">
-          予約完了メールが届かない場合は、「予約日」「チーム名」も分かる範囲でご記入ください。
-        </p>
+        <div className="mt-3 space-y-2.5 text-sm leading-relaxed text-zinc-600 sm:text-base sm:leading-relaxed">
+          <p>大会運営へのお問い合わせはこちらからお送りください。</p>
+          <p>内容を確認のうえ、運営側よりご連絡いたします。</p>
+          <p>
+            予約に関するお問い合わせの場合は、「予約日」「チーム名」を分かる範囲でご記入ください。
+          </p>
+        </div>
       </div>
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-        お急ぎの場合は、画面下部のフッター「お問い合わせ」に記載の電話番号までお電話ください。
+        お急ぎの方は、ページ下部の電話番号までご連絡ください。
       </div>
 
       {doneMessage ? (
@@ -121,10 +131,27 @@ export default function ReserveContactPage() {
               required
               type="email"
               autoComplete="email"
+              placeholder="例：example@example.com"
               className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-base outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+          </label>
+          <label className="block text-sm">
+            <span className="font-medium text-zinc-800">メールアドレス（確認）</span>
+            <span className="text-red-600"> *</span>
+            <input
+              required
+              type="email"
+              autoComplete="off"
+              placeholder="上と同じメールを再入力"
+              className="mt-2 min-h-11 w-full rounded-xl border border-zinc-200 px-3 py-2.5 text-base outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
+              value={emailConfirm}
+              onChange={(e) => setEmailConfirm(e.target.value)}
+            />
+            <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
+              確認のため、もう一度同じアドレスを入力してください。
+            </span>
           </label>
           <label className="block text-sm">
             <span className="font-medium text-zinc-800">電話番号</span>
@@ -143,10 +170,16 @@ export default function ReserveContactPage() {
           <label className="block text-sm">
             <span className="font-medium text-zinc-800">お問い合わせ内容</span>
             <span className="text-red-600"> *</span>
+            <span className="mt-1 block text-xs leading-relaxed text-zinc-500 sm:text-sm">
+              予約に関する内容の場合は、予約日・チーム名もあわせてご記入ください。
+            </span>
             <textarea
               required
               rows={5}
               maxLength={8000}
+              placeholder={
+                "例：\n4月27日の予約について確認したいです。\nチーム名は〇〇FCです。"
+              }
               className="mt-2 min-h-32 w-full resize-y rounded-xl border border-zinc-200 px-3 py-2.5 text-base outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:text-sm"
               value={message}
               onChange={(e) => setMessage(e.target.value)}

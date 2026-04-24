@@ -57,8 +57,8 @@ export default async function AdminEventDayOperationalCancelPage({
       <EventDayOpsBreadcrumb
         eventDayId={id}
         items={[
-          { href: `/admin/event-days/${id}/slots`, label: "枠・時刻" },
-          { href: `/admin/event-days/${id}/weather`, label: "雨天判断" },
+          { href: `/admin/event-days/${id}/slots`, label: "枠・時刻設定" },
+          { href: `/admin/event-days/${id}/weather`, label: "天候対応" },
           { label: "緊急中止（運営）" },
         ]}
       />
@@ -69,7 +69,7 @@ export default async function AdminEventDayOperationalCancelPage({
           href={`/admin/event-days/${id}/weather`}
           className="font-medium text-sky-800 underline decoration-sky-600/60 underline-offset-2"
         >
-          雨天判断
+          天候対応
         </Link>{" "}
         から登録してください。
       </p>

@@ -13,14 +13,24 @@ const MAX_MESSAGE = 8000;
 const MAX_NAME = 200;
 const MAX_PHONE = 30;
 
-function parseBody(raw: unknown): {
-  contactName: string;
-  contactEmail: string;
-  contactPhone: string;
-  message: string;
-  sourcePath: string | null;
-} | null {
-  if (raw === null || typeof raw !== "object") return null;
+const GENERIC_422 =
+  "お名前・有効なメールアドレス・メール確認・電話番号・お問い合わせ内容を入力してください";
+
+type ParsedTournamentBody =
+  | {
+      ok: true;
+      contactName: string;
+      contactEmail: string;
+      contactPhone: string;
+      message: string;
+      sourcePath: string | null;
+    }
+  | { ok: false; error: string; fieldId?: string };
+
+function parseBody(raw: unknown): ParsedTournamentBody {
+  if (raw === null || typeof raw !== "object") {
+    return { ok: false, error: "JSON オブジェクトで送信してください" };
+  }
   const o = raw as Record<string, unknown>;
   const contactName =
     typeof o.contactName === "string"
@@ -33,6 +43,12 @@ function parseBody(raw: unknown): {
       ? o.contactEmail.trim().toLowerCase()
       : typeof o.email === "string"
         ? o.email.trim().toLowerCase()
+        : "";
+  const contactEmailConfirm =
+    typeof o.contactEmailConfirm === "string"
+      ? o.contactEmailConfirm.trim().toLowerCase()
+      : typeof o.emailConfirm === "string"
+        ? o.emailConfirm.trim().toLowerCase()
         : "";
   const message = typeof o.message === "string" ? o.message.trim() : "";
   const contactPhoneRaw =
@@ -47,12 +63,41 @@ function parseBody(raw: unknown): {
       ? o.sourcePath.slice(0, 500)
       : null;
 
-  if (!contactName || contactName.length > MAX_NAME) return null;
-  if (!contactEmail || !SIMPLE_EMAIL_RE.test(contactEmail)) return null;
-  if (!contactPhone) return null;
-  if (!message || message.length > MAX_MESSAGE) return null;
+  if (!contactName || contactName.length > MAX_NAME) {
+    return { ok: false, error: GENERIC_422 };
+  }
+  if (!contactEmail || !SIMPLE_EMAIL_RE.test(contactEmail)) {
+    return { ok: false, error: GENERIC_422 };
+  }
+  if (!contactEmailConfirm) {
+    return {
+      ok: false,
+      error: "メールアドレス（確認）を入力してください",
+      fieldId: "contactEmailConfirm",
+    };
+  }
+  if (contactEmailConfirm !== contactEmail) {
+    return {
+      ok: false,
+      error: "メールアドレスが一致しません。同じ内容を2回入力してください。",
+      fieldId: "contactEmailConfirm",
+    };
+  }
+  if (!contactPhone) {
+    return { ok: false, error: GENERIC_422 };
+  }
+  if (!message || message.length > MAX_MESSAGE) {
+    return { ok: false, error: GENERIC_422 };
+  }
 
-  return { contactName, contactEmail, contactPhone, message, sourcePath };
+  return {
+    ok: true,
+    contactName,
+    contactEmail,
+    contactPhone,
+    message,
+    sourcePath,
+  };
 }
 
 /**
@@ -70,12 +115,9 @@ export async function POST(request: Request) {
   }
 
   const parsed = parseBody(json);
-  if (!parsed) {
+  if (!parsed.ok) {
     return NextResponse.json(
-      {
-        error:
-          "お名前・有効なメールアドレス・電話番号・お問い合わせ内容を入力してください",
-      },
+      { error: parsed.error, fieldId: parsed.fieldId },
       { status: 422 }
     );
   }

@@ -9,7 +9,7 @@ import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { createClient } from "@/lib/supabase/client";
 
 const MSG_NO_ADMIN_PERMISSION =
-  "ログイン権限がありません。このアカウントは管理画面用リストに登録されていません。開発者にお問い合わせください。";
+  "ログイン権限がありません。このアカウントは管理画面の利用者リストに登録されていません。システム管理者にお問い合わせください。";
 
 /** Supabase Auth の英語メッセージを画面用の日本語に寄せる */
 function signInErrorMessageJa(signError: { message?: string }): string {
@@ -105,9 +105,18 @@ export function LoginForm() {
           予約サイトへ
         </Link>
       </p>
-      <h1 className="mb-5 text-lg font-semibold text-zinc-900 sm:mb-6 sm:text-xl">
-        管理画面ログイン
-      </h1>
+      <div className="mb-5 rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/90 to-white px-4 py-4 shadow-sm ring-1 ring-emerald-900/5 sm:mb-6 sm:px-5 sm:py-5">
+        <p className="text-xs font-medium text-emerald-800">主催・運営スタッフ専用</p>
+        <h1 className="mt-2 text-lg font-semibold leading-snug text-zinc-900 sm:text-xl">
+          管理画面ログイン
+        </h1>
+        <p className="mt-3 text-sm leading-relaxed text-zinc-700">
+          開催日・予約・対戦表・通知を管理するための画面です。
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+          登録済みの管理者アカウントでログインしてください。
+        </p>
+      </div>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <label className="flex flex-col gap-1 text-sm">
           <span className="text-zinc-600">メールアドレス</span>

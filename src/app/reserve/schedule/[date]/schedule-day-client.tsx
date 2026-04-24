@@ -12,6 +12,7 @@ import { MorningSlotsSelect, type MorningSlotSelectRow } from "../../_components
 import { IconArrowLeft } from "../../_components/reserve-icons";
 import { ReserveMainShell } from "../../_components/ui";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { publicScheduleHubStatusLabel } from "@/lib/event-days/public-schedule-hub-status";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 
 type AvailabilityJson = {
@@ -20,6 +21,8 @@ type AvailabilityJson = {
   eventDayStatus?: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
+  /** 有効予約チーム数（枠未選択のチームも含む） */
+  activeReservationCount?: number;
   morningSlots: MorningSlotSelectRow[];
   error?: string;
 };
@@ -106,7 +109,7 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
             reserveFlowApiErrorDisplay(
               sRes.status,
               typeof sJson.error === "string" ? sJson.error : undefined,
-              "対戦表情報の取得に失敗しました"
+              "試合予定情報の取得に失敗しました"
             )
           );
           return;
@@ -137,7 +140,7 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
           className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-rp-brand underline"
         >
           <IconArrowLeft className="h-4 w-4" strokeWidth={2} />
-          対戦表・スケジュール一覧へ
+          開催確認・試合予定一覧へ
         </Link>
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           {availError}
@@ -165,7 +168,7 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
         className="inline-flex min-h-10 items-center gap-1 text-sm font-semibold text-rp-brand underline"
       >
         <IconArrowLeft className="h-4 w-4" strokeWidth={2} />
-        一覧へ戻る
+        開催確認・試合予定一覧へ
       </Link>
 
       <ReserveMainShell>
@@ -176,21 +179,25 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
           <p className="text-sm font-semibold text-slate-700">
             対象学年帯: {gradeBandLabelJa(avail.gradeBand)}
           </p>
-          <p className="text-xs text-slate-500">
-            ステータス:{" "}
-            {avail.eventDayStatus === "confirmed"
-              ? "編成確定"
-              : avail.eventDayStatus === "locked"
-                ? "締切後（編成作業中の場合があります）"
-                : avail.eventDayStatus === "open"
-                  ? "受付中"
-                  : avail.eventDayStatus === "cancelled_weather"
-                    ? "雨天中止"
-                    : avail.eventDayStatus === "cancelled_operational"
-                      ? "運営中止"
-                      : avail.eventDayStatus === "cancelled_minimum"
-                        ? "最少未達中止"
-                        : avail.eventDayStatus ?? "—"}
+          <p className="text-sm leading-relaxed text-slate-600">
+            このページで、参加チームの枠状況・試合スケジュール（確定後）・開催可否の目安を確認できます。
+          </p>
+          <p className="text-sm leading-relaxed text-slate-600">
+            試合の組み方や中止の最終判断は、前日17:30頃までにメールでもご案内します。
+          </p>
+          <p className="text-xs text-slate-600">
+            参加チーム：
+            {typeof avail.activeReservationCount === "number" ? avail.activeReservationCount : 0}チーム
+            <span className="mx-1.5 text-slate-400" aria-hidden>
+              ｜
+            </span>
+            開催ステータス：
+            {
+              publicScheduleHubStatusLabel({
+                status: String(avail.eventDayStatus ?? ""),
+                acceptingReservations: avail.acceptingReservations,
+              }).label
+            }
           </p>
         </div>
       </ReserveMainShell>
@@ -202,12 +209,12 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
         selectedSlotId=""
         onSelectSlot={() => {}}
         readOnly
-        subheading="予約手続きと同じ内容の枠状況です（閲覧のみ）。"
+        subheading="各枠に入っている参加チーム（閲覧のみ）。予約手続き画面と同じ集計です。"
         variant="full"
       />
 
       <section className="rounded-[20px] border border-rp-mint-2 bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="text-lg font-bold text-rp-navy sm:text-xl">対戦表（確定後）</h2>
+        <h2 className="text-lg font-bold text-rp-navy sm:text-xl">試合スケジュール（編成確定後）</h2>
         {scheduleError && showMatchSection ? (
           <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
             {scheduleError}
@@ -215,11 +222,11 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
         ) : null}
         {!showMatchSection ? (
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            開催日の編成が確定（確定済ステータス）になると、ここに当日の対戦表を表示します。締切後は運営の作業状況により、表示までにお時間がかかる場合があります。
+            編成が確定（開催決定）すると、ここに当日の試合スケジュールを表示します。
           </p>
         ) : scheduleError ? null : !hasMatches ? (
           <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            確定済ですが、対戦表データがまだ登録されていないか、取得できませんでした。しばらくしてから再度お試しください。
+            開催決定ですが、試合データがまだ登録されていないか、取得できませんでした。しばらくしてから再度お試しください。
           </p>
         ) : (
           <div className="mt-4 overflow-x-auto">
@@ -258,12 +265,15 @@ export function ScheduleDayClient({ eventDate }: { eventDate: string }) {
         )}
       </section>
 
-      <p className="text-center text-sm text-slate-600">
-        予約の確認・変更・キャンセルは{" "}
+      <p className="text-center text-sm leading-relaxed text-slate-600">
+        予約の変更・取消は{" "}
         <Link href="/reserve/manage" className="font-semibold text-rp-brand underline">
           予約の確認・キャンセル
         </Link>
-        から（確認コードが必要です）。
+        から行えます（確認コードが必要です）。
+      </p>
+      <p className="text-center text-xs leading-relaxed text-slate-500">
+        ※試合の組み合わせや開催可否の最終確定は、メール案内とあわせてご確認ください。
       </p>
     </div>
   );

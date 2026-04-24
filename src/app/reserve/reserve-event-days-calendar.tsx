@@ -15,6 +15,7 @@ import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
+import { publicScheduleHubStatusLabel } from "@/lib/event-days/public-schedule-hub-status";
 import { toIsoDateKey } from "@/lib/dates/iso-date-key";
 import {
   buildMonthGrid6Rows,
@@ -28,6 +29,8 @@ export type EventDayPublic = {
   status: string;
   reservation_deadline_at: string;
   acceptingReservations: boolean;
+  /** GET /api/event-days で付与。有効予約（チーム）数 */
+  activeReservationCount?: number;
   /** GET /api/event-days で付与。受付中のみ数値、それ以外は null */
   morningRemainingVacancies?: number | null;
 };
@@ -36,19 +39,13 @@ function monthTitleJa(year: number, month: number): string {
   return `${year}年${month}月`;
 }
 
-function closedLabelFromStatus(status: string): {
-  label: string;
-  cancelled: boolean;
-} {
-  if (status === "cancelled_weather")
-    return { label: "雨天中止", cancelled: true };
-  if (status === "cancelled_operational")
-    return { label: "運営中止", cancelled: true };
-  if (status === "cancelled_minimum")
-    return { label: "最少未達中止", cancelled: true };
-  if (status === "confirmed") return { label: "確定済", cancelled: false };
-  if (status === "locked") return { label: "締切後", cancelled: false };
-  return { label: "受付終了", cancelled: false };
+/** カレンダー日セル下部の短い状態表示（開催確認・試合予定と同じラベル体系） */
+function calendarCellSubLabel(event: {
+  status: string;
+  acceptingReservations: boolean;
+}): { label: string; cancelled: boolean } {
+  const { label, cancelled } = publicScheduleHubStatusLabel(event);
+  return { label, cancelled };
 }
 
 /** grade_band（例: 1-2）をカレンダー用「1-2年」表記に */
@@ -129,41 +126,46 @@ export function ReserveEventDaysCalendar({
     });
   }, [days, viewYear, viewMonth]);
 
+  const scheduleHubCalendar = navigationMode === "schedule";
+  const monthNavBtnClass = scheduleHubCalendar
+    ? "inline-flex min-h-9 items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:bg-slate-50 sm:min-h-10 sm:rounded-xl sm:px-3.5 sm:py-2 sm:text-sm"
+    : "inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-rp-mint-2 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-rp-mint/50";
+
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <ReserveHeadingWithIcon
-          as="h2"
-          shell="navy"
-          icon={<IconCalendar className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.65} />}
-          className="min-w-0"
-          textClassName="min-w-0 text-lg font-bold text-rp-navy sm:text-xl"
-        >
-          {monthTitleJa(viewYear, viewMonth)}
-        </ReserveHeadingWithIcon>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={goPrevMonth}
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-rp-mint-2 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-rp-mint/50"
+    <div className={scheduleHubCalendar ? "space-y-3" : "space-y-4"}>
+      <div
+        className={
+          scheduleHubCalendar
+            ? "flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between"
+            : "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+        }
+      >
+        {scheduleHubCalendar ? (
+          <h2 className="text-base font-semibold tracking-tight text-slate-700 sm:text-lg">
+            {monthTitleJa(viewYear, viewMonth)}
+          </h2>
+        ) : (
+          <ReserveHeadingWithIcon
+            as="h2"
+            shell="navy"
+            icon={<IconCalendar className="h-5 w-5 sm:h-6 sm:w-6" strokeWidth={1.65} />}
+            className="min-w-0"
+            textClassName="min-w-0 text-lg font-bold text-rp-navy sm:text-xl"
           >
-            <IconChevronLeft className="h-4 w-4 text-rp-brand" />
+            {monthTitleJa(viewYear, viewMonth)}
+          </ReserveHeadingWithIcon>
+        )}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <button type="button" onClick={goPrevMonth} className={monthNavBtnClass}>
+            <IconChevronLeft className="h-3.5 w-3.5 text-rp-brand sm:h-4 sm:w-4" />
             前の月
           </button>
-          <button
-            type="button"
-            onClick={goThisMonth}
-            className="min-h-10 rounded-xl border border-rp-mint-2 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-rp-mint/50"
-          >
+          <button type="button" onClick={goThisMonth} className={monthNavBtnClass}>
             今月
           </button>
-          <button
-            type="button"
-            onClick={goNextMonth}
-            className="inline-flex min-h-10 items-center justify-center gap-1.5 rounded-xl border border-rp-mint-2 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-rp-mint/50"
-          >
+          <button type="button" onClick={goNextMonth} className={monthNavBtnClass}>
             次の月
-            <IconChevronRight className="h-4 w-4 text-rp-brand" />
+            <IconChevronRight className="h-3.5 w-3.5 text-rp-brand sm:h-4 sm:w-4" />
           </button>
         </div>
       </div>
@@ -212,13 +214,13 @@ export function ReserveEventDaysCalendar({
 
               if (navigationMode === "schedule") {
                 const { label: stLabel, cancelled: isCancelled } =
-                  closedLabelFromStatus(event!.status);
+                  calendarCellSubLabel(event!);
                 const dayLineJa = formatIsoDateWithWeekdayJa(isoDate);
                 const yearsJa = gradeYearsDisplay(event!.grade_band);
                 const title = `締切: ${formatDateTimeTokyoWithWeekday(
                   event!.reservation_deadline_at
                 )}`;
-                const aria = `${dayLineJa}。${yearsJa}（学年帯）。${title}。${stLabel}。タップで対戦表・午前枠の状況を表示します。`;
+                const aria = `${dayLineJa}。${yearsJa}（学年帯）。${title}。${stLabel}。タップで参加チーム・試合予定・開催可否を表示します。`;
                 const cellClass =
                   `${baseCell} w-full text-left ring-1 transition-colors ` +
                   (isCancelled
@@ -279,7 +281,7 @@ export function ReserveEventDaysCalendar({
                       key={isoDate + idx}
                       type="button"
                       title={title}
-                      aria-label={`${bookableAria}タップでこの日を選び、午前枠の指定に進みます。`}
+                      aria-label={`${bookableAria}タップで開催日を選択します。`}
                       onClick={() => onBookableDateSelect(isoDate)}
                       className={`${cellClass} w-full text-left`}
                     >
@@ -317,7 +319,7 @@ export function ReserveEventDaysCalendar({
               }
 
               const { label: closedLabel, cancelled: isCancelled } =
-                closedLabelFromStatus(event!.status);
+                calendarCellSubLabel(event!);
               const closedAria = `${dayLineJa}。${title}。${closedLabel}のため選択できません。`;
 
               return (

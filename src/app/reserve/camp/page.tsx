@@ -9,7 +9,7 @@ import { CampInquiryForm } from "./inquiry/camp-inquiry-form";
 export const metadata: Metadata = {
   title: "合宿のご相談 | 小学生サッカー対戦予約",
   description:
-    "宿泊を伴う合宿のご相談を受け付けています。予約確定ではなく、まずはお問い合わせください。",
+    "合宿のご相談フォームです。予約確定ではなく相談受付です。日程や人数が未定でもお気軽にどうぞ。",
 };
 
 /** 合宿の相談受付（案内とフォームを1画面） */
@@ -26,53 +26,44 @@ export default function ReserveCampConsultPage() {
       </ReserveHeadingWithIcon>
 
       <div className="rounded-2xl border-2 border-rp-brand/30 bg-white p-5 shadow-md sm:p-8">
-        <div className="space-y-6">
-          <div className="space-y-3 text-sm leading-relaxed text-zinc-700 sm:text-base">
+        <div className="space-y-6 sm:space-y-8">
+          <div className="space-y-3 text-[15px] leading-relaxed text-zinc-700 sm:text-base sm:leading-relaxed">
             <p>
-              本施設では、<strong className="text-rp-navy">宿泊を伴う合宿</strong>
-              のご相談も承っております。
-              交流試合を含めたご希望や、宿泊中心のご相談も可能です。
+              合宿に関するご相談を受け付けるフォームです。交流試合を含めたご希望も、あわせてお知らせください。
             </p>
             <p>
-              ご希望の日程や内容にあわせてご案内いたしますので、まずはお気軽にお問い合わせください。
-              人数や詳細が未定の場合でも問題ございません。
+              日程や人数が未定でも問題ありません。まずは分かる範囲でご入力ください。
             </p>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="flex gap-3 rounded-xl border border-amber-200 bg-[#fff8e6] px-4 py-4 text-sm leading-relaxed text-amber-950">
+          <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
+            <div className="flex gap-3 rounded-xl border border-amber-200 bg-[#fff8e6] px-4 py-4 sm:px-5 sm:py-5">
               <span className="shrink-0 pt-0.5 text-amber-900" aria-hidden>
                 <IconClipboard className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.65} />
               </span>
-              <div className="min-w-0">
-                <p className="font-semibold text-amber-900">ご注意</p>
-                <p className="mt-2">
-                  ※ このフォームは<strong>予約確定ではなく</strong>
-                  、ご相談受付用です。
-                </p>
-                <p className="mt-2">
-                  内容を確認のうえ、運営よりご連絡いたします。
-                </p>
+              <div className="min-w-0 space-y-2 text-[15px] leading-relaxed text-amber-950 sm:text-sm sm:leading-relaxed">
+                <p className="font-semibold text-amber-900">このフォームについて</p>
+                <p>このフォームは予約確定ではなく、ご相談受付用です。</p>
+                <p>内容を確認のうえ、運営よりご連絡します。</p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl border border-rp-mint-2 bg-rp-mint/60 px-4 py-4 text-sm leading-relaxed text-zinc-800">
+            <div className="flex gap-3 rounded-xl border border-rp-mint-2 bg-rp-mint/60 px-4 py-4 sm:px-5 sm:py-5">
               <span className="shrink-0 pt-0.5 text-rp-brand" aria-hidden>
                 <IconPencil className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.65} />
               </span>
-              <div className="min-w-0">
-                <p className="font-semibold text-rp-brand">ご入力について</p>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  <li>ご連絡先と希望の日程・ご相談内容をお知らせください。</li>
-                  <li>人数や詳細が未確定でもご相談いただけます。</li>
-                  <li>
-                    参加予定人数・チーム数・泊数・希望日は、ご相談内容にご記載ください。
-                  </li>
+              <div className="min-w-0 text-[15px] leading-relaxed text-zinc-800 sm:text-sm sm:leading-relaxed">
+                <p className="font-semibold text-rp-brand">入力の目安</p>
+                <p className="mt-2">以下の内容が決まっていればご記入ください。</p>
+                <ul className="mt-2 list-disc space-y-1.5 pl-5">
+                  <li>ご希望の日程</li>
+                  <li>人数やチーム数</li>
+                  <li>相談したい内容</li>
                 </ul>
               </div>
             </div>
           </div>
 
-          <CampInquiryForm />
+          <CampInquiryForm submitLabel="この内容で相談する" />
         </div>
       </div>
 

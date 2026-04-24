@@ -29,7 +29,7 @@ export function ReservePublicFooter() {
         >
           <p className="text-base font-bold text-slate-900">合宿のご相談</p>
           <p className="mt-2 text-sm leading-relaxed text-slate-700">
-            宿泊を伴う合宿のご希望は、専用フォームからお問い合わせください。
+            合宿のご希望は、専用フォームからお問い合わせください。
           </p>
           <Link
             href="/reserve/camp"
@@ -39,9 +39,6 @@ export function ReservePublicFooter() {
           </Link>
         </div>
       </div>
-      <p className="pb-20 text-center text-xs text-slate-500 sm:pb-6 md:pb-8">
-        © {new Date().getFullYear()} 小学生サッカー交流イベント
-      </p>
     </footer>
   );
 }

@@ -107,11 +107,7 @@ export default async function AdminTournamentInquiriesPage({
           ）とは別の受付です。
         </p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          新着通知は{" "}
-          <code className="text-xs">TOURNAMENT_INQUIRY_NOTIFY_EMAIL</code>{" "}
-          または{" "}
-          <code className="text-xs">OPS_NOTIFY_EMAIL</code>{" "}
-          設定時にメールでも届きます（両方未設定時は DB のみ）。
+          新着は、システム側で「お問い合わせ用の通知先メール」と「運営共通の通知先メール」のいずれか（または両方）が設定されているときに、あわせて通知メールでも届きます。どちらも未設定のときは、この画面での確認と記録のみです。
         </p>
       </div>
 

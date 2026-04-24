@@ -20,7 +20,7 @@ export function ReservePublicSiteShell({
       className={`${notoSansJp.className} flex min-h-dvh flex-col bg-rp-page text-slate-900 antialiased`}
     >
       <ReservePublicHeader />
-      <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-4 sm:px-6 sm:py-6 md:px-8 lg:px-10 lg:py-10">
+      <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 pb-5 pt-2 sm:px-6 sm:pb-6 sm:pt-3 md:px-8 lg:px-10 lg:pb-8 lg:pt-4">
         {children}
       </main>
       <ReservePublicFooter />

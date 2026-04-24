@@ -24,7 +24,7 @@ const SECTIONS: readonly SectionDef[] = [
       { href: "/admin/dashboard", label: "直近の開催状況" },
       { href: "/admin/pre-day-results", label: "試合編成（前日確定）" },
       { href: "/admin/event-days", label: "開催日の登録・一覧" },
-      { href: "/admin/notifications/failed", label: "メール失敗" },
+      { href: "/admin/notifications/failed", label: "メール送信履歴" },
       { href: "/admin/camp-inquiries", label: "合宿相談" },
       { href: "/admin/tournament-inquiries", label: "お問い合わせ" },
     ],
@@ -319,7 +319,7 @@ export function AdminProtectedHeader({ userEmail }: Props) {
               <span className="min-w-0">
                 <span className="block text-[11px] font-semibold tracking-wide text-zinc-500">管理</span>
                 <span className="mt-0.5 block truncate text-base font-bold tracking-tight text-zinc-900 group-hover:text-emerald-950">
-                  予約・開催コンソール
+                  小学生サッカー対戦予約・開催コンソール
                 </span>
               </span>
             </Link>

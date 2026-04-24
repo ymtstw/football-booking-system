@@ -15,13 +15,16 @@ export function ReserveCallout({
   tone,
   children,
   className = "",
+  id,
 }: {
   tone: keyof typeof toneClass;
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={`rounded-[16px] border sm:rounded-[20px] ${toneClass[tone]} ${className}`}
     >
       {children}

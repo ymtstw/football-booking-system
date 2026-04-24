@@ -164,8 +164,7 @@ export default async function AdminReservationsPage({
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           開催日を選ぶと、その日の予約とチーム連絡先が表示されます。初期表示は
           <strong className="text-zinc-800"> 今日以降で最も近い開催日</strong>
-          です（URL に <code className="rounded bg-zinc-100 px-1 text-xs">eventDayId</code>{" "}
-          が付いているときはその開催日に合わせます）。午前枠の付け替え・試合まわりの変更は
+          です（リンクで特定の開催日が指定されているときは、その開催日を開いた状態になります）。午前枠の付け替え・試合まわりの変更は
           <Link href={preDayHref} className="font-medium text-sky-800 underline underline-offset-2">
             編成を調整
           </Link>

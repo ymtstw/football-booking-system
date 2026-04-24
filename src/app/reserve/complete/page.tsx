@@ -1,19 +1,12 @@
 "use client";
 
-/** SCR-02: 予約完了。確認コードは sessionStorage。詳細は API で取得して表示。 */
+/** SCR-02: 予約完了。確認コードは sessionStorage。要約は API で取得。 */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
-import { LunchOrderSummary } from "../_components/lunch-order-summary";
-import { ReserveStepper } from "../_components/reserve-stepper";
-import {
-  RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA,
-  RESERVATION_CHANGE_CANCEL_DEADLINE_SENTENCE_JA,
-  RESERVE_MAIL_PUBLIC_JA,
-  RESERVE_MAIL_TIMING_NOTE_JA,
-} from "@/lib/copy/reserve-public-mail-schedule";
+import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
 import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
@@ -68,6 +61,34 @@ function gradeBandLabelJa(band: string): string {
   if (g === "3-4") return "3〜4年生";
   if (g === "5-6") return "5〜6年生";
   return g;
+}
+
+function SummaryItem({ label, children: value }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 shadow-sm sm:px-4 sm:py-3">
+      <p className="text-xs font-medium text-zinc-500">{label}</p>
+      <div className="mt-1 text-sm font-semibold leading-snug text-zinc-900">{value}</div>
+    </div>
+  );
+}
+
+function LunchLinesCompact({ lines }: { lines: ReservationLunchLinePublic[] }) {
+  if (lines.length === 0) {
+    return <p className="text-sm text-zinc-700">昼食の申込はありません。</p>;
+  }
+  return (
+    <ul className="space-y-1.5 text-sm text-zinc-800">
+      {lines.map((line, i) => (
+        <li key={`${line.menuItemId ?? "x"}-${line.itemName}-${i}`} className="flex flex-wrap justify-between gap-x-2 gap-y-0.5">
+          <span className="min-w-0 font-medium text-zinc-900">
+            {line.itemName}
+            <span className="font-normal text-zinc-600"> ×{line.quantity}</span>
+          </span>
+          <span className="shrink-0 tabular-nums text-zinc-700">{formatTaxIncludedYen(line.lineTotal)}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 export default function ReserveCompletePage() {
@@ -179,47 +200,59 @@ export default function ReserveCompletePage() {
 
   if (!stored) {
     return (
-      <div className="space-y-4">
+      <div className="mx-auto max-w-lg space-y-4">
         <h1 className="text-lg font-bold text-rp-navy sm:text-xl">予約完了</h1>
         <p className="text-sm leading-relaxed text-zinc-600">
           表示できる予約情報がありません。予約直後の画面のみ表示されます。
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <Link
             href="/reserve/calendar"
-            className="inline-flex min-h-11 items-center font-semibold text-rp-brand underline"
+            className="inline-flex min-h-11 items-center justify-center rounded-full border-2 border-rp-brand bg-white px-5 text-sm font-semibold text-rp-brand hover:bg-rp-mint/30"
           >
             予約手続き（開催日選択）へ
           </Link>
           <Link
             href="/"
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-zinc-600 underline decoration-zinc-400"
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-rp-brand px-5 text-sm font-semibold text-white hover:bg-rp-brand-hover"
           >
-            イベント案内へ
+            イベント案内に戻る
           </Link>
         </div>
       </div>
     );
   }
 
+  const morningSlotLabel =
+    detail?.morningSlot != null
+      ? `${formatHm(detail.morningSlot.startTime)}〜${formatHm(detail.morningSlot.endTime)}`
+      : "—";
+
   return (
-    <div className="space-y-8">
-      <ReserveStepper current={4} />
-
-      <div className="flex flex-col items-center text-center">
-        <h1 className="text-center text-xl font-bold text-rp-navy sm:text-2xl">
-          予約が完了しました
-        </h1>
-        <p className="mt-2 max-w-lg text-sm leading-relaxed text-zinc-600">
-          ご予約いただき、ありがとうございます。以下の内容で予約を受け付けました。
+    <div className="mx-auto max-w-lg space-y-6 pb-10 sm:max-w-2xl sm:space-y-7">
+      {/* 1. 完了メッセージ */}
+      <header className="space-y-2 text-center sm:text-left">
+        <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">予約が完了しました</h1>
+        <p className="text-sm leading-relaxed text-zinc-600 sm:text-base">
+          ご予約ありがとうございます。確認メールをお送りしました。
         </p>
-      </div>
+      </header>
 
-      <div className="mx-auto w-full max-w-lg rounded-2xl border-2 border-rp-brand/40 bg-rp-mint/40 p-5 text-center">
-        <p className="text-xs font-semibold uppercase tracking-wide text-rp-brand">
+      {/* 2. 確認コード（最優先） */}
+      <section
+        className="rounded-2xl border-2 border-rp-brand/50 bg-rp-mint/50 p-4 shadow-sm sm:p-5"
+        aria-labelledby="complete-confirmation-heading"
+      >
+        <h2 id="complete-confirmation-heading" className="text-base font-bold text-rp-navy">
           確認コード
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+          確認コードは予約の確認・キャンセル時に必要です。
         </p>
-        <p className="mt-2 break-all font-mono text-sm font-bold text-zinc-900 sm:text-base">
+        <p className="mt-1 text-sm leading-relaxed text-zinc-700">
+          第三者には共有せず、大切に保管してください。
+        </p>
+        <p className="mt-3 break-all rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-left font-mono text-xs font-semibold leading-relaxed text-zinc-900 sm:text-sm">
           {stored.reservationToken}
         </p>
         <button
@@ -227,162 +260,115 @@ export default function ReserveCompletePage() {
           onClick={() => void copyConfirmationCode()}
           disabled={copying}
           aria-busy={copying || undefined}
-          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white hover:bg-rp-brand-hover disabled:cursor-wait disabled:opacity-80 sm:w-auto"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white hover:bg-rp-brand-hover disabled:cursor-wait disabled:opacity-80"
         >
           {copying ? <InlineSpinner variant="onDark" /> : null}
           {copied ? "コピーしました" : "確認コードをコピー"}
         </button>
-      </div>
+      </section>
 
-      <div className="mx-auto max-w-lg rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-left text-sm leading-relaxed text-zinc-800">
-        <p>予約完了メールを送信しました。届いているか、受信トレイをご確認ください。</p>
-        <p className="mt-2">
-          数分経っても届かない場合は迷惑メールフォルダもご確認のうえ、それでも見当たらないときは
-          <Link
-            href="/reserve/contact"
-            className="font-semibold text-sky-800 underline underline-offset-2"
-          >
-            お問い合わせ
-          </Link>
-          ください。
-        </p>
-      </div>
-
-      {detail ? (
-        <div className="overflow-hidden rounded-2xl border border-rp-mint-2 bg-white shadow-sm">
-          <div className="flex items-center justify-center bg-rp-navy px-4 py-3 text-center text-sm font-semibold text-white sm:text-base">
-            ご予約内容
+      {/* 3. 予約内容（要約カード） */}
+      {loadErr ? (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">{loadErr}</p>
+      ) : detail ? (
+        <section className="space-y-3" aria-labelledby="complete-summary-heading">
+          <h2 id="complete-summary-heading" className="text-base font-bold text-rp-navy">
+            予約内容
+          </h2>
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <SummaryItem label="利用日">{formatIsoDateWithWeekdayJa(detail.eventDay.eventDate)}</SummaryItem>
+            <SummaryItem label="対象学年帯">{gradeBandLabelJa(detail.eventDay.gradeBand)}</SummaryItem>
+            <SummaryItem label="午前の希望枠">{morningSlotLabel}</SummaryItem>
+            <SummaryItem label="チーム名">{detail.team.teamName}</SummaryItem>
+            <div className="sm:col-span-2">
+              <SummaryItem label="参加選手数">{detail.participantCount}名</SummaryItem>
+            </div>
+            <div className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm sm:col-span-2 sm:p-4">
+              <p className="text-xs font-medium text-zinc-500">昼食内容</p>
+              <div className="mt-2">
+                <LunchLinesCompact lines={detail.lunchItems} />
+              </div>
+              <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 border-t border-zinc-100 pt-3">
+                <span className="text-sm font-semibold text-zinc-800">昼食合計（税込）</span>
+                <span className="text-base font-bold tabular-nums text-rp-brand">
+                  {formatTaxIncludedYen(detail.lunchTotalTaxIncluded)}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="grid gap-0 sm:grid-cols-2">
-            <dl className="divide-y divide-zinc-100 sm:border-r sm:border-zinc-100">
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">ご利用日</dt>
-                <dd className="text-base font-bold text-rp-brand">
-                  {formatIsoDateWithWeekdayJa(detail.eventDay.eventDate)}
-                </dd>
-              </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">対象学年帯</dt>
-                <dd className="text-sm font-semibold text-zinc-900">
-                  {gradeBandLabelJa(detail.eventDay.gradeBand)}
-                </dd>
-              </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
+
+          <details className="group rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2 sm:px-4">
+            <summary className="cursor-pointer list-none text-sm font-semibold text-rp-navy marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex items-center gap-1">
+                詳細を表示
+                <span className="text-xs font-normal text-zinc-500 group-open:hidden">（代表者・メール等）</span>
+              </span>
+            </summary>
+            <dl className="mt-3 space-y-2 border-t border-zinc-200 pt-3 text-sm">
+              <div>
                 <dt className="text-xs font-medium text-zinc-500">代表者名</dt>
-                <dd className="text-sm text-zinc-900">{detail.team.contactName}</dd>
+                <dd className="mt-0.5 font-medium text-zinc-900">{detail.team.contactName}</dd>
               </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">所属チーム名</dt>
-                <dd className="text-sm text-zinc-900">{detail.team.teamName}</dd>
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">メールアドレス</dt>
+                <dd className="mt-0.5 break-all font-medium text-zinc-900">{detail.team.contactEmail}</dd>
               </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">参加予定人数</dt>
-                <dd className="text-sm font-semibold text-zinc-900">
-                  {detail.participantCount}名
-                </dd>
-              </div>
-            </dl>
-            <dl className="divide-y divide-zinc-100">
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
+              <div>
                 <dt className="text-xs font-medium text-zinc-500">チームレベル</dt>
-                <dd className="text-sm font-semibold text-zinc-900">
+                <dd className="mt-0.5 font-medium text-zinc-900">
                   {strengthCategoryLabelJa(detail.team.strengthCategory)}
                 </dd>
               </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">午前対戦枠</dt>
-                <dd className="text-sm font-semibold text-zinc-900">
-                  {detail.morningSlot
-                    ? `${formatHm(detail.morningSlot.startTime)}–${formatHm(detail.morningSlot.endTime)}`
-                    : "—"}
-                </dd>
-              </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">午後対戦枠</dt>
-                <dd className="text-xs leading-relaxed text-zinc-700">
-                  開催日の2日前15:00締切後、対戦・枠の案内メールは締切日の{RESERVE_MAIL_PUBLIC_JA.matchingBy}（日本時間）までにお届けする予定です。送信処理は
-                  {RESERVE_MAIL_PUBLIC_JA.matchingCronHint}を目安に開始します。{RESERVE_MAIL_TIMING_NOTE_JA}
-                </dd>
-              </div>
-              <div className="grid gap-1 px-4 py-3 sm:px-5">
-                <dt className="text-xs font-medium text-zinc-500">ご利用内容</dt>
-                <dd className="text-sm text-zinc-800">
-                  人工芝グラウンド（無料貸出・イベント枠）
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">変更・キャンセル締切</dt>
+                <dd className="mt-0.5 font-medium text-zinc-900">
+                  {formatDateTimeTokyoWithWeekday(detail.eventDay.reservationDeadlineAt)}
                 </dd>
               </div>
             </dl>
-          </div>
-          <div className="border-t border-zinc-100 px-4 py-4 sm:px-6">
-            <p className="text-xs font-medium text-zinc-500">昼食</p>
-            <div className="mt-2">
-              <LunchOrderSummary
-                lines={detail.lunchItems}
-                totalTaxIncluded={detail.lunchTotalTaxIncluded}
-              />
-            </div>
-          </div>
-        </div>
-      ) : loadErr ? (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-          {loadErr}
-        </p>
+          </details>
+        </section>
       ) : (
-        <p className="text-sm text-zinc-500">予約内容を読み込み中…</p>
+        <p className="flex items-center gap-2 text-sm text-zinc-500" role="status">
+          <InlineSpinner variant="onLight" />
+          予約内容を読み込み中…
+        </p>
       )}
 
-      <div className="rounded-xl border border-rp-mint-2 bg-rp-mint/50 px-4 py-3 text-sm text-zinc-800">
-        <ul className="list-disc space-y-1 pl-5">
-          <li>イベントは終日の参加を前提としています。</li>
-          <li>昼食・お支払い・会場ルールは開催案内に従ってください。</li>
+      {/* 4. 次にご確認ください */}
+      <section
+        className="rounded-xl border border-rp-mint-2 bg-white px-4 py-3 shadow-sm sm:px-5 sm:py-4"
+        aria-labelledby="complete-next-heading"
+      >
+        <h2 id="complete-next-heading" className="text-sm font-bold text-rp-navy sm:text-base">
+          次にご確認ください
+        </h2>
+        <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-zinc-800">
+          <li>・確認メールをご確認ください。</li>
+          <li>・変更・キャンセルは開催日の2日前15:00まで可能です。</li>
+          <li>・当日の詳細は、開催日前にメールでお知らせします。</li>
         </ul>
-      </div>
+      </section>
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
-        <p className="font-medium text-amber-900">ご注意</p>
-        <ul className="mt-2 list-disc space-y-1 pl-5">
-          <li>{RESERVATION_CHANGE_CANCEL_DEADLINE_SENTENCE_JA}</li>
-          <li>変更・キャンセルには確認コードが必要です。紛失にご注意ください。</li>
-          <li>確認メールが届かない場合は、迷惑メールフォルダもご確認ください。</li>
-          <li>雨天情報等は開催前日までにご案内する予定です（到着時刻は前後する場合があります）。</li>
-        </ul>
-      </div>
-
-      {detail ? (
-        <div className="rounded-xl border border-rp-mint-2 bg-white px-4 py-3 text-sm leading-relaxed text-zinc-800 shadow-sm">
-          <p className="text-xs font-semibold text-zinc-500">この予約の変更・キャンセル締切日時</p>
-          <p className="mt-1 font-semibold text-rp-navy">
-            {formatDateTimeTokyoWithWeekday(detail.eventDay.reservationDeadlineAt)}
-          </p>
-          <p className="mt-1 text-xs text-zinc-600">
-            計算の基準は {RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA} です（運営設定と一致します）。
-          </p>
-        </div>
-      ) : null}
-
-      <p className="text-center text-xs text-zinc-500">
-        予約 ID（参考）: {stored.reservationId}
-      </p>
-
-      <div className="flex justify-center">
+      {/* 5. アクション（最大2つ） */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <button
           type="button"
           onClick={clearAndGoManage}
           disabled={managePending}
           aria-busy={managePending || undefined}
-          className="inline-flex min-h-12 w-full max-w-md items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-md hover:bg-rp-brand-hover disabled:cursor-wait disabled:opacity-80"
+          className="inline-flex min-h-12 w-full flex-1 items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-md hover:bg-rp-brand-hover disabled:cursor-wait disabled:opacity-80 sm:max-w-xs"
         >
           {managePending ? <InlineSpinner variant="onDark" /> : null}
-          予約内容を確認・キャンセルする
+          予約を確認・キャンセルする
         </button>
-      </div>
-      <p className="text-center">
         <Link
           href="/"
-          className="text-sm font-semibold text-zinc-600 underline decoration-zinc-400 hover:text-rp-navy"
+          className="inline-flex min-h-12 w-full flex-1 items-center justify-center rounded-full border-2 border-rp-brand bg-white px-6 text-sm font-semibold text-rp-brand hover:bg-rp-mint/30 sm:max-w-xs"
         >
-          イベント案内を読む
+          イベント案内に戻る
         </Link>
-      </p>
+      </div>
     </div>
   );
 }

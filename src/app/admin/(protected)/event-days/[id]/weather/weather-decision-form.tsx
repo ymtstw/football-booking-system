@@ -196,7 +196,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
               メモ（参加者向けメールに載る場合があります）
             </label>
             <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-              中止（cancel）かつ「前日の一括で送信」を選んだ場合、開催前日の一括メール（JOB03）で雨天中止と判断したときに、次の流れで使われます。見出しの直後に、下の欄の内容がそのまま続きます。
+              中止（cancel）かつ「前日の一括で送信」を選んだ場合、開催前日の一括メールで雨天中止と判断したときに、次の流れで使われます。見出しの直後に、下の欄の内容がそのまま続きます。
             </p>
             <div className="mt-2 rounded-md border border-sky-200 bg-sky-50/90 px-3 py-2 text-[11px] leading-relaxed text-sky-950">
               <p className="font-semibold text-sky-900">差し込みイメージ（抜粋）</p>
@@ -253,7 +253,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
                 />
                 <span>
                   <strong>前日の一括で送信（16:30頃開始）</strong>
-                  ：開催前日の最終メール（JOB03）で雨天中止文面を送ります。参加者向けの到着目安は17:30までと案内しています。即時確定はしません（二重送信しません）。
+                  ：開催前日の最終メールで雨天中止の文面を送ります。参加者向けの到着目安は17:30までと案内しています。即時確定はしません（二重送信しません）。
                 </span>
               </label>
               {cancelDelivery === "immediate" ? (

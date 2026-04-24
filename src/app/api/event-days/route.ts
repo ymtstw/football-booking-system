@@ -43,6 +43,21 @@ export async function GET() {
   const eventDayIds = rows.map((r) => String(r.id));
   const vacancyMap = await sumMorningRemainingVacanciesByEventDay(supabase, eventDayIds);
 
+  const activeCountByEventDayId = new Map<string, number>();
+  if (eventDayIds.length > 0) {
+    const { data: resCountRows, error: resCountErr } = await supabase
+      .from("reservations")
+      .select("event_day_id")
+      .in("event_day_id", eventDayIds)
+      .eq("status", "active");
+    if (!resCountErr && Array.isArray(resCountRows)) {
+      for (const r of resCountRows) {
+        const id = String((r as { event_day_id: string }).event_day_id);
+        activeCountByEventDayId.set(id, (activeCountByEventDayId.get(id) ?? 0) + 1);
+      }
+    }
+  }
+
   const eventDays = rows.map((row) => {
     const t = new Date(row.reservation_deadline_at).getTime();
     const acceptingReservations =
@@ -53,6 +68,7 @@ export async function GET() {
       morningRemainingVacancies: acceptingReservations
         ? (vacancyMap.get(String(row.id)) ?? 0)
         : null,
+      activeReservationCount: activeCountByEventDayId.get(String(row.id)) ?? 0,
     };
   });
 

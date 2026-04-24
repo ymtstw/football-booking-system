@@ -1,5 +1,4 @@
-/** アクティブ予約が残っている場合の枠の強制変更（別確認 UI）。 */
-import Link from "next/link";
+/** 有効な予約が残っている場合の枠の強制変更（別確認 UI）。 */
 import { notFound, redirect } from "next/navigation";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
@@ -61,12 +60,12 @@ export default async function AdminEventDaySlotsForcePage({
         <EventDayOpsBreadcrumb
           eventDayId={id}
           items={[
-            { href: `/admin/event-days/${id}/slots`, label: "枠・時刻（通常）" },
-            { label: "枠・時刻（強制変更）" },
+            { href: `/admin/event-days/${id}/slots`, label: "枠・時刻設定" },
+            { label: "枠の強制変更" },
           ]}
         />
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">
-          枠・時刻（強制変更）
+          枠の強制変更
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
           <span className="font-medium text-zinc-800">

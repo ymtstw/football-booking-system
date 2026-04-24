@@ -102,7 +102,7 @@ export function formatCampInquiryMailDraft(
   }
 ): string {
   const lines: string[] = [
-    "以下は、サイトの合宿・宿泊の相談フォームより受付した内容です。",
+    "以下は、サイトの合宿のご相談フォームより受付した内容です。",
     "",
     `照会ID: ${meta.inquiryId}`,
     `受付日時: ${formatDateTimeTokyoWithWeekday(meta.createdAtIso)}`,

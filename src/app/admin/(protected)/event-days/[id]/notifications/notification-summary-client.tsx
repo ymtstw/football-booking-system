@@ -2,6 +2,7 @@
 
 import { NotificationFailedRetryTable } from "@/components/admin/notification-failed-retry-table";
 import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
+import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
@@ -55,14 +56,14 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
           href={`/admin/event-days/${eventDayId}/weather`}
           className="font-medium text-sky-800 underline decoration-sky-600/60 underline-offset-2"
         >
-          雨天判断
+          天候対応
         </Link>
         {" · "}
         <Link
           href={`/admin/event-days/${eventDayId}/slots`}
           className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2"
         >
-          枠・時刻
+          枠・時刻設定
         </Link>
       </p>
       <button
@@ -80,7 +81,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dd className="font-medium text-zinc-900">{data.eventDate}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">学年帯</dt>
+            <dt className="text-zinc-500">対象学年</dt>
             <dd>{data.gradeBand}</dd>
           </div>
           <div>
@@ -88,7 +89,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dd className="font-semibold">{data.activeReservationCount}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">開催日の状態</dt>
+            <dt className="text-zinc-500">公開状況</dt>
             <dd>{eventDayStatusLabelJa(data.status)}</dd>
           </div>
           <div>
@@ -97,15 +98,17 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
           </div>
           <div>
             <dt className="text-zinc-500">予約締切</dt>
-            <dd className="wrap-break-word text-xs">{data.reservationDeadlineAt}</dd>
+            <dd className="wrap-break-word text-xs">
+              {formatDateTimeTokyoWithWeekday(data.reservationDeadlineAt)}
+            </dd>
           </div>
           <div>
-            <dt className="text-zinc-500">前日一括 雨天中止の予約送信（JOB03・16:30頃）</dt>
+            <dt className="text-zinc-500">前日一括で雨天中止文面を送る予約（16:30頃）</dt>
             <dd>{data.weatherDayBeforeRainScheduled ? "あり" : "なし"}</dd>
           </div>
           <div>
             <dt className="text-zinc-500">マッチング案内メール（16:00頃・目安17:00まで）</dt>
-            <dd>{data.matchingProposalNoticeSentAt ? "送信済" : "未"}</dd>
+            <dd>{data.matchingProposalNoticeSentAt ? "送信処理済み" : "未"}</dd>
           </div>
           <div className="sm:col-span-2">
             <dt className="text-zinc-500">前日最終メール（16:30頃・目安17:30まで）</dt>
@@ -115,24 +118,24 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dt className="mb-2 font-medium text-zinc-800">メール送信の件数</dt>
             <dd className="space-y-1 text-xs text-zinc-700">
               <p>
-                最少催行中止: 送信 {data.notifications.minimumCancelNotice.sent} 件 / 未送信・失敗{" "}
+                最少催行中止: 送信処理済み {data.notifications.minimumCancelNotice.sent} 件 / 未送信・送信エラー{" "}
                 {data.notifications.minimumCancelNotice.pendingOrFailed} 件
               </p>
               <p>
-                マッチング案内: 送信 {data.notifications.matchingProposal.sent} 件 / 未送信・失敗{" "}
+                マッチング案内: 送信処理済み {data.notifications.matchingProposal.sent} 件 / 未送信・送信エラー{" "}
                 {data.notifications.matchingProposal.pendingOrFailed} 件
               </p>
               <p>
-                雨天即時: 送信 {data.notifications.weatherCancelImmediate.sent} 件 / 未送信・失敗{" "}
+                雨天即時: 送信処理済み {data.notifications.weatherCancelImmediate.sent} 件 / 未送信・送信エラー{" "}
                 {data.notifications.weatherCancelImmediate.pendingOrFailed} 件
               </p>
               <p>
-                前日最終: 送信 {data.notifications.dayBeforeFinal.sent} 件 / 未送信・失敗{" "}
+                前日最終: 送信処理済み {data.notifications.dayBeforeFinal.sent} 件 / 未送信・送信エラー{" "}
                 {data.notifications.dayBeforeFinal.pendingOrFailed} 件
               </p>
               <p>
-                朝枠・時刻の変更案内（枠の強制変更後）: 送信{" "}
-                {data.notifications.morningSlotForceChanged?.sent ?? 0} 件 / 未送信・失敗{" "}
+                朝枠・時刻の変更案内（枠の強制変更後）: 送信処理済み{" "}
+                {data.notifications.morningSlotForceChanged?.sent ?? 0} 件 / 未送信・送信エラー{" "}
                 {data.notifications.morningSlotForceChanged?.pendingOrFailed ?? 0} 件
               </p>
             </dd>
@@ -144,9 +147,9 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
 
       {data ? (
         <section className="rounded-lg border border-red-200/80 bg-red-50/30 px-4 py-4">
-          <h2 className="text-sm font-semibold text-red-950">この開催日の送信失敗</h2>
-          <p className="mt-1 text-xs text-red-900/85">
-            宛先と「内容」の説明を確認してください。「予約直後の確認メール」以外で、原因を直せた行だけ「再送」が使えます。
+          <h2 className="text-sm font-semibold text-red-950">送信エラーの確認</h2>
+          <p className="mt-1 text-xs leading-relaxed text-red-900/85">
+            送信を試みたときに「送れない」と返ってきたものだけが並びます。お客様の端末に届いたかどうかは分かりません。届いていないのにここが空なこともあります。宛先と「内容」を確認し、「予約直後の確認メール」以外で原因を直せた行だけ「再送」が使えます。
           </p>
           <div className="mt-3">
             <NotificationFailedRetryTable eventDayId={eventDayId} />

@@ -90,6 +90,12 @@ export async function GET(
     );
   }
 
+  const { count: activeReservationTotal, error: activeCountErr } = await supabase
+    .from("reservations")
+    .select("id", { count: "exact", head: true })
+    .eq("event_day_id", day.id)
+    .eq("status", "active");
+
   const { data: resRows, error: resErr } = await supabase
     .from("reservations")
     .select(
@@ -224,6 +230,10 @@ export async function GET(
     eventDayStatus: status,
     reservationDeadlineAt: day.reservation_deadline_at,
     acceptingReservations,
+    activeReservationCount:
+      !activeCountErr && typeof activeReservationTotal === "number"
+        ? activeReservationTotal
+        : 0,
     morningSlots,
   });
 }

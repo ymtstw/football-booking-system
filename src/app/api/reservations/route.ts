@@ -28,6 +28,10 @@ import {
   isContactPhoneDigitsValid,
   normalizeContactPhoneDigits,
 } from "@/lib/validators/contact-phone";
+import {
+  isReserveContactNameOk,
+  RESERVE_CONTACT_NAME_MAX_CHARS,
+} from "@/lib/validators/reserve-contact-name";
 
 type RpcResult = {
   success?: boolean;
@@ -175,6 +179,15 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "チーム名・チーム代表者名・メール・電話は必須です" },
       { status: 400 }
+    );
+  }
+
+  if (!isReserveContactNameOk(team.contactName.trim())) {
+    return NextResponse.json(
+      {
+        error: `チーム代表者名は${RESERVE_CONTACT_NAME_MAX_CHARS}文字以内で入力してください`,
+      },
+      { status: 422 }
     );
   }
 

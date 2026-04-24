@@ -62,15 +62,15 @@ function reservationStatusLabelJa(s: string): string {
   }
 }
 
-/** notifications.status（メール送達の記録用・表示のみ） */
+/** notifications.status（送信処理の記録・表示のみ。到達可否ではない） */
 function reservationCreatedMailNotifyStatusJa(s: string): string {
   switch (s) {
     case "pending":
       return "送信待ち";
     case "sent":
-      return "送信済み";
+      return "送信処理済み";
     case "failed":
-      return "送信失敗";
+      return "送信エラー";
     default:
       return s;
   }
@@ -263,7 +263,7 @@ export default async function AdminReservationDetailPage({
       <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-zinc-900">昼食（予約したときの内容）</h2>
         <p className="mt-1 text-xs text-zinc-500">
-          単価・メニュー名は、予約した時点の税込です。あとからマスタを変えても、この予約の表示は変わりません。
+          単価・メニュー名は、予約した時点の税込です。あとから昼食メニューを直しても、この予約に表示されている金額・品名は変わりません。
         </p>
         <div className="mt-3">
           <LunchOrderSummary lines={lunchLines} totalTaxIncluded={lunchTotal} />
@@ -290,7 +290,7 @@ export default async function AdminReservationDetailPage({
           予約完了メール（送信ログ）
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          送信処理の記録です。再送のたびに行が増えます（最新が上）。画面の再送クールダウンとは別の情報です。
+          送信処理の記録です（受信者への到達を保証するものではありません）。再送のたびに行が増えます（最新が上）。画面の再送クールダウンとは別の情報です。
         </p>
         {(createdMailNotifyRows ?? []).length === 0 ? (
           <p className="mt-3 text-sm text-zinc-600">

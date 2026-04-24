@@ -62,7 +62,7 @@ export function buildAdminBreadcrumbTrail(pathname: string): AdminBreadcrumbSegm
   }
 
   if (p === "/admin/notifications/failed") {
-    return [DASHBOARD, { kind: "current", label: "メール送信失敗一覧" }];
+    return [DASHBOARD, { kind: "current", label: "メール送信履歴" }];
   }
 
   if (p === "/admin/camp-inquiries") {

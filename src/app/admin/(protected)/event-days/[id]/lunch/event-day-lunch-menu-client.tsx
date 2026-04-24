@@ -153,13 +153,13 @@ export function EventDayLunchMenuClient({ eventDayId }: { eventDayId: string }) 
       <p className="text-sm text-zinc-600">
         開催日 <span className="font-semibold text-zinc-900">{eventDate}</span>
         。通常は
-        <span className="font-medium text-zinc-800">既定（グローバル）</span>
+        <span className="font-medium text-zinc-800">全体の既定</span>
         の昼食（
         <a
           href="/admin/lunch-menu"
           className="font-medium text-sky-800 underline decoration-sky-600/40 underline-offset-2"
         >
-          昼食マスタ
+          共通の昼食メニュー
         </a>
         で公開しているメニュー）が予約画面に出ます。必要な日だけ
         <span className="font-medium text-zinc-800">この日専用</span>
@@ -179,7 +179,7 @@ export function EventDayLunchMenuClient({ eventDayId }: { eventDayId: string }) 
           <span>
             <span className="font-medium text-zinc-800">既定メニューを使う</span>
             <span className="mt-0.5 block text-xs text-zinc-500">
-              ＝グローバルと同じ。マスタで「公開中」の昼食がそのままこの開催日の予約に出ます。
+              ＝全体設定と同じです。設定の「昼食メニュー」で表示をオンにした品目が、そのままこの開催日の予約画面に出ます。
             </span>
           </span>
         </label>
@@ -196,7 +196,7 @@ export function EventDayLunchMenuClient({ eventDayId }: { eventDayId: string }) 
               この日だけ専用メニューを使う
             </span>
             <span className="mt-0.5 block text-xs text-zinc-500">
-              下の一覧から、この開催日に出すメニューだけに絞ります。マスタで非公開の品目は選べません。
+              下の一覧から、この開催日に出すメニューだけに絞ります。全体設定で非表示の品目は選べません。
             </span>
           </span>
         </label>
@@ -207,7 +207,7 @@ export function EventDayLunchMenuClient({ eventDayId }: { eventDayId: string }) 
           <p className="text-sm font-medium text-zinc-900">この日に出すメニュー（1件以上）</p>
           {selectableMasters.length === 0 ? (
             <p className="mt-2 text-sm text-amber-900">
-              グローバルに有効なメニューがありません。先に昼食マスタで公開メニューを用意してください。
+              使える昼食メニューがありません。先に設定の「昼食メニュー」で、表示するメニューを用意してください。
             </p>
           ) : (
             <ul className="mt-3 space-y-2">
@@ -235,7 +235,7 @@ export function EventDayLunchMenuClient({ eventDayId }: { eventDayId: string }) 
         <p className="text-sm font-medium text-emerald-950">保存後の予約画面プレビュー</p>
         {effectivePreview.length === 0 ? (
           <p className="mt-2 text-sm text-amber-900">
-            有効メニューが0件です。グローバルまたはこの日の設定を見直してください。
+            有効メニューが0件です。設定の「昼食メニュー」またはこの日の設定を見直してください。
           </p>
         ) : (
           <ul className="mt-2 list-inside list-disc text-sm text-emerald-950">

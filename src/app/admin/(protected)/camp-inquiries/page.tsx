@@ -1,9 +1,6 @@
 import Link from "next/link";
 
 import {
-  CAMP_INQUIRY_SCHEMA_VERSION,
-} from "@/lib/camp-inquiry/camp-inquiry-field-registry";
-import {
   type InquiryListPeriod,
   type InquiryListTab,
   inquiryListHref,
@@ -105,20 +102,13 @@ export default async function AdminCampInquiriesPage({
           合宿相談
         </h1>
         <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          公開フォームから届いた<strong className="text-zinc-800">宿泊合宿の相談受付</strong>
-          です。用途は受付内容の確認と、対応状況の最低限の管理までです（スキーマ{" "}
-          <code className="rounded bg-zinc-100 px-1 py-0.5 text-xs">
-            {CAMP_INQUIRY_SCHEMA_VERSION}
-          </code>
-          ）。<strong className="text-zinc-800">予約確定ではありません</strong>
-          。返信・詳細調整は通常メールで行い、本画面からメール送信はしません。
+          公開フォームから届いた<strong className="text-zinc-800">合宿の相談受付</strong>
+          です。受付内容の確認と、対応状況の把握までを想定しています。フォームの項目は改修に応じて変わる場合があります。
+          <strong className="text-zinc-800"> 予約の確定画面ではありません。</strong>
+          返信や詳しい打ち合わせは、いつもどおりメールや電話で行い、この画面からお客様へメールを送る機能はありません。
         </p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          新着は{" "}
-          <code className="text-xs">CAMP_INQUIRY_NOTIFY_EMAIL</code>{" "}
-          または{" "}
-          <code className="text-xs">OPS_NOTIFY_EMAIL</code>{" "}
-          設定時に通知メールでも届きます（再通知は MVP 対象外）。
+          新着は、システム側で「合宿相談用の通知先メール」と「運営共通の通知先メール」のいずれか（または両方）が設定されているときに、あわせて通知メールでも届きます。どちらも未設定のときは、この画面での確認のみです。同じ内容の再通知は行いません。
         </p>
       </div>
 

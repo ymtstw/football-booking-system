@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 import { ReserveHeadingWithIcon } from "./reserve-heading-with-icon";
 
-/** トップの 4 枚グリッド（スマホ 2×2 → md 以上 4 列） */
+/** トップの情報カード（スマホは1列・やや密、sm 以上で2列） */
 export function ReserveInfoGrid({ children }: { children: ReactNode }) {
   return (
-    <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4 md:gap-5">
+    <div className="mt-4 grid grid-cols-1 gap-2 sm:mt-6 sm:grid-cols-2 sm:gap-4 md:gap-5">
       {children}
     </div>
   );
@@ -26,7 +26,7 @@ export function ReserveHeroPitchCard({
           {icon}
         </span>
       ) : null}
-      <div className="min-w-0 text-center text-2xl font-extrabold leading-snug text-green-700 sm:text-left sm:text-3xl xl:text-4xl">
+      <div className="min-w-0 text-center text-2xl font-bold leading-snug text-green-700 sm:text-left sm:text-3xl xl:text-4xl">
         {children}
       </div>
     </div>
@@ -35,7 +35,7 @@ export function ReserveHeroPitchCard({
 
 /**
  * スマホでもコンパクトに並ぶアイコン付きカード。
- * 2×2 グリッドの各セルとして使用する。
+ * sm 以上は従来どおりゆとりあり。トップの 2 列グリッド向け。
  */
 export function ReserveInfoCard({
   title,
@@ -47,19 +47,19 @@ export function ReserveInfoCard({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-[16px] border border-green-200 bg-green-50/70 p-3.5 sm:rounded-[20px] sm:p-5">
+    <div className="rounded-[14px] border border-green-200/80 bg-green-50/60 p-3 sm:rounded-[20px] sm:p-5">
       {icon ? (
         <span
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-green-200 sm:h-11 sm:w-11"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-green-700 shadow-sm ring-1 ring-green-200/80 sm:h-10 sm:w-10"
           aria-hidden
         >
           {icon}
         </span>
       ) : null}
-      <h3 className="mt-2 text-sm font-bold leading-snug text-green-800 sm:text-base">
+      <h3 className="mt-1.5 text-sm font-semibold leading-snug text-green-800 sm:mt-2.5 sm:text-base">
         {title}
       </h3>
-      <div className="mt-1 text-xs leading-relaxed text-slate-700 sm:text-sm sm:leading-6">
+      <div className="mt-1.5 text-[15px] font-normal leading-snug text-slate-700 sm:mt-2 sm:leading-[1.65]">
         {children}
       </div>
     </div>

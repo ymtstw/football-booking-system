@@ -37,9 +37,9 @@ export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
         <dd className="min-w-0 font-medium text-zinc-900">
           {formatIsoDateWithWeekdayJa(row.event_date)}
         </dd>
-        <dt className="text-zinc-500">学年帯</dt>
+        <dt className="text-zinc-500">対象学年</dt>
         <dd className="text-zinc-800">{row.grade_band}</dd>
-        <dt className="text-zinc-500">状態</dt>
+        <dt className="text-zinc-500">公開状況</dt>
         <dd>
           <span
             className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${
@@ -53,7 +53,7 @@ export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
             {eventDayStatusLabelJa(row.status)}
           </span>
         </dd>
-        <dt className="text-zinc-500">締切</dt>
+        <dt className="text-zinc-500">予約締切</dt>
         <dd className="min-w-0 text-xs leading-snug text-zinc-600">
           {formatDateTimeTokyoWithWeekday(row.reservation_deadline_at)}
         </dd>
@@ -69,13 +69,13 @@ export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
           href={`/admin/event-days/${row.id}/slots`}
           className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-emerald-700/40 bg-emerald-50/80 px-3 text-sm font-medium text-emerald-950 hover:bg-emerald-100/90"
         >
-          枠・時刻を編集
+          枠・時刻設定
         </Link>
         <Link
           href={`/admin/event-days/${row.id}/weather`}
           className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-sky-700/40 bg-sky-50/80 px-3 text-sm font-medium text-sky-950 hover:bg-sky-100/90"
         >
-          雨天判断
+          天候対応
         </Link>
         <Link
           href={`/admin/event-days/${row.id}/operational-cancel`}

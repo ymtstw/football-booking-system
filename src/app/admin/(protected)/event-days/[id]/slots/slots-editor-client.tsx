@@ -3,11 +3,11 @@
 /** 枠の時刻の編集と「6枠運用／8枠運用」の切替（API 連携）。 */
 import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
-import { defaultSlotTimesByCode } from "@/domains/event-days/default-slots";
 import {
-  EVENT_DAY_SLOT_COUNT_POLICY_HELP_JA,
-  eventDaySlotPhaseCountsOk,
-} from "@/lib/event-days/event-day-slot-count-policy";
+  eightSlotTimesByCode,
+  sixSlotTimesByCode,
+} from "@/domains/event-days/default-slots";
+import { eventDaySlotPhaseCountsOk } from "@/lib/event-days/event-day-slot-count-policy";
 import { eventSlotLabelJa, slotCodeOrderKey } from "@/lib/admin/operator-display";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -92,15 +92,27 @@ function applyOperationalSixEight(
   });
 }
 
-/** 8枠へ切替時: 各フェーズ4枠目を標準テンプレ（40分刻み・昼休憩後から午後）に揃えてから有効化 */
-function applyEightWithStandardFourthSlotTimes(prev: EventDaySlotEditorRow[]): EventDaySlotEditorRow[] {
-  const byCode = defaultSlotTimesByCode();
-  const patched = prev.map((s) => {
-    if (s.slot_code !== "MORNING_4" && s.slot_code !== "AFTERNOON_4") return s;
+/** 標準テンプレの時刻を slot_code で上書き */
+function patchSlotTimesFromCodeMap(
+  prev: EventDaySlotEditorRow[],
+  byCode: ReadonlyMap<string, { startTime: string; endTime: string }>
+): EventDaySlotEditorRow[] {
+  return prev.map((s) => {
     const t = byCode.get(s.slot_code);
     if (!t) return s;
     return { ...s, start_time: t.startTime, end_time: t.endTime };
   });
+}
+
+/** 6枠へ: 1〜3枠は1時間単位テンプレ、4枠目は45分テンプレのまま無効化 */
+function applySixWithStandardSlotTimes(prev: EventDaySlotEditorRow[]): EventDaySlotEditorRow[] {
+  const patched = patchSlotTimesFromCodeMap(prev, sixSlotTimesByCode());
+  return applyOperationalSixEight(patched, "six");
+}
+
+/** 8枠へ: 全枠を45分連続テンプレに揃えてから有効化 */
+function applyEightWithStandardSlotTimes(prev: EventDaySlotEditorRow[]): EventDaySlotEditorRow[] {
+  const patched = patchSlotTimesFromCodeMap(prev, eightSlotTimesByCode());
   return applyOperationalSixEight(patched, "eight");
 }
 
@@ -218,12 +230,13 @@ export function SlotsEditorClient({
 
   function renderSlotRow(s: EventDaySlotEditorRow, opts?: { muted?: boolean }) {
     const muted = opts?.muted ?? false;
+    const readOnlyRow = !editable;
     return (
       <div
         key={s.id}
         className={`flex flex-col gap-3 px-3 py-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-4 ${
-          muted ? "bg-zinc-50/80" : ""
-        }`}
+          muted ? "bg-zinc-50/70" : readOnlyRow ? "bg-zinc-50/50" : ""
+        } ${readOnlyRow ? "opacity-[0.92]" : ""}`}
       >
         <div className="min-w-0 sm:w-24 sm:pb-1.5">
           <p className="text-sm font-medium text-zinc-900">
@@ -242,7 +255,7 @@ export function SlotsEditorClient({
                 start_time: `${e.target.value}:00`,
               })
             }
-            className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:bg-zinc-100"
+            className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-500"
           />
         </label>
         <label className="block min-w-34">
@@ -255,7 +268,7 @@ export function SlotsEditorClient({
             onChange={(e) =>
               updateSlot(s.id, { end_time: `${e.target.value}:00` })
             }
-            className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:bg-zinc-100"
+            className="mt-0.5 block w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-100 disabled:text-zinc-500"
           />
         </label>
         {showRowActiveCheckbox ? (
@@ -267,24 +280,33 @@ export function SlotsEditorClient({
               onChange={(e) =>
                 updateSlot(s.id, { is_active: e.target.checked })
               }
-              className="h-4 w-4 rounded border-zinc-300"
+              className="h-4 w-4 rounded border-zinc-300 disabled:cursor-not-allowed disabled:opacity-60"
             />
             <span className="text-sm text-zinc-800">有効（予約・編成）</span>
           </label>
         ) : null}
         {s.is_locked ? (
-          <span className="text-xs text-amber-800">枠ロック中</span>
+          <span className="text-xs font-medium text-zinc-600">枠ロック中</span>
         ) : null}
       </div>
     );
   }
 
-  function renderRows(rows: EventDaySlotEditorRow[]) {
+  function renderRows(
+    rows: EventDaySlotEditorRow[],
+    slotOperationalMode: OperationalSixEight | null
+  ) {
     const sorted = sortSlotsByCode(rows);
     const splitFourEach =
       morning.length === 4 && afternoon.length === 4 && !showRowActiveCheckbox;
     const activeRows = splitFourEach ? sorted.filter((s) => s.is_active) : sorted;
-    const inactiveRows = splitFourEach ? sorted.filter((s) => !s.is_active) : [];
+    /** 通常（各3枠）では4枠目を一覧に出さない（DB上は保持し、8枠に切替で表示） */
+    const inactiveRows =
+      splitFourEach && slotOperationalMode === "six"
+        ? []
+        : splitFourEach
+          ? sorted.filter((s) => !s.is_active)
+          : [];
 
     if (activeRows.length === 0 && inactiveRows.length === 0) {
       return <p className="px-3 py-4 text-sm text-zinc-500">枠がありません</p>;
@@ -300,11 +322,9 @@ export function SlotsEditorClient({
           <p className="px-3 py-4 text-sm text-zinc-500">枠がありません</p>
         )}
         {inactiveRows.length > 0 ? (
-          <div className="border-t border-dashed border-zinc-300 bg-zinc-50/70">
-            <p className="px-3 pt-3 text-xs leading-relaxed text-zinc-700">
-              6枠運用では以下は予約・編成の対象外ですが、
-              <strong className="font-semibold text-zinc-900">時刻はここで先行調整</strong>
-              できます。標準テンプレは各40分連続で、12:00–13:00は昼休憩のため枠を置きません（午前は12:00前まで、午後は13:00から）。8枠に切り替えると4枠目はテンプレ時刻に揃ったうえで有効になります。昼休み帯に枠を置く場合は、分単位で開始・終了を編集してください。
+          <div className="border-t border-dashed border-zinc-200 bg-zinc-50/50">
+            <p className="px-3 pt-3 text-xs leading-relaxed text-zinc-600">
+              6枠運用では次の行は予約・編成の対象外ですが、8枠に切り替えたときの時刻を保持します。8枠にすると45分テンプレに揃います。昼休憩（12:00–13:00）は枠を置きません。
             </p>
             <div className="divide-y divide-zinc-100">
               {inactiveRows.map((s) => renderSlotRow(s, { muted: true }))}
@@ -317,94 +337,101 @@ export function SlotsEditorClient({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs leading-relaxed text-sky-950 sm:text-sm">
-        <p className="font-medium text-sky-950">枠運用について</p>
-        <p className="mt-1">{EVENT_DAY_SLOT_COUNT_POLICY_HELP_JA}</p>
+      <div className="rounded-xl border border-sky-100 bg-sky-50/20 px-3 py-3 text-xs leading-relaxed text-zinc-700 sm:px-4 sm:py-3.5 sm:text-sm">
+        <p className="text-sm font-semibold text-zinc-800">枠運用について</p>
+        <div className="mt-2 whitespace-pre-line text-zinc-600">
+          {`この開催日の試合枠の時刻と運用（6枠／8枠）を設定します。
+
+・6枠：午前3枠・午後3枠
+・8枠：午前4枠・午後4枠（初期は45分刻み）
+・12:00–13:00は昼休憩のため枠を置きません`}
+        </div>
         {mutationMode === "normal" && activeReservationCount > 0 ? (
           <div
-            role="note"
-            className="mt-3 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-3 sm:px-4"
+            role="status"
+            aria-live="polite"
+            className="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-3 sm:px-4"
           >
-            <p className="text-sm font-bold text-amber-950 sm:text-base">
-              下の一覧は参照のみです（有効な予約あり）
+            <p className="text-sm font-semibold text-amber-950">
+              有効な予約が {activeReservationCount} 件あります（通常は編集・保存できません）
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-amber-900 sm:text-sm">
-              アクティブな予約が{" "}
-              <span className="text-lg font-extrabold tabular-nums text-amber-950 sm:text-xl">
-                {activeReservationCount}
-              </span>{" "}
-              <span className="font-semibold">件</span>
-              あるため、ここからは保存できません。変更は強制変更フローで行ってください。
+            <p className="mt-1.5 text-xs leading-relaxed text-amber-900/95 sm:text-sm">
+              現在の枠と時刻は下の一覧で確認できます。やむを得ない変更は「枠の強制変更」から別画面で行います（確認あり）。
             </p>
             <Link
               href={`/admin/event-days/${eventDayId}/slots/force`}
-              className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-amber-900 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-950 sm:w-auto"
+              className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-green-800/20 bg-green-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-800 sm:w-auto sm:min-w-48"
             >
-              枠の強制変更へ
+              枠の強制変更へ進む
             </Link>
           </div>
         ) : mutationMode === "normal" && !editable && activeReservationCount === 0 ? (
-          <p className="mt-2 text-xs leading-relaxed text-sky-900 sm:text-sm">
-            この開催日の状態（公開終了・確定など）のため、この一覧からの保存はできません（参照のみ）。
+          <p className="mt-2 rounded-lg border border-zinc-100 bg-zinc-50/80 px-2.5 py-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+            開催日の状態のため、この一覧からは保存できません（参照のみ）。
           </p>
         ) : mutationMode === "normal" ? (
-          <p className="mt-2 text-xs leading-relaxed text-sky-900 sm:text-sm">
-            有効な予約がないときのみ、この一覧から時刻や枠の有効を保存できます。
+          <p className="mt-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+            有効な予約がないときだけ、この一覧から保存できます。
           </p>
         ) : (
-          <p className="mt-2 font-medium text-sky-950">
-            保存は予約がある場合の強制変更用です。必要最小限の修正にとどめてください。
+          <p className="mt-2 rounded-lg border border-green-100 bg-emerald-50/40 px-2.5 py-2 text-xs font-medium leading-relaxed text-zinc-700 sm:text-sm">
+            強制変更モードです。必要最小限の修正にとどめてください。
           </p>
         )}
       </div>
 
       {!countsPolicyOk ? (
-        <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950 sm:text-sm">
+        <p className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs leading-relaxed text-amber-950 sm:text-sm">
           いまの枠数（午前 {morning.length}・午後 {afternoon.length}
           ）は標準の「4+4」に一致しません。運営にご相談ください。
         </p>
       ) : null}
 
       {countsPolicyOk && operationalSixEight !== null ? (
-        <section className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-3 sm:px-4 sm:py-3.5">
-          <h2 className="text-sm font-medium text-emerald-950">枠運用の選択</h2>
-          <p className="mt-1.5 text-xs leading-relaxed text-emerald-950/90 sm:text-sm">
-            公開の予約フォームとマッチング編成に載せる枠数を「6枠」または「8枠」から選びます
-            （6枠のときは各フェーズの4枠目を対象外にします。DBの枠行は残ります）。
-            <strong className="font-semibold text-emerald-950">8枠運用</strong>
-            に切り替えると、各4枠目の時刻は標準テンプレ（40分連続・12:00–13:00は休憩）に自動で揃えます。
+        <section className="rounded-xl border border-emerald-100/90 bg-emerald-50/25 px-3 py-3 sm:px-4 sm:py-3.5">
+          <h2 className="text-sm font-semibold text-zinc-800">枠運用の選択</h2>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+            6枠か8枠かを選びます（編集できるときだけ切り替え可能）。
           </p>
           <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-6 sm:gap-y-2">
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-emerald-950">
+            <label
+              className={`inline-flex items-center gap-2 text-sm text-zinc-800 ${
+                editable ? "cursor-pointer" : "cursor-not-allowed opacity-80"
+              }`}
+            >
               <input
                 type="radio"
                 name="oper-six-eight-slots"
                 disabled={!editable}
                 checked={operationalSixEight === "six"}
                 onChange={() => {
-                  setSlots((prev) => applyOperationalSixEight(prev, "six"));
+                  setSlots((prev) => applySixWithStandardSlotTimes(prev));
                 }}
-                className="h-4 w-4 border-emerald-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+                className="h-4 w-4 border-zinc-300 text-green-700 focus:ring-green-600 disabled:cursor-not-allowed disabled:opacity-55"
               />
-              6枠運用（各フェーズの4枠目は対象外）
+              6枠（午前3・午後3）
             </label>
-            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-emerald-950">
+            <label
+              className={`inline-flex items-center gap-2 text-sm text-zinc-800 ${
+                editable ? "cursor-pointer" : "cursor-not-allowed opacity-80"
+              }`}
+            >
               <input
                 type="radio"
                 name="oper-six-eight-slots"
                 disabled={!editable}
                 checked={operationalSixEight === "eight"}
                 onChange={() => {
-                  setSlots((prev) => applyEightWithStandardFourthSlotTimes(prev));
+                  setSlots((prev) => applyEightWithStandardSlotTimes(prev));
                 }}
-                className="h-4 w-4 border-emerald-300 text-emerald-700 focus:ring-emerald-600 disabled:opacity-50"
+                className="h-4 w-4 border-zinc-300 text-green-700 focus:ring-green-600 disabled:cursor-not-allowed disabled:opacity-55"
               />
-              8枠運用（4枠すべてを対象）
+              8枠（午前4・午後4）
             </label>
           </div>
           {operationalSixEight === "custom" ? (
-            <p className="mt-2 text-xs leading-relaxed text-amber-900 sm:text-sm">
-              標準の6枠／8枠以外の組み合わせになっています。上のどちらかを選んで標準に戻してください。
+            <p className="mt-2 rounded-md border border-amber-100 bg-amber-50/40 px-2.5 py-2 text-xs leading-relaxed text-zinc-700 sm:text-sm">
+              6枠／8枠の標準と異なる状態です。上のどちらかを選ぶと標準に戻せます。
             </p>
           ) : null}
         </section>
@@ -416,7 +443,7 @@ export function SlotsEditorClient({
             {phaseLabelJa("morning")}（{morning.filter((s) => s.is_active).length} 枠）
           </h2>
         </div>
-        {renderRows(morning)}
+        {renderRows(morning, operationalSixEight)}
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white">
@@ -425,7 +452,7 @@ export function SlotsEditorClient({
             {phaseLabelJa("afternoon")}（{afternoon.filter((s) => s.is_active).length} 枠）
           </h2>
         </div>
-        {renderRows(afternoon)}
+        {renderRows(afternoon, operationalSixEight)}
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

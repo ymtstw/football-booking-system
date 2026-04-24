@@ -107,7 +107,7 @@ function EventDayCard(props: {
             <dd className="font-semibold text-zinc-900 sm:text-right">{preDayConfirmedJa(summary.status)}</dd>
           </div>
           <div className="grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5">
-            <dt className="text-zinc-500">編成 warning</dt>
+            <dt className="text-zinc-500">編成の注意</dt>
             <dd className="font-semibold text-zinc-900 sm:text-right">
               {summary.warningCount != null && summary.warningCount > 0 ? (
                 <span className="inline-block rounded-md bg-amber-100 px-1.5 py-0.5 text-amber-900">
@@ -119,7 +119,7 @@ function EventDayCard(props: {
             </dd>
           </div>
           <div className="grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5">
-            <dt className="text-zinc-500">通知 failed</dt>
+            <dt className="text-zinc-500">送信エラー</dt>
             <dd className="sm:text-right">
               {summary.failedForDay > 0 ? (
                 <Link

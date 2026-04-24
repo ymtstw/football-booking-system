@@ -70,8 +70,8 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
     ? `${base}/admin/reservations/${params.reservationId}`
     : `(管理) /admin/reservations/${params.reservationId}`;
   const failedListUrl = base
-    ? `${base}/admin/notifications/failed`
-    : "/admin/notifications/failed";
+    ? `${base}/admin/notifications/failed?status=failed`
+    : "/admin/notifications/failed?status=failed";
 
   const subject = `${MAIL_SUBJECT_OPS_SYSTEM}予約完了メール送信失敗`;
   const errShort = truncateErrorMessage(params.resendError);
@@ -87,7 +87,7 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
     "",
     "次の確認: 宛先の誤記、Resend のドメイン検証・テストモードの宛先制限など。",
     `予約の管理: ${adminResUrl}`,
-    `送信失敗一覧: ${failedListUrl}`,
+    `メール送信履歴（失敗タブ）: ${failedListUrl}`,
     "",
     "（確認コードはこの通知には含めていません）",
   ].join("\n");
@@ -95,11 +95,11 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
   const adminHref = base
     ? `${base}/admin/reservations/${params.reservationId}`
     : "";
-  const failedHref = base ? `${base}/admin/notifications/failed` : "";
+  const failedHref = base ? `${base}/admin/notifications/failed?status=failed` : "";
   const adminFailedLinksHtml =
     adminHref && failedHref
-      ? `<p><a href="${escapeHtmlLite(adminHref)}">予約を管理画面で開く</a> · <a href="${escapeHtmlLite(failedHref)}">送信失敗一覧</a></p>`
-      : `<p>管理画面パス: <code>${escapeHtmlLite(`/admin/reservations/${params.reservationId}`)}</code> / <code>/admin/notifications/failed</code>（<code>NEXT_PUBLIC_SITE_URL</code> 未設定時はリンク省略）</p>`;
+      ? `<p><a href="${escapeHtmlLite(adminHref)}">予約を管理画面で開く</a> · <a href="${escapeHtmlLite(failedHref)}">メール送信履歴（失敗タブ）</a></p>`
+      : `<p>管理画面パス: <code>${escapeHtmlLite(`/admin/reservations/${params.reservationId}`)}</code> / <code>/admin/notifications/failed?status=failed</code>（<code>NEXT_PUBLIC_SITE_URL</code> 未設定時はリンク省略）</p>`;
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>参加者向け「予約完了メール」の送信が Resend で失敗し、<code>notifications</code> を <strong>failed</strong> に更新しました。</p>

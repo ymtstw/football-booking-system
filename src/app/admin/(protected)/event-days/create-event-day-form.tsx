@@ -3,7 +3,6 @@
 /** 開催日・学年帯を入力し公開前（draft）で作成。作成直後に公開確認モーダルを出す。POST /api/admin/event-days。 */
 import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
-import { DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT } from "@/domains/event-days/default-slots";
 import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
@@ -12,7 +11,6 @@ import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** DB は text だが、UI では仕様どおりの値だけ選べるようにする（MVP。仕様は docs/spec/implemented-behavior-catalog.md）。 */
 const GRADE_BAND_OPTIONS = [
   { value: "1-2", label: "1-2年生" },
   { value: "3-4", label: "3-4年生" },
@@ -42,9 +40,7 @@ export function CreateEventDayForm() {
     setCreatedDay(null);
     if (d) {
       const label = formatIsoDateWithWeekdayJa(d.eventDate);
-      setCompletionBanner(
-        `「${label}」の開催日と既定枠の作成が完了しました（公開前のままです）。一覧の「公開」からいつでも公開できます。`
-      );
+      setCompletionBanner(`「${label}」の開催日を作成しました。`);
       router.refresh();
     }
   }, [router]);
@@ -76,7 +72,7 @@ export function CreateEventDayForm() {
       return;
     }
     if (!gradeBandVal) {
-      setMessage("学年帯を選択してください");
+      setMessage("対象学年を選択してください");
       return;
     }
     setLoading(true);
@@ -96,12 +92,12 @@ export function CreateEventDayForm() {
       eventDay?: { id: string; event_date: string };
     };
     if (!res.ok) {
-      setMessage(json.error ?? `エラー（${res.status}）`);
+      setMessage(json.error ?? "作成に失敗しました。入力内容を確認するか、時間をおいて再度お試しください。");
       return;
     }
     const day = json.eventDay;
     if (!day?.id || !day.event_date) {
-      setMessage("作成は成功しましたが、応答内容が不正です。一覧を確認してください。");
+      setMessage("作成は完了した可能性があります。一覧を更新してご確認ください。");
       router.refresh();
       return;
     }
@@ -125,15 +121,15 @@ export function CreateEventDayForm() {
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setPublishError(j.error ?? `公開に失敗しました（${res.status}）`);
+        setPublishError(
+          j.error ?? "公開に失敗しました。時間をおいて再度お試しください。"
+        );
         return;
       }
       const label = formatIsoDateWithWeekdayJa(createdDay.eventDate);
       setPublishDialogOpen(false);
       setCreatedDay(null);
-      setCompletionBanner(
-        `「${label}」の開催日と既定枠の作成、および一般向けへの公開が完了しました。`
-      );
+      setCompletionBanner(`「${label}」の開催日を作成し、公開しました。`);
       router.refresh();
     } finally {
       setPublishBusy(false);
@@ -150,22 +146,14 @@ export function CreateEventDayForm() {
         aria-hidden
       />
       <div className="relative space-y-1 pl-3 sm:pl-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[11px] font-bold text-emerald-900">
-            作成
-          </span>
-          <h2
-            id="admin-create-event-day-heading"
-            className="text-base font-bold text-zinc-900 sm:text-lg"
-          >
-            開催日を新規作成
-          </h2>
-        </div>
+        <h2
+          id="admin-create-event-day-heading"
+          className="text-base font-bold text-zinc-900 sm:text-lg"
+        >
+          開催日を作成
+        </h2>
         <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">
-          このフォームで開催日と既定枠（{DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT}
-          枠運用）を追加します。作成直後に<strong className="font-medium text-zinc-800">公開するか確認</strong>
-          します（公開し忘れ防止）。予約締切は<strong className="font-medium text-zinc-800">開催2日前 15:00（日本時間）</strong>
-          のみで、画面からは変更できません（特例は DB 運用または将来の機能）。
+          開催日を登録すると、予約受付に必要な基本設定が作成されます。作成時に「公開する」「公開前で保存する」を選べます。予約締切は開催日の2日前15:00に自動設定されます。
         </p>
       </div>
       <form
@@ -184,7 +172,7 @@ export function CreateEventDayForm() {
           />
         </label>
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[8.5rem] sm:flex-none">
-          <span className="text-zinc-600">学年帯</span>
+          <span className="text-zinc-600">対象学年</span>
           <select
             name="gradeBand"
             value={gradeBand}
@@ -200,13 +188,13 @@ export function CreateEventDayForm() {
           </select>
         </label>
         <div className="flex min-w-0 w-full flex-col gap-1 text-sm sm:min-w-[min(100%,18rem)] sm:w-auto sm:flex-1">
-          <span className="text-zinc-600">予約締切（自動・変更不可）</span>
+          <span className="text-zinc-600">予約締切（自動設定）</span>
           <p className="min-h-11 rounded border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm leading-snug text-zinc-800 sm:min-h-10">
             {eventDate.trim()
               ? formatDateTimeTokyoWithWeekday(
                   defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate.trim())
                 )
-              : "開催日を選ぶと表示されます"}
+              : "開催日を選択すると自動で表示されます"}
           </p>
         </div>
         <button
@@ -215,7 +203,7 @@ export function CreateEventDayForm() {
           className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white whitespace-normal shadow-sm ring-1 ring-emerald-900/20 hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
         >
           {loading ? <InlineSpinner variant="onDark" /> : null}
-          {loading ? "作成中…" : `公開前で作成（${DEFAULT_ACTIVE_EVENT_DAY_SLOT_COUNT}枠運用で開始）`}
+          {loading ? "作成中…" : "公開前で作成"}
         </button>
       </form>
       {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
@@ -250,9 +238,9 @@ export function CreateEventDayForm() {
               <span className="font-semibold text-zinc-900">
                 {formatIsoDateWithWeekdayJa(createdDay.eventDate)}
               </span>
-              の開催日と枠を作成しました。
-              <strong className="font-semibold text-zinc-900"> はい（公開する）</strong>
-              を選ぶと、一般向けの予約カレンダーにすぐ載せます。
+              の開催日を作成しました。一般向けの予約カレンダーに載せる場合は
+              <strong className="font-semibold text-zinc-900"> 公開して作成 </strong>
+              を選んでください。
             </p>
             {publishError ? (
               <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
@@ -266,7 +254,7 @@ export function CreateEventDayForm() {
                 onClick={() => declinePublish()}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:w-auto"
               >
-                いいえ（公開前のまま）
+                公開前のまま閉じる
               </button>
               <button
                 ref={yesButtonRef}
@@ -276,7 +264,7 @@ export function CreateEventDayForm() {
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-70 sm:w-auto"
               >
                 {publishBusy ? <InlineSpinner variant="onDark" /> : null}
-                {publishBusy ? "公開処理中…" : "はい（公開する）"}
+                {publishBusy ? "公開処理中…" : "公開して作成"}
               </button>
             </div>
           </div>

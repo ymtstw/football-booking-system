@@ -163,8 +163,11 @@ export default async function AdminCampInquiryDetailPage({
           {formatDateTimeTokyoWithWeekday(row.updated_at)}
         </p>
         <p className="mt-1">
-          <span className="font-medium text-zinc-800">スキーマ: </span>
+          <span className="font-medium text-zinc-800">受付フォームの版: </span>
           {row.schema_version}
+          <span className="ml-1 text-zinc-500">
+            （フォーム改修のたびに番号が上がります。日々の運用ではなく、問い合わせ対応の参考程度で構いません）
+          </span>
         </p>
         {row.source_path ? (
           <p className="mt-1 break-all">

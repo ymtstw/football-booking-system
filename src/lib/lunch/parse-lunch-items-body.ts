@@ -1,3 +1,5 @@
+import { LUNCH_MENU_QTY_MAX, LUNCH_MENU_QTY_MAX_DIGITS } from "@/lib/lunch/parse-lunch-qty-field";
+
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -22,13 +24,17 @@ export function parseLunchItemsInput(raw: unknown): ParsedLunchItem[] | null {
     if (seen.has(menuItemId)) return null;
     seen.add(menuItemId);
     const quantityRaw = o.quantity;
-    const quantity =
-      typeof quantityRaw === "number" && Number.isFinite(quantityRaw)
-        ? quantityRaw
-        : typeof quantityRaw === "string" && quantityRaw.trim() !== ""
-          ? Number(quantityRaw.trim())
-          : NaN;
-    if (!Number.isInteger(quantity) || quantity < 0 || quantity > 500) {
+    let quantity: number;
+    if (typeof quantityRaw === "number" && Number.isFinite(quantityRaw)) {
+      quantity = quantityRaw;
+    } else if (typeof quantityRaw === "string" && quantityRaw.trim() !== "") {
+      const s = quantityRaw.trim();
+      if (s.length > LUNCH_MENU_QTY_MAX_DIGITS) return null;
+      quantity = Number(s);
+    } else {
+      quantity = NaN;
+    }
+    if (!Number.isInteger(quantity) || quantity < 0 || quantity > LUNCH_MENU_QTY_MAX) {
       return null;
     }
     out.push({ menuItemId, quantity });

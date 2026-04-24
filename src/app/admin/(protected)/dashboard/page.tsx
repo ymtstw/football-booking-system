@@ -44,7 +44,7 @@ export default async function AdminDashboardPage({
       <div className="min-w-0 space-y-4">
         <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催状況</h1>
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          開催日の取得に失敗しました: {dayErr.message}
+          開催日の情報を表示できませんでした。時間をおいて再度お試しください。
         </p>
       </div>
     );
@@ -59,7 +59,7 @@ export default async function AdminDashboardPage({
           <div className="min-w-0 space-y-4">
             <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催状況</h1>
             <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-              開催日サマリの取得に失敗しました: {loaded.message}
+              開催日のサマリを表示できませんでした。時間をおいて再度お試しください。
             </p>
           </div>
         );
@@ -82,7 +82,7 @@ export default async function AdminDashboardPage({
             直近の開催状況
           </h1>
           <p className="mt-2 max-w-2xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
-            基準日（東京）以降でいちばん近い開催の数値サマリです。下の1行で基準日を変えられます。「次の開催日を読み込む」で続きを同じ形式で追加できます。
+            基準日以降で最も近い開催日の状況をまとめて表示します。下の行で基準日を変えられます。「次の開催日を読み込む」で続きを同じ形式で追加できます。
           </p>
         </div>
       </header>

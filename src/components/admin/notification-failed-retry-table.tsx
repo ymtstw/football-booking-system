@@ -43,6 +43,8 @@ export type FailedNotificationRow = {
   status: string;
   template_key: string | null;
   error_message: string | null;
+  /** API / DB により文字列または JSON オブジェクトになることがある */
+  payload_summary?: unknown;
   created_at: string;
   updated_at?: string | null;
   sent_at?: string | null;
@@ -55,13 +57,119 @@ export type FailedNotificationRow = {
   contactName?: string | null;
 };
 
+export type NotificationListStatus = "failed" | "pending" | "sent";
+
 type Props = {
   /** 指定時は当該開催日のみ。省略時は全開催日の failed 上位件 */
   eventDayId?: string;
   className?: string;
+  /**
+   * 一覧 API の status。省略時は failed（開催日の失敗ブロック・前日結果など）
+   */
+  listStatus?: NotificationListStatus;
 };
 
-/** 送信失敗のエラー: 管理者向け要約＋折りたたみ原文 */
+function trimSummary(text: string, maxLen: number): string {
+  const t = text.trim();
+  if (t.length <= maxLen) return t;
+  return `${t.slice(0, maxLen)}…`;
+}
+
+/** 予約直後メール等: 一覧の列で識別できるため「補足」欄は「—」のみ */
+function isReservationIdOnlyPayload(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const keys = Object.keys(value as Record<string, unknown>);
+  const o = value as Record<string, unknown>;
+  return (
+    keys.length === 1 &&
+    keys[0] === "reservation_id" &&
+    typeof o.reservation_id === "string"
+  );
+}
+
+/**
+ * メール送信履歴の「補足」欄用。現場向けに UUID の生 JSON は出さず短文にする。
+ * 再送ロジック用の詳細データはそのまま jsonb に残る（表示だけ要約）。
+ */
+function outboundPayloadSummaryForStaffDisplay(value: unknown): string {
+  if (value == null) return "";
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value).trim();
+  }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return "";
+    }
+  }
+  const o = value as Record<string, unknown>;
+  const keys = Object.keys(o);
+  if (isReservationIdOnlyPayload(value)) {
+    return "";
+  }
+  if (keys.length === 1 && keys[0] === "event_date" && typeof o.event_date === "string") {
+    return `開催日 ${o.event_date} に関する送信です。`;
+  }
+  if (typeof o.event_date === "string" && typeof o.variant === "string") {
+    const v = o.variant;
+    const kind =
+      v === "weather"
+        ? "天候・実施区分"
+        : v === "operational"
+          ? "運営中止"
+          : v === "normal"
+            ? "通常"
+            : v;
+    return `前日最終メール（${kind}）。開催日 ${o.event_date}。`;
+  }
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+/** 失敗以外の一覧: 概要（送信・更新の時刻は「処理日時」列のみ。補足欄に sent_at は出さない） */
+function OutboundNotificationSummaryCell({
+  listStatus,
+  payloadSummary,
+}: {
+  listStatus: Exclude<NotificationListStatus, "failed">;
+  payloadSummary: unknown;
+}) {
+  const reservationOnly = isReservationIdOnlyPayload(payloadSummary);
+  const summary = outboundPayloadSummaryForStaffDisplay(payloadSummary);
+  if (listStatus === "sent") {
+    if (reservationOnly) {
+      return (
+        <p className="text-zinc-500" title="開催日・種類・宛先・チーム・処理日時の列で識別できます">
+          —
+        </p>
+      );
+    }
+    return (
+      <div className="space-y-1 text-xs leading-relaxed text-zinc-800">
+        <p className="wrap-break-word">
+          {summary ? trimSummary(summary, 280) : "（概要テキストなし）"}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1 text-xs leading-relaxed text-zinc-800">
+      <p className="text-amber-900/90">
+        このシステム上では、まだ「送信が完了した」と記録されていません。しばらくしてから「送信処理済み」を確認してください。
+      </p>
+      {summary ? <p className="wrap-break-word">{trimSummary(summary, 280)}</p> : null}
+    </div>
+  );
+}
+
+/** 送信エラー（送信処理時点）の内容: 管理者向け要約＋折りたたみ原文 */
 function FailedNotificationErrorCell({
   errorMessage,
   compact,
@@ -85,7 +193,7 @@ function FailedNotificationErrorCell({
           }
         >
           <summary className="cursor-pointer select-none font-medium text-red-950/90">
-            技術メッセージ{compact ? "（サポート用）" : ""}
+            詳しい内容を開く{compact ? "（英語などが混じることがあります）" : ""}
           </summary>
           <pre
             className={
@@ -102,7 +210,12 @@ function FailedNotificationErrorCell({
   );
 }
 
-export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
+export function NotificationFailedRetryTable({
+  eventDayId,
+  className,
+  listStatus = "failed",
+}: Props) {
+  const showRetry = listStatus === "failed";
   const [rows, setRows] = useState<FailedNotificationRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,7 +235,7 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
     setLoading(true);
     setError(null);
     setMessage(null);
-    const qs = new URLSearchParams({ status: "failed" });
+    const qs = new URLSearchParams({ status: listStatus });
     if (eventDayId) qs.set("eventDayId", eventDayId);
     else qs.set("limit", "150");
     try {
@@ -142,7 +255,7 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [eventDayId]);
+  }, [eventDayId, listStatus]);
 
   useEffect(() => {
     void load();
@@ -212,7 +325,20 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
         ) : null}
       </div>
       {!rows?.length ? (
-        <p className="text-sm text-zinc-600">failed の通知はありません。</p>
+        <div className="space-y-1.5 text-sm text-zinc-600">
+          <p>
+            {listStatus === "failed"
+              ? "いまの条件では、送信エラーとして記録されているメールはありません。"
+              : listStatus === "sent"
+                ? "送信処理済みとして記録されているメールはまだありません。"
+                : "送信待ちのメールはありません。"}
+          </p>
+          {listStatus === "failed" ? (
+            <p className="text-xs leading-relaxed text-zinc-500">
+              お客様から届いていないと言われても、ここが空なのは珍しくありません。届かない多くの場合は「送信処理済み」のままです。
+            </p>
+          ) : null}
+        </div>
       ) : (
         <>
           {/* スマホ・狭い幅: 横スクロールなしのカード */}
@@ -239,7 +365,7 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                   ) : null}
                   <dl className="mt-3 space-y-2.5 text-sm">
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">更新（UTC）</dt>
+                      <dt className="text-xs font-medium text-zinc-500">処理日時</dt>
                       <dd className="mt-0.5 font-mono text-xs text-zinc-800">{updatedUtc}</dd>
                     </div>
                     <div>
@@ -257,41 +383,55 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                       <dd className="mt-0.5 wrap-break-word text-zinc-800">{n.teamName ?? "—"}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">内容</dt>
+                      <dt className="text-xs font-medium text-zinc-500">補足</dt>
                       <dd className="mt-0.5">
-                        <FailedNotificationErrorCell errorMessage={n.error_message} compact />
+                        {listStatus === "failed" ? (
+                          <FailedNotificationErrorCell errorMessage={n.error_message} compact />
+                        ) : listStatus === "sent" ? (
+                          <OutboundNotificationSummaryCell
+                            listStatus="sent"
+                            payloadSummary={n.payload_summary}
+                          />
+                        ) : (
+                          <OutboundNotificationSummaryCell
+                            listStatus="pending"
+                            payloadSummary={n.payload_summary}
+                          />
+                        )}
                       </dd>
                     </div>
                   </dl>
-                  <div className="mt-4 border-t border-zinc-100 pt-3">
-                    {n.template_key === "reservation_created" ? (
-                      <div>
-                        <span className="inline-flex rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
-                          再送不可
-                        </span>
-                        <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                          確認用コードを画面に残さないため、この一覧から再送はできません。届いていない場合は、予約確認の案内を別途お伝えする運用で対応してください。
-                        </p>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={
-                          retryingId !== null ||
-                          (cooldownRemainingMs > 0 && retryingId !== n.id)
-                        }
-                        onClick={() => void retryOne(n.id)}
-                        className="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-indigo-700 px-3 text-sm font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
-                      >
-                        {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
-                        {retryingId === n.id
-                          ? "送信中…"
-                          : cooldownRemainingMs > 0
-                            ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
-                            : "再送"}
-                      </button>
-                    )}
-                  </div>
+                  {showRetry ? (
+                    <div className="mt-4 border-t border-zinc-100 pt-3">
+                      {n.template_key === "reservation_created" ? (
+                        <div>
+                          <span className="inline-flex rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700">
+                            再送不可
+                          </span>
+                          <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                            確認用コードを画面に残さないため、この一覧から再送はできません。届いていない場合は、予約確認の案内を別途お伝えする運用で対応してください。
+                          </p>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={
+                            retryingId !== null ||
+                            (cooldownRemainingMs > 0 && retryingId !== n.id)
+                          }
+                          onClick={() => void retryOne(n.id)}
+                          className="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-indigo-700 px-3 text-sm font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
+                        >
+                          {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
+                          {retryingId === n.id
+                            ? "送信中…"
+                            : cooldownRemainingMs > 0
+                              ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
+                              : "再送"}
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
                 </article>
               );
             })}
@@ -305,12 +445,19 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                   {!eventDayId ? (
                     <th className="px-3 py-2 font-medium text-zinc-900">開催日</th>
                   ) : null}
-                  <th className="px-3 py-2 font-medium text-zinc-900">更新（UTC）</th>
+                  <th className="px-3 py-2 font-medium text-zinc-900">処理日時</th>
                   <th className="px-3 py-2 font-medium text-zinc-900">種類</th>
                   <th className="px-3 py-2 font-medium text-zinc-900">宛先</th>
                   <th className="px-3 py-2 font-medium text-zinc-900">チーム</th>
-                  <th className="min-w-[12rem] max-w-md px-3 py-2 font-medium text-zinc-900">内容</th>
-                  <th className="px-3 py-2 font-medium text-zinc-900">操作</th>
+                  <th
+                    className="min-w-48 max-w-md px-3 py-2 font-medium text-zinc-900"
+                    title="送信エラーの説明・送信待ちの補足・送信済みの概要など。不要な場合は「—」です。"
+                  >
+                    補足
+                  </th>
+                  {showRetry ? (
+                    <th className="px-3 py-2 font-medium text-zinc-900">操作</th>
+                  ) : null}
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
@@ -343,38 +490,57 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
                     <td className="max-w-48 truncate px-3 py-2 text-zinc-700" title={n.teamName ?? ""}>
                       {n.teamName ?? "—"}
                     </td>
-                    <td className="max-w-md px-3 py-2 align-top text-red-900">
-                      <FailedNotificationErrorCell errorMessage={n.error_message} />
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 align-top">
-                      {n.template_key === "reservation_created" ? (
-                        <div className="max-w-44 text-left">
-                          <span className="inline-flex rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-700">
-                            再送不可
-                          </span>
-                          <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                            確認用コードを残さないため再送できません。届かない場合は予約確認の案内を別途送ってください。
-                          </p>
-                        </div>
+                    <td
+                      className={[
+                        "max-w-md px-3 py-2 align-top",
+                        listStatus === "failed" ? "text-red-900" : "text-zinc-800",
+                      ].join(" ")}
+                    >
+                      {listStatus === "failed" ? (
+                        <FailedNotificationErrorCell errorMessage={n.error_message} />
+                      ) : listStatus === "sent" ? (
+                        <OutboundNotificationSummaryCell
+                          listStatus="sent"
+                          payloadSummary={n.payload_summary}
+                        />
                       ) : (
-                        <button
-                          type="button"
-                          disabled={
-                            retryingId !== null ||
-                            (cooldownRemainingMs > 0 && retryingId !== n.id)
-                          }
-                          onClick={() => void retryOne(n.id)}
-                          className="inline-flex min-h-9 items-center justify-center rounded-md bg-indigo-700 px-2.5 text-xs font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
-                        >
-                          {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
-                          {retryingId === n.id
-                            ? "送信中…"
-                            : cooldownRemainingMs > 0
-                              ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
-                              : "再送"}
-                        </button>
+                        <OutboundNotificationSummaryCell
+                          listStatus="pending"
+                          payloadSummary={n.payload_summary}
+                        />
                       )}
                     </td>
+                    {showRetry ? (
+                      <td className="whitespace-nowrap px-3 py-2 align-top">
+                        {n.template_key === "reservation_created" ? (
+                          <div className="max-w-44 text-left">
+                            <span className="inline-flex rounded-md border border-zinc-300 bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-700">
+                              再送不可
+                            </span>
+                            <p className="mt-1 text-[10px] leading-snug text-zinc-600">
+                              確認用コードを残さないため再送できません。届かない場合は予約確認の案内を別途送ってください。
+                            </p>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={
+                              retryingId !== null ||
+                              (cooldownRemainingMs > 0 && retryingId !== n.id)
+                            }
+                            onClick={() => void retryOne(n.id)}
+                            className="inline-flex min-h-9 items-center justify-center rounded-md bg-indigo-700 px-2.5 text-xs font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
+                          >
+                            {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
+                            {retryingId === n.id
+                              ? "送信中…"
+                              : cooldownRemainingMs > 0
+                                ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
+                                : "再送"}
+                          </button>
+                        )}
+                      </td>
+                    ) : null}
                   </tr>
                 );
                 })}
@@ -383,9 +549,11 @@ export function NotificationFailedRetryTable({ eventDayId, className }: Props) {
           </div>
         </>
       )}
-      {rows?.length ? (
+      {rows?.length && showRetry ? (
         <p className="mt-3 text-xs leading-relaxed text-zinc-600">
-          「予約直後の確認メール」だけは安全のため再送できません（ボタンなし）。その他の失敗は、表示の内容を確認してから「再送」を試してください。
+          「予約直後の確認メール」だけは安全のため再送できません（ボタンなし）。その他は表示の内容を確認してから「再送」を試してください。
+          この一覧に出るのは、<strong className="font-medium text-zinc-800">送信を試みたときに送れなかったもの</strong>
+          だけです。あとから「届いていない」と分かるケースは、ここに出てこないことがあります。
         </p>
       ) : null}
     </div>

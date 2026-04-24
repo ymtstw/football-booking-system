@@ -31,7 +31,7 @@ function siteBaseUrl(): string | null {
 function adminNotificationsFailedUrl(): string | null {
   const base = siteBaseUrl();
   if (!base) return null;
-  return `${base}/admin/notifications/failed`;
+  return `${base}/admin/notifications/failed?status=failed`;
 }
 
 function adminEventDayNotificationsUrl(eventDayId: string): string | null {
@@ -93,7 +93,7 @@ export async function sendOpsBatchFailureDigestEmail(
   const eventNotificationsUrl = adminEventDayNotificationsUrl(eventDayId);
 
   const countsLines: string[] = [
-    `送信失敗件数: ${failedCount}`,
+    `送信エラー件数（送信処理時点）: ${failedCount}`,
     ...(sentCount !== undefined ? [`送信成功件数: ${sentCount}`] : []),
     ...(skippedCount !== undefined ? [`スキップ件数: ${skippedCount}`] : []),
   ];
@@ -102,7 +102,7 @@ export async function sendOpsBatchFailureDigestEmail(
   if (failedListUrl) linkLines.push(`失敗一覧: ${failedListUrl}`);
   if (eventNotificationsUrl) linkLines.push(`当該開催日の通知: ${eventNotificationsUrl}`);
 
-  const subject = `${MAIL_SUBJECT_OPS_SYSTEM}メール送信失敗あり（${jobLabelJa}）`;
+  const subject = `${MAIL_SUBJECT_OPS_SYSTEM}メール送信エラーあり（${jobLabelJa}）`;
 
   const text = [
     "自動バッチで参加者向けメールの送信に失敗した予約があります。",
@@ -126,7 +126,7 @@ export async function sendOpsBatchFailureDigestEmail(
       ? `<ul style="margin-top:8px">
 ${
   failedListUrl
-    ? `<li><a href="${escaped(failedListUrl)}">メール送信失敗一覧</a></li>`
+    ? `<li><a href="${escaped(failedListUrl)}">メール送信履歴（失敗タブ）</a></li>`
     : ""
 }
 ${

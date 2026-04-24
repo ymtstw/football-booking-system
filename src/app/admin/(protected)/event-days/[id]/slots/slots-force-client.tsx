@@ -28,7 +28,7 @@ export function SlotsForcePageClient({
           href={`/admin/event-days/${eventDayId}/slots`}
           className="text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
         >
-          通常の枠・時刻画面へ戻る
+          枠・時刻設定へ戻る
         </Link>
       </p>
 

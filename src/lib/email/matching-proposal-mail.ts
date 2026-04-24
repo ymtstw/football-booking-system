@@ -2,6 +2,7 @@ import "server-only";
 
 import { Resend } from "resend";
 
+import { RESERVE_MAIL_PUBLIC_JA } from "@/lib/copy/reserve-public-mail-schedule";
 import type { ReservationScheduleRow } from "@/lib/day-before/reservation-schedule-lines";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
@@ -133,6 +134,8 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
     ...(gradeFormatted ? [`学年帯\uFF1A${gradeFormatted}`] : []),
   ];
 
+  const dayBeforeFinalNoticeSentence = `なお、開催可否については、天候状況を踏まえたうえで、開催前日${RESERVE_MAIL_PUBLIC_JA.dayBeforeBy}頃に最終案内をお送りします。`;
+
   const text = [
     `${contactName} 様`,
     "",
@@ -140,7 +143,7 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
     "",
     "本スケジュールは、締切後の自動編成に基づいて作成しています。",
     "当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて問題ありません。",
-    "なお、開催可否については、天候状況を踏まえたうえで、開催前日18:00頃に最終案内をお送りします。",
+    dayBeforeFinalNoticeSentence,
     "",
     "【ご予約内容】",
     ...reservationLines,
@@ -161,7 +164,7 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
 <p>${escaped(MAIL_BODY_SERVICE_NAME)}の対戦スケジュールをご案内いたします。</p>
 <p>本スケジュールは、締切後の自動編成に基づいて作成しています。<br/>
 当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて問題ありません。<br/>
-なお、開催可否については、天候状況を踏まえたうえで、開催前日18:00頃に最終案内をお送りします。</p>
+${escaped(dayBeforeFinalNoticeSentence)}</p>
 <p><strong>【ご予約内容】</strong></p>
 <ul style="margin:8px 0;padding-left:1.25rem">${reservationListHtml}</ul>
 <p><strong>【対戦スケジュール】</strong></p>

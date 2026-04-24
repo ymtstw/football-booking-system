@@ -609,10 +609,10 @@ export function PreDayResultsClient({
           aria-labelledby="failed-notif-title"
         >
           <h2 id="failed-notif-title" className="text-sm font-semibold text-red-950">
-            この開催日の送信失敗
+            送信エラーの確認
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/80">
-            宛先と「内容」を確認し、再送できる行は「再送」を押してください。
+            送信を試みたときに「送れない」と返ってきたものだけです。届いていないのに空なこともあります。宛先と「内容」を確認し、再送できる行は「再送」を押してください。
           </p>
           <div className="mt-3">
             {!data?.eventDay?.id ? (
@@ -647,19 +647,18 @@ export function PreDayResultsClient({
                 </span>
                 {deadlinePassedAwaitingLock ? (
                   <span className="inline-flex items-center rounded-full border border-amber-400 bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-950">
-                    締切時刻は経過（DB は未ロック）
+                    締切時刻は経過（まだ締切済みに切り替わっていません）
                   </span>
                 ) : null}
               </div>
               {deadlinePassedAwaitingLock ? (
                 <div className="mt-2 max-w-2xl rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950">
                   <p className="font-semibold text-amber-950">
-                    予約締切の日時は過ぎていますが、開催日の状態はまだ「公開済み」のままです。
+                    予約締切の日時は過ぎていますが、開催日の状態はまだ「公開中」のままです。
                   </p>
                   <p className="mt-1">
-                    「締切済み」への自動移行はロック用 Cron（または手動の取りこぼし処理）のタイミングで行われます。それまでは
-                    <strong className="font-semibold">自動編成は実行できません</strong>（API も
-                    <code className="rounded bg-amber-100/80 px-1">locked</code> のみ許可）。
+                    「締切済み」への切り替えは、自動処理または手動の締切取りこぼし対応のタイミングで行われます。それまでは
+                    <strong className="font-semibold">自動編成は実行できません</strong>。
                   </p>
                   <p className="mt-2">
                     <Link
@@ -699,7 +698,7 @@ export function PreDayResultsClient({
                 <dd className="text-zinc-800">
                   {data.matchingRun ? (
                     <>
-                      記録あり · 警告 {data.matchingRun.warningCount} 件 · 照会{" "}
+                      記録あり · 注意 {data.matchingRun.warningCount} 件 · 実行記録の末尾{" "}
                       <span className="font-mono text-xs" title={data.matchingRun.id}>
                         {formatAdminIdTail(data.matchingRun.id)}
                       </span>
@@ -735,7 +734,7 @@ export function PreDayResultsClient({
               type="button"
               onClick={() => void runMatching()}
               disabled={!canRun || actionBusy !== null}
-              title={!canRun ? "締切済み（DB で locked）のときのみ実行できます" : undefined}
+              title={!canRun ? "開催日が締切済みのときのみ実行できます" : undefined}
               className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-800 px-4 text-sm font-medium text-white hover:bg-emerald-900 disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-zinc-100 disabled:opacity-100 disabled:hover:bg-zinc-400 sm:w-auto"
             >
               {actionBusy === "run" ? "実行中…" : "自動編成を実行"}
@@ -759,7 +758,7 @@ export function PreDayResultsClient({
           {!canRun && !canUndo ? (
             <p className="mt-2 text-xs text-zinc-600">
               {deadlinePassedAwaitingLock
-                ? "上のとおり、締切時刻は過ぎていますが DB がまだ公開中のため、実行ボタンは無効です。"
+                ? "上のとおり、締切時刻は過ぎていますが、開催日がまだ公開中のため実行ボタンは無効です。"
                 : "この状態では自動実行・巻き戻しボタンは無効です（締切済みまたは確定を想定）。"}
             </p>
           ) : null}

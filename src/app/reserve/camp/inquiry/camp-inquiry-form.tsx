@@ -27,7 +27,7 @@ export type CampInquiryFormProps = {
 
 function sectionHeading(section: CampInquiryFieldDef["section"]): string {
   if (section === "contact") return "ご連絡先";
-  if (section === "consult") return "ご希望（日程・ご相談内容）";
+  if (section === "consult") return "ご希望内容";
   return "任意（分かる範囲で）";
 }
 
@@ -49,7 +49,7 @@ function renderField(
   );
 
   const desc = def.descriptionJa ? (
-    <p className="mt-0.5 whitespace-pre-line text-xs leading-relaxed text-zinc-500">
+    <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-zinc-600 sm:text-xs sm:text-zinc-500">
       {def.descriptionJa}
     </p>
   ) : null;
@@ -127,7 +127,7 @@ function renderField(
 
 export function CampInquiryForm({
   sourcePath = "/reserve/camp",
-  submitLabel = "この内容で問い合わせる",
+  submitLabel = "この内容で相談する",
 }: CampInquiryFormProps) {
   const initial = useMemo(() => emptyCampInquiryFormState(), []);
   const [values, setValues] = useState<Record<string, string>>(initial);
@@ -168,7 +168,7 @@ export function CampInquiryForm({
       }
       setDoneMessage(
         json.message ??
-          "お問い合わせを受け付けました。内容を確認のうえ、運営よりご連絡します。この時点では予約確定ではありません。"
+          "ご相談を受け付けました。内容を確認のうえ、運営よりご連絡します。この時点では予約の確定ではありません。"
       );
       setValues(emptyCampInquiryFormState());
     } catch (e) {
@@ -199,11 +199,11 @@ export function CampInquiryForm({
           icon={<IconCheck className="h-5 w-5" strokeWidth={2.25} />}
           textClassName="text-sm font-bold text-rp-navy"
         >
-          お問い合わせを受け付けました
+          ご相談を受け付けました
         </ReserveHeadingWithIcon>
-        <p className="text-sm leading-relaxed text-zinc-800">{doneMessage}</p>
-        <p className="text-xs leading-relaxed text-zinc-600">
-          開催前のご調整は、運営からの返信にて行います。日帰り交流試合の予約カレンダーとは別のお手続きです。
+        <p className="text-[15px] leading-relaxed text-zinc-800 sm:text-sm">{doneMessage}</p>
+        <p className="text-sm leading-relaxed text-zinc-600 sm:text-xs">
+          開催前のご調整は、運営からの返信で進めます。日帰りの交流試合の予約とは別のお手続きです。
         </p>
       </div>
     );
@@ -212,7 +212,7 @@ export function CampInquiryForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-8 border-t border-dashed border-rp-mint-2 pt-8"
+      className="space-y-7 border-t border-dashed border-rp-mint-2 pt-7 sm:space-y-8 sm:pt-8"
     >
       <section className="space-y-4">
         <ReserveHeadingWithIcon

@@ -36,7 +36,7 @@ export default async function AdminEventDayHubPage({
       <div className="min-w-0 space-y-4">
         <h1 className="text-xl font-bold text-zinc-900">開催日</h1>
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-          開催日の取得に失敗しました: {loaded.message}
+          開催日の情報を表示できませんでした。時間をおいて再度お試しください。
         </p>
       </div>
     );
@@ -70,7 +70,7 @@ export default async function AdminEventDayHubPage({
   if (summary.warningCount != null && summary.warningCount > 0) {
     warnings.push({
       key: "warn",
-      label: `編成 warning が ${summary.warningCount} 件あります`,
+      label: `対戦編成の注意が ${summary.warningCount} 件あります`,
       href: preDayAdjustHref,
       tone: "amber",
     });
@@ -97,7 +97,7 @@ export default async function AdminEventDayHubPage({
                 {formatIsoDateWithWeekdayJa(day.event_date)}
               </h1>
               <p className="mt-1 text-sm text-zinc-600">
-                学年帯 <span className="font-semibold text-zinc-800">{day.grade_band}</span>
+                対象学年 <span className="font-semibold text-zinc-800">{day.grade_band}</span>
                 <span className="mx-2 text-zinc-300">·</span>
                 <span
                   className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
@@ -137,7 +137,7 @@ export default async function AdminEventDayHubPage({
             <div className="grid grid-cols-1 gap-x-5 gap-y-1 border-b border-zinc-100 px-4 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start">
               <dt>
                 <span className={`block ${sumLabel}`}>予約締切</span>
-                <span className={sumHint}>UTC で保存・東京で表示</span>
+                <span className={sumHint}>日本時間で表示しています</span>
               </dt>
               <dd className={`min-w-0 sm:text-right ${sumValue}`}>
                 {formatDateTimeTokyoWithWeekday(day.reservation_deadline_at)}
@@ -146,7 +146,7 @@ export default async function AdminEventDayHubPage({
             <div className="grid grid-cols-1 gap-x-5 gap-y-1 border-b border-zinc-100 px-4 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-center">
               <dt>
                 <span className={`block ${sumLabel}`}>予約チーム数</span>
-                <span className={sumHint}>有効な申し込み（active）</span>
+                <span className={sumHint}>有効な予約件数</span>
               </dt>
               <dd className={`min-w-0 sm:text-right ${sumValueNum}`}>{summary.activeTeamCount}</dd>
             </div>
@@ -190,8 +190,8 @@ export default async function AdminEventDayHubPage({
             </div>
             <div className="grid grid-cols-1 gap-x-5 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-center">
               <dt>
-                <span className={`block ${sumLabel}`}>通知送信失敗</span>
-                <span className={sumHint}>この開催に紐づく配信</span>
+                <span className={`block ${sumLabel}`}>送信エラー</span>
+                <span className={sumHint}>処理時点で検知（到達可否ではない）</span>
               </dt>
               <dd className="min-w-0 sm:text-right">
                 {summary.failedForDay > 0 ? (
@@ -212,8 +212,8 @@ export default async function AdminEventDayHubPage({
             {warnings.length === 0 ? (
               <div className="flex min-h-32 flex-1 flex-col justify-center rounded-xl border border-emerald-200/80 bg-emerald-50/70 px-4 py-3 text-sm leading-relaxed text-emerald-950 lg:min-h-0">
                 <p>
-                  編成の警告はありません。メールの<strong className="font-semibold">送信失敗</strong>は左の「
-                  <strong className="font-semibold">通知送信失敗</strong>」を確認してください。
+                  編成の警告はありません。メールの<strong className="font-semibold">送信エラー</strong>
+                  は左の件数から確認してください（送信処理時点の記録です）。
                 </p>
               </div>
             ) : (
@@ -278,7 +278,7 @@ export default async function AdminEventDayHubPage({
             href={`/admin/event-days/${day.id}/weather`}
             className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg border-2 border-sky-400 bg-sky-50 px-3 py-1.5 text-center text-sm font-semibold text-sky-950 shadow-sm hover:border-sky-500 hover:bg-sky-100/90"
           >
-            <span>雨天判断</span>
+            <span>天候対応</span>
             <span className="mt-0.5 block text-[11px] font-normal leading-tight text-sky-900/85">
               次の画面で登録・確定
             </span>
@@ -286,7 +286,7 @@ export default async function AdminEventDayHubPage({
         </div>
         <p className="mx-auto max-w-4xl text-xs leading-relaxed text-zinc-600">
           「試合の手直し」は<strong className="font-medium text-zinc-800">対戦の割当</strong>です。「
-          <strong className="font-medium text-zinc-800">枠・時刻</strong>」は公開枠の時刻・有効化です（下の確認・設定から）。
+          <strong className="font-medium text-zinc-800">枠・時刻設定</strong>」は試合枠の時刻と有効／無効です（下の確認・設定から）。
         </p>
       </section>
 
@@ -300,9 +300,9 @@ export default async function AdminEventDayHubPage({
             href={`/admin/event-days/${day.id}/slots`}
             className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-100 transition hover:border-emerald-200/80 hover:ring-emerald-100/60"
           >
-            <p className="text-sm font-bold text-zinc-900">公開枠・時刻</p>
+            <p className="text-sm font-bold text-zinc-900">枠・時刻設定</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-              公開枠の時刻・有効化・強制変更（対戦の付け替えではありません）
+              試合枠の時刻・有効化・強制変更（対戦の付け替えではありません）
             </p>
           </Link>
           <Link
@@ -311,7 +311,7 @@ export default async function AdminEventDayHubPage({
           >
             <p className="text-sm font-bold text-zinc-900">昼食（この開催日）</p>
             <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-              グローバル昼食のままか、この日だけ別メニューにするかを設定します。
+              共通の昼食メニューのままか、この日だけ別メニューにするかを設定します。
             </p>
           </Link>
           <div
@@ -329,8 +329,8 @@ export default async function AdminEventDayHubPage({
               }
             >
               {summary.failedForDay > 0
-                ? "送信失敗の確認・再送（件数は左表）"
-                : "送信の履歴・再送"}
+                ? "送信エラーの確認・再送（件数は左表）"
+                : "送信処理の記録・再送"}
             </p>
             <Link
               href={notificationsHref}
@@ -355,7 +355,7 @@ export default async function AdminEventDayHubPage({
                 緊急・運営中止
               </Link>
               <p className="mt-1.5 text-xs leading-relaxed text-rose-900/90">
-                頻用ではない操作です。雨天による中止は「雨天判断」から登録してください。
+                頻用ではない操作です。天候による中止は「天候対応」から登録してください。
               </p>
             </div>
           </div>

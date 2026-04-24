@@ -74,21 +74,30 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       id: "contact_email",
       section: "contact",
       labelJa: "メールアドレス",
-      descriptionJa:
-        "返信先です。誤記に備え、下の電話番号も必ずご入力ください。",
       type: "email",
       required: true,
       maxLength: 254,
-      placeholderJa: "ご返信用のメールアドレス",
+      placeholderJa: "例：example@example.com",
+    },
+    {
+      id: "contact_email_confirm",
+      section: "contact",
+      labelJa: "メールアドレス（確認）",
+      descriptionJa: "確認のため、上と同じアドレスをもう一度入力してください。",
+      type: "email",
+      required: true,
+      maxLength: 254,
+      placeholderJa: "例：example@example.com",
     },
     {
       id: "contact_phone",
       section: "contact",
       labelJa: "電話番号",
+      descriptionJa: "ハイフンありでも入力できます。",
       type: "tel",
       required: true,
       maxLength: 30,
-      placeholderJa: "ハイフンありでも可",
+      placeholderJa: "例：090-1234-5678",
     },
     {
       id: "preferred_plan",
@@ -105,13 +114,13 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       section: "consult",
       labelJa: "希望日程",
       descriptionJa:
-        "複数候補でも構いませんので、できるだけ具体的な日付でご記入ください。\n例：8月17日〜18日、8月22日から1泊2日 など\n日程がまだ決まっていない場合は、その旨をご記入ください。",
+        "未定の場合は、分かる範囲でご記入ください。\n複数候補でも問題ありません。",
       type: "textarea",
       required: true,
       maxLength: 2000,
       rows: 3,
       placeholderJa:
-        "例：8月17日〜18日／8月22日から1泊2日を検討中／8月24日・25日のいずれかを希望",
+        "例：8月17日〜18日、または8月22日から1泊2日を希望",
     },
     {
       id: "headcount",
@@ -130,13 +139,13 @@ function buildCampInquiryFieldDefs(): readonly CampInquiryFieldDef[] {
       section: "consult",
       labelJa: "ご相談内容",
       descriptionJa:
-        "宿泊に関するご希望をご記入ください。\n参加予定人数・チーム数・泊数・希望日など、分かる範囲でご記載ください。",
+        "人数・チーム数・ご希望内容などをご記入ください。\n未定の項目があっても問題ありません。",
       type: "textarea",
       required: true,
       maxLength: 4000,
       rows: 5,
       placeholderJa:
-        "例：8月22日から1泊2日を検討中です。\n2チーム、30名程度を予定しています。\n宿泊を含めた合宿の相談をしたいです。",
+        "8月22日から1泊2日を希望しています。\n2チーム・30名程度を予定しています。",
     },
     {
       id: "grade_band_note",
@@ -278,6 +287,20 @@ export function parseCampInquiryAnswers(body: unknown): {
   for (const key of Object.keys(rawAnswers as object)) {
     if (!allowedIds.has(key)) {
       // 未知キーは無視
+    }
+  }
+
+  const primaryEmail = out.contact_email;
+  const confirmEmail = out.contact_email_confirm;
+  delete out.contact_email_confirm;
+
+  if (primaryEmail != null && confirmEmail != null) {
+    if (primaryEmail.trim().toLowerCase() !== confirmEmail.trim().toLowerCase()) {
+      return {
+        ok: false,
+        error: "メールアドレスが一致しません。同じ内容を2回入力してください。",
+        fieldId: "contact_email_confirm",
+      };
     }
   }
 

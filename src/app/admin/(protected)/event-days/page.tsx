@@ -115,7 +115,7 @@ export default async function AdminEventDaysPage({
           開催日管理
         </h1>
         <p className="mt-2 wrap-break-word text-sm text-red-600">
-          一覧の取得に失敗しました: {error.message}
+          開催日一覧を表示できませんでした。時間をおいて再度お試しください。
         </p>
       </div>
     );
@@ -126,13 +126,10 @@ export default async function AdminEventDaysPage({
       <header className="mb-5 space-y-2 sm:mb-6">
         <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">開催日管理</h1>
         <p className="rounded-lg border border-emerald-200/90 bg-emerald-50/70 px-3 py-2 text-sm font-medium leading-snug text-emerald-950 sm:px-3.5 sm:py-2.5">
-          ナビの「開催日一覧」では、<strong className="font-semibold">まず下のフォームで新規開催日を作成</strong>
-          し、続けてカレンダー・一覧で公開や枠・天候へ進みます（作成はこの画面の<strong className="font-semibold">一番上</strong>だけです）。
+          この画面では、開催日の作成と管理ができます。まず開催日を作成し、その後カレンダーや一覧から公開設定・天候対応へ進んでください。
         </p>
         <p className="text-sm leading-relaxed text-zinc-600">
-          公開前のまま作成後、「公開」にすると一般向けの予約カレンダーに載ります。締切後・確定後も日付は表示されます（新規の予約受付は「公開済み」のときのみ）。
-          誤って作った公開前の開催日は「削除」から削除できます（確認のあと、予約が無い場合のみ）。
-          締切（締切済みへの移行）は運用では自動のため、ここには手動ボタンを出していません。
+          開催日は「公開前」の状態でも作成できます。公開前の開催日は一般向けには表示されません。予約が入っていない開催日のみ、削除または公開前への差し戻しができます。締切済みへの切り替えは、予約締切の日時を過ぎたあとに自動で進みます。
         </p>
       </header>
 
@@ -147,14 +144,9 @@ export default async function AdminEventDaysPage({
             開催カレンダー
           </h2>
           <p className="mb-3 text-xs text-zinc-500 sm:text-sm">
-            ① 初回表示は今日（東京）を基準にした月です。②
-            カレンダーで日付をタップすると、その日が一覧の
-            <strong className="font-medium text-zinc-700">基準開催日</strong>
-            になります。一覧はいつも「基準日より前（過去側）最大{" "}
-            {ADMIN_EVENT_DAY_LIST_BEFORE_ANCHOR} 件」＋「基準日以降（未来側）最大{" "}
-            {ADMIN_EVENT_DAY_LIST_FROM_ANCHOR} 件」です（区切りは
-            <strong className="font-medium text-zinc-700">開催日</strong>
-            。締切時刻では並べていません）。
+            カレンダーから開催日を確認できます。日付を選ぶと、その開催日を基準に一覧が切り替わります（基準日より前は最大{" "}
+            {ADMIN_EVENT_DAY_LIST_BEFORE_ANCHOR} 件、以降は最大{" "}
+            {ADMIN_EVENT_DAY_LIST_FROM_ANCHOR} 件を表示します）。
           </p>
           <AdminEventDaysCompactCalendar
             key={`${anchorEventDate}-${explicitAnchor ? "1" : "0"}`}
@@ -176,19 +168,12 @@ export default async function AdminEventDaysPage({
           id="admin-event-list-heading"
           className="mb-3 text-base font-medium text-zinc-900 sm:text-lg"
         >
-          登録済みの開催日（一覧）
+          開催日一覧
         </h2>
         <p className="mb-3 text-xs leading-relaxed text-zinc-600 sm:text-sm">
-          <span className="font-medium text-zinc-800">① デフォルト</span>
-          ：URL に日付が無いときは東京の今日（
+          登録済みの開催日を確認できます。基準日はカレンダーで選んだ日、または今日（
           <span className="tabular-nums">{todayTokyo}</span>
-          ）を基準開催日にします。
-          <span className="font-medium text-zinc-800"> ② カレンダー選択時</span>
-          ：選んだ開催日を基準にします。いずれも一覧は「
-          <strong className="text-zinc-800">直近の過去側</strong>（開催日が基準より前・新しい順で最大{" "}
-          {ADMIN_EVENT_DAY_LIST_BEFORE_ANCHOR} 件）」と「
-          <strong className="text-zinc-800">基準日以降</strong>（最大{" "}
-          {ADMIN_EVENT_DAY_LIST_FROM_ANCHOR} 件）」です。現在の基準は{" "}
+          ）です。いまの基準：{" "}
           <span className="font-medium text-zinc-800">
             {formatIsoDateWithWeekdayJa(anchorEventDate)}
           </span>
@@ -200,7 +185,7 @@ export default async function AdminEventDaysPage({
                 href="/admin/event-days"
                 className="font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
               >
-                ① 今日基準に戻す
+                今日を基準に戻す
               </Link>
             </>
           ) : null}
@@ -244,22 +229,20 @@ export default async function AdminEventDaysPage({
                           開催日
                         </th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium text-zinc-700">
-                          学年帯
+                          対象学年
                         </th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium text-zinc-700">
-                          状態
+                          公開状況
                         </th>
                         <th
                           className="min-w-40 px-3 py-2 font-medium text-zinc-700 lg:min-w-0"
-                          title="UTC で保存。表示は東京日時"
+                          title="日本時間で表示しています"
                         >
-                          <span className="hidden lg:inline">
-                            締切（UTC 保存・表示は ISO）
-                          </span>
+                          <span className="hidden lg:inline">予約締切</span>
                           <span className="lg:hidden">締切</span>
                         </th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium text-zinc-700">
-                          枠 / 天候
+                          枠・天候
                         </th>
                         <th className="whitespace-nowrap px-3 py-2 font-medium text-zinc-700">
                           操作
@@ -314,13 +297,13 @@ export default async function AdminEventDaysPage({
                                 href={`/admin/event-days/${row.id}/slots`}
                                 className="text-sm font-medium text-emerald-800 underline decoration-emerald-600/60 underline-offset-2 hover:text-emerald-950"
                               >
-                                枠・時刻
+                                枠・時刻設定
                               </Link>
                               <Link
                                 href={`/admin/event-days/${row.id}/weather`}
                                 className="text-sm font-medium text-sky-800 underline decoration-sky-600/60 underline-offset-2 hover:text-sky-950"
                               >
-                                雨天判断
+                                天候対応
                               </Link>
                               <Link
                                 href={`/admin/event-days/${row.id}/operational-cancel`}

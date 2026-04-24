@@ -7,9 +7,8 @@ import {
   ReserveEventDaysCalendar,
   type EventDayPublic,
 } from "../reserve-event-days-calendar";
-import { IconArrowRight, IconCalendar } from "../_components/reserve-icons";
-import { ReserveMainShell } from "../_components/ui";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { publicScheduleHubStatusLabel } from "@/lib/event-days/public-schedule-hub-status";
 import {
   initialYearMonthFromEvents,
   tokyoIsoDateToday,
@@ -21,7 +20,7 @@ import {
   RESERVE_FLOW_NETWORK_ERROR_JA,
 } from "@/lib/reserve/reserve-flow-user-message";
 
-/** 対戦表ハブ上部のカード一覧は直近のみ（カレンダーは全件） */
+/** 開催確認ハブ上部のカード一覧は直近のみ（カレンダーは全件） */
 const SCHEDULE_HUB_LIST_MAX = 2;
 
 function gradeYearsDisplay(gradeBand: string): string {
@@ -29,18 +28,6 @@ function gradeYearsDisplay(gradeBand: string): string {
   if (!s) return "—";
   if (s.endsWith("年")) return s;
   return `${s}年`;
-}
-
-function statusBadgeJa(status: string): { text: string; tone: "ok" | "muted" | "bad" } {
-  if (status === "cancelled_weather")
-    return { text: "雨天中止", tone: "bad" };
-  if (status === "cancelled_operational")
-    return { text: "運営中止", tone: "bad" };
-  if (status === "cancelled_minimum")
-    return { text: "最少未達中止", tone: "bad" };
-  if (status === "confirmed") return { text: "確定済", tone: "ok" };
-  if (status === "locked") return { text: "締切後", tone: "muted" };
-  return { text: "受付中", tone: "ok" };
 }
 
 export function ScheduleHubClient() {
@@ -121,77 +108,94 @@ export function ScheduleHubClient() {
   }
 
   return (
-    <div className="space-y-8">
-      <ReserveMainShell>
-        <div className="space-y-3">
-          <p className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-3 py-1 text-xs font-bold text-sky-900">
-            <IconCalendar className="h-3.5 w-3.5" strokeWidth={2} />
-            誰でも閲覧可（確認コード不要）
-          </p>
-          <h1 className="text-2xl font-extrabold leading-snug text-slate-900 sm:text-3xl">
-            対戦表・スケジュール
-          </h1>
-          <p className="text-sm leading-relaxed text-slate-600 sm:text-base">
-            本日以降の開催日を選ぶと、午前枠の状況と、編成が確定した開催日では対戦表を表示します。予約の変更・取消は「予約の確認・キャンセル」から行ってください。
-          </p>
-        </div>
-      </ReserveMainShell>
+    <div className="space-y-5 sm:space-y-6">
+      <header className="space-y-2">
+        <h1 className="text-xl font-bold leading-snug text-slate-900 sm:text-2xl">
+          開催日ごとの参加チーム・試合予定
+        </h1>
+        <p className="text-sm leading-relaxed text-slate-600">
+          開催日ごとに、参加チーム・試合予定・開催可否を確認できます。
+        </p>
+        <p className="text-sm leading-relaxed text-slate-600">
+          開催日を選ぶと、その日の参加チームや試合スケジュールの詳細を確認できます。
+        </p>
+        <p className="text-sm leading-relaxed text-slate-600">
+          前日17:30頃までに最終の開催可否を反映します。予約の変更・取消は
+          <Link
+            href="/reserve/manage"
+            className="font-semibold text-rp-brand underline underline-offset-2 hover:text-rp-navy"
+          >
+            「予約の確認・キャンセル」
+          </Link>
+          から行えます。
+        </p>
+      </header>
 
       {upcomingDays.length === 0 ? (
-        <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
+        <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-700">
           現在、本日以降で公開されている開催日はありません。
         </p>
       ) : (
         <>
-          <section className="space-y-3">
-            <h2 className="text-base font-bold text-slate-800 sm:text-lg">
-              開催日一覧（直近）
-            </h2>
-            {upcomingDays.length > SCHEDULE_HUB_LIST_MAX ? (
-              <p className="text-xs leading-relaxed text-slate-600 sm:text-sm">
-                直近 {SCHEDULE_HUB_LIST_MAX} 件を表示しています。そのほかの開催日は下のカレンダーから選べます。
-              </p>
-            ) : null}
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <section className="space-y-2" aria-labelledby="schedule-recent-heading">
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <h2 id="schedule-recent-heading" className="text-lg font-bold text-slate-900">
+                開催日一覧（直近）
+              </h2>
+              {upcomingDays.length > SCHEDULE_HUB_LIST_MAX ? (
+                <p className="text-xs text-slate-500">ほかは下のカレンダーから</p>
+              ) : null}
+            </div>
+            <p className="text-sm leading-relaxed text-slate-600">
+              直近の開催日を一覧で確認できます。
+            </p>
+            <p className="text-sm leading-relaxed text-slate-600">
+              参加チーム数や現在の状況を確認し、詳しく見たい日程を選択してください。
+            </p>
+            <ul className="flex flex-col gap-2">
               {upcomingListDays.map((d) => {
-                const badge = statusBadgeJa(d.status);
+                const st = publicScheduleHubStatusLabel(d);
+                const teamCount =
+                  typeof d.activeReservationCount === "number" ? d.activeReservationCount : 0;
                 const toneClass =
-                  badge.tone === "bad"
-                    ? "border-rose-200 bg-rose-50/80 hover:bg-rose-50"
-                    : badge.tone === "ok" && d.acceptingReservations
-                      ? "border-green-200 bg-green-50/80 hover:bg-green-50"
-                      : "border-sky-200 bg-sky-50/80 hover:bg-sky-50";
+                  st.tone === "bad"
+                    ? "border-rose-200 bg-rose-50/90 hover:bg-rose-50"
+                    : st.tone === "ok"
+                      ? "border-green-200 bg-green-50/90 hover:bg-green-50"
+                      : "border-sky-200 bg-sky-50/90 hover:bg-sky-50";
+                const badgeClass =
+                  st.tone === "bad"
+                    ? "bg-rose-200 text-rose-900"
+                    : st.tone === "ok"
+                      ? "bg-green-200 text-green-900"
+                      : "bg-sky-200 text-sky-900";
                 return (
                   <li key={d.id}>
                     <Link
                       href={`/reserve/schedule/${d.event_date}`}
-                      className={`flex min-h-18 flex-col justify-between rounded-xl border p-4 shadow-sm transition-colors ${toneClass}`}
+                      className={`flex min-h-[3.25rem] items-center gap-3 rounded-lg border px-3 py-2 shadow-sm transition-colors active:scale-[0.99] sm:min-h-14 sm:px-3.5 sm:py-2.5 ${toneClass}`}
                     >
-                      <div>
-                        <p className="text-sm font-bold text-slate-900">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold leading-tight text-slate-900 sm:text-[15px]">
                           {formatIsoDateWithWeekdayJa(d.event_date)}
                         </p>
-                        <p className="mt-0.5 text-xs font-semibold text-slate-700">
-                          {gradeYearsDisplay(d.grade_band)}
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="text-xs text-slate-600">
+                            {gradeYearsDisplay(d.grade_band)}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${badgeClass}`}
+                          >
+                            {st.label}
+                          </span>
+                        </div>
+                        <p className="mt-1 text-xs font-medium text-slate-600">
+                          参加チーム：{teamCount}チーム
                         </p>
                       </div>
-                      <div className="mt-2 flex items-center justify-between gap-2">
-                        <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                            badge.tone === "bad"
-                              ? "bg-rose-200 text-rose-900"
-                              : badge.tone === "ok" && d.acceptingReservations
-                                ? "bg-green-200 text-green-900"
-                                : "bg-sky-200 text-sky-900"
-                          }`}
-                        >
-                          {badge.text}
-                        </span>
-                        <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-rp-brand">
-                          表示
-                          <IconArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
-                        </span>
-                      </div>
+                      <span className="inline-flex min-h-10 max-w-[10.5rem] shrink-0 items-center justify-center rounded-lg bg-rp-brand px-2 py-1.5 text-center text-[11px] font-bold leading-snug text-white shadow-sm ring-1 ring-rp-brand/30 sm:min-h-11 sm:max-w-none sm:whitespace-nowrap sm:px-3.5 sm:text-sm">
+                        参加チーム・試合予定を見る
+                      </span>
                     </Link>
                   </li>
                 );
@@ -199,11 +203,30 @@ export function ScheduleHubClient() {
             </ul>
           </section>
 
-          <ReserveEventDaysCalendar
-            days={upcomingDays}
-            initialYearMonth={initialYm}
-            navigationMode="schedule"
-          />
+          <section
+            className="border-t border-slate-200/90 pt-5 sm:pt-6"
+            aria-labelledby="schedule-calendar-heading"
+          >
+            <h2
+              id="schedule-calendar-heading"
+              className="text-sm font-semibold text-slate-600 sm:text-base"
+            >
+              カレンダーから開催日を探す
+            </h2>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
+              カレンダーから開催日を選ぶと、その日の参加チーム・試合予定・開催可否を確認できます。
+            </p>
+            <div className="mt-2 sm:mt-3">
+              <ReserveEventDaysCalendar
+                days={upcomingDays}
+                initialYearMonth={initialYm}
+                navigationMode="schedule"
+              />
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-500 sm:text-sm">
+              ※試合予定や開催可否は、開催日の詳細画面で確認できます。
+            </p>
+          </section>
         </>
       )}
     </div>

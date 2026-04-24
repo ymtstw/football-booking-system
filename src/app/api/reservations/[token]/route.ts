@@ -34,6 +34,7 @@ import {
   isContactPhoneDigitsValid,
   normalizeContactPhoneDigits,
 } from "@/lib/validators/contact-phone";
+import { isReserveContactNameOk } from "@/lib/validators/reserve-contact-name";
 
 type EventDayRow = {
   id: string;
@@ -206,7 +207,7 @@ function parsePatchBody(raw: unknown): {
 
   if (!Number.isInteger(participantCount) || participantCount < 1) return null;
   if (lunchItems === null) return null;
-  if (!contactName) return null;
+  if (!isReserveContactNameOk(contactName)) return null;
   if (!isContactPhoneDigitsValid(contactPhoneDigits)) return null;
 
   return { participantCount, lunchItems, contactName, contactPhoneDigits };
