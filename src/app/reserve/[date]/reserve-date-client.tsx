@@ -422,6 +422,8 @@ export function ReserveDateClient({
         detail?: string;
         reservationId?: string;
         reservationToken?: string;
+        reservationTokenDisplay?: string;
+        publicRef?: string;
       };
 
       if (!res.ok) {
@@ -438,7 +440,7 @@ export function ReserveDateClient({
         );
         return;
       }
-      if (!json.reservationToken || !json.reservationId) {
+      if (!json.reservationToken || !json.reservationId || !json.publicRef) {
         setSubmitError(
           "予約は完了したが表示用データが返りませんでした。運営へ連絡してください。"
         );
@@ -450,6 +452,9 @@ export function ReserveDateClient({
           SESSION_COMPLETE_KEY,
           JSON.stringify({
             reservationToken: json.reservationToken,
+            reservationTokenDisplay:
+              json.reservationTokenDisplay ?? json.reservationToken,
+            publicRef: json.publicRef,
             reservationId: json.reservationId,
             eventDate: data.eventDate,
           })

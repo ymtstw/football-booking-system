@@ -4,7 +4,10 @@
  */
 import { NextResponse } from "next/server";
 
+import { sendReservationUserCancelledEmail } from "@/lib/email/reservation-user-cancel-mail";
+import { recordReservationTokenLookupFailure } from "@/lib/rate-limit/reservation-token-lookup-failure";
 import { rateLimitReservationTokenCancel } from "@/lib/rate-limit/reservation-public";
+import { RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA } from "@/lib/reservations/reservation-token-auth-message";
 import {
   hashReservationTokenPlain,
   isValidReservationTokenFormat,
@@ -34,10 +37,9 @@ export async function POST(
   const token = normalizeReservationTokenPlain(rawToken ?? "");
 
   if (!isValidReservationTokenFormat(token)) {
-    return NextResponse.json(
-      { error: "確認コードの形式が不正です" },
-      { status: 404 }
-    );
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   const tokenHash = hashReservationTokenPlain(token);
@@ -67,6 +69,39 @@ export async function POST(
   }
 
   if (result.success === true && result.reservationId) {
+    if (result.alreadyCancelled !== true) {
+      const rid = String(result.reservationId);
+      const { data: mailRow } = await supabase
+        .from("reservations")
+        .select(
+          "public_ref, event_days(event_date), teams(contact_name, team_name, contact_email)"
+        )
+        .eq("id", rid)
+        .maybeSingle();
+
+      if (mailRow) {
+        const row = mailRow as {
+          public_ref: string | null;
+          event_days: { event_date: string } | { event_date: string }[] | null;
+          teams:
+            | { contact_name: string; team_name: string; contact_email: string }
+            | { contact_name: string; team_name: string; contact_email: string }[]
+            | null;
+        };
+        const team = Array.isArray(row.teams) ? row.teams[0] : row.teams;
+        const ed = Array.isArray(row.event_days) ? row.event_days[0] : row.event_days;
+        if (team?.contact_email?.trim()) {
+          void sendReservationUserCancelledEmail({
+            to: team.contact_email.trim(),
+            contactName: team.contact_name.trim(),
+            teamName: team.team_name.trim(),
+            publicRef: row.public_ref?.trim() ?? null,
+            eventDateIso: ed?.event_date ?? null,
+          });
+        }
+      }
+    }
+
     return NextResponse.json({
       reservationId: result.reservationId,
       cancelled: true,
@@ -76,8 +111,11 @@ export async function POST(
 
   const err = result.error ?? "unknown";
   switch (err) {
-    case "not_found":
-      return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
+    case "not_found": {
+      const block = recordReservationTokenLookupFailure(request);
+      if (block) return block;
+      return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
+    }
     case "deadline_passed":
       return NextResponse.json(
         { error: "締切を過ぎているためキャンセルできません" },

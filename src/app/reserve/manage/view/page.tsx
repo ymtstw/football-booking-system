@@ -52,6 +52,7 @@ import {
 type ReservationJson = {
   reservation?: {
     id: string;
+    publicRef?: string;
     status: string;
     participantCount: number;
     lunchItems: ReservationLunchLinePublic[];
@@ -147,7 +148,9 @@ export default function ReserveManageViewPage() {
   }, [lunchMenus, editLunchQtyByMenuId]);
 
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
+  const [cancelMessageOk, setCancelMessageOk] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [cancelArmed, setCancelArmed] = useState(false);
 
   const clearTokenAndGoInput = useCallback(() => {
     try {
@@ -161,7 +164,21 @@ export default function ReserveManageViewPage() {
   useEffect(() => {
     queueMicrotask(() => {
       try {
-        const raw = sessionStorage.getItem(MANAGE_VIEW_TOKEN_SESSION_KEY);
+        let raw: string | null = null;
+        if (typeof window !== "undefined") {
+          const q = new URLSearchParams(window.location.search).get("token");
+          if (q) {
+            const n = normalizeReservationTokenPlain(q);
+            if (isValidReservationTokenFormat(n)) {
+              sessionStorage.setItem(MANAGE_VIEW_TOKEN_SESSION_KEY, n);
+              raw = n;
+              window.history.replaceState({}, "", window.location.pathname);
+            }
+          }
+        }
+        if (!raw) {
+          raw = sessionStorage.getItem(MANAGE_VIEW_TOKEN_SESSION_KEY);
+        }
         const t = raw ? normalizeReservationTokenPlain(raw) : "";
         if (t && isValidReservationTokenFormat(t)) {
           setToken(t);
@@ -392,9 +409,10 @@ export default function ReserveManageViewPage() {
     }
   }
 
-  async function cancel() {
+  async function executeCancel() {
     if (!token) return;
     setCancelMessage(null);
+    setCancelMessageOk(false);
     if (!reservation || reservation.status !== "active") {
       setCancelMessage("キャンセルできる予約がありません");
       return;
@@ -408,13 +426,6 @@ export default function ReserveManageViewPage() {
       setCancelMessage(
         `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎているため、ここからはキャンセルできません`
       );
-      return;
-    }
-    if (
-      !window.confirm(
-        "この予約をキャンセルしますか？キャンセル後も確認コードで内容を確認できます。"
-      )
-    ) {
       return;
     }
     setCancelling(true);
@@ -434,11 +445,13 @@ export default function ReserveManageViewPage() {
             `キャンセルに失敗しました（${res.status}）`
           )
         );
+        setCancelMessageOk(false);
         return;
       }
-      setCancelMessage(
-        json.alreadyCancelled ? "すでにキャンセル済みです" : "キャンセルしました"
-      );
+      const okMsg = json.alreadyCancelled ? "すでにキャンセル済みです" : "キャンセルしました";
+      setCancelMessage(okMsg);
+      setCancelMessageOk(true);
+      setCancelArmed(false);
       await fetchReservation({ silent: true });
     } catch (e) {
       setCancelMessage(
@@ -447,6 +460,7 @@ export default function ReserveManageViewPage() {
           RESERVE_FLOW_NETWORK_ERROR_JA
         )
       );
+      setCancelMessageOk(false);
     } finally {
       setCancelling(false);
     }
@@ -516,6 +530,11 @@ export default function ReserveManageViewPage() {
 
       <header className="space-y-1">
         <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">予約内容</h1>
+        {reservation.publicRef ? (
+          <p className="text-sm font-semibold text-zinc-800">
+            予約番号：<span className="font-mono tracking-wide">{reservation.publicRef}</span>
+          </p>
+        ) : null}
         <p className="text-sm text-zinc-600">ご登録内容の確認・変更・キャンセルはこの画面で行えます。</p>
       </header>
 
@@ -853,22 +872,63 @@ export default function ReserveManageViewPage() {
       <section className="rounded-2xl border border-zinc-200 bg-white px-4 py-5 shadow-sm sm:px-6">
         <h2 className="text-base font-bold text-rp-navy">キャンセル</h2>
         {reservation.status === "active" && canMutate ? (
-          <button
-            type="button"
-            onClick={() => void cancel()}
-            disabled={cancelling}
-            className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-red-500 bg-white px-6 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 sm:max-w-md"
-          >
-            {cancelling ? <InlineSpinner variant="onLight" /> : null}
-            {cancelling ? "処理中…" : "予約をキャンセルする"}
-          </button>
+          <div className="mt-3 space-y-3">
+            {!cancelArmed ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCancelMessage(null);
+                  setCancelArmed(true);
+                }}
+                disabled={cancelling}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full border-2 border-red-500 bg-white px-6 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50 sm:max-w-md"
+              >
+                予約をキャンセルする
+              </button>
+            ) : (
+              <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/80 px-3 py-3 sm:px-4">
+                <p className="text-sm font-medium leading-relaxed text-red-950">
+                  この予約をキャンセルしますか？取り消したあとも確認コードで内容の参照はできますが、参加枠は解放されます。
+                </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => void executeCancel()}
+                    disabled={cancelling}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-red-600 px-5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 sm:min-w-[10rem]"
+                  >
+                    {cancelling ? <InlineSpinner variant="onDark" /> : null}
+                    {cancelling ? "処理中…" : "キャンセルを実行する"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCancelArmed(false);
+                      setCancelMessage(null);
+                    }}
+                    disabled={cancelling}
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:min-w-[10rem]"
+                  >
+                    やめる
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <p className="mt-3 text-sm text-zinc-600">
             {reservation.status === "cancelled" ? "キャンセル済み" : "キャンセル不可"}
           </p>
         )}
         {cancelMessage ? (
-          <p className="mt-3 text-sm font-medium text-emerald-900">{cancelMessage}</p>
+          <p
+            className={`mt-3 text-sm font-medium ${
+              cancelMessageOk ? "text-emerald-900" : "text-red-900"
+            }`}
+            role={cancelMessageOk ? "status" : "alert"}
+          >
+            {cancelMessage}
+          </p>
         ) : null}
       </section>
     </div>

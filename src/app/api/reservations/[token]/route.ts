@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 
+import { recordReservationTokenLookupFailure } from "@/lib/rate-limit/reservation-token-lookup-failure";
 import {
   rateLimitReservationTokenGet,
   rateLimitReservationTokenPatch,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/lunch/parse-lunch-items-body";
 import { replaceReservationLunchItems } from "@/lib/lunch/replace-reservation-lunch-items";
 import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
+import { RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA } from "@/lib/reservations/reservation-token-auth-message";
 import {
   hashReservationTokenPlain,
   isReservationLookupExpired,
@@ -75,6 +77,7 @@ type ReservationRow = {
   status: string;
   participant_count: number;
   created_at: string;
+  public_ref: string;
   event_days: EventDayRow;
   teams: TeamRow;
   event_day_slots: SlotRow;
@@ -87,6 +90,7 @@ const RESERVATION_SELECT = `
       status,
       participant_count,
       created_at,
+      public_ref,
       event_days!inner (
         id,
         event_date,
@@ -154,6 +158,7 @@ function reservationJson(row: ReservationRow) {
   return {
     reservation: {
       id: row.id,
+      publicRef: row.public_ref,
       status: row.status,
       participantCount: row.participant_count,
       lunchItems,
@@ -224,10 +229,9 @@ export async function GET(
   const token = normalizeReservationTokenPlain(rawToken ?? "");
 
   if (!isValidReservationTokenFormat(token)) {
-    return NextResponse.json(
-      { error: "確認コードの形式が不正です" },
-      { status: 404 }
-    );
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   const tokenHash = hashReservationTokenPlain(token);
@@ -248,14 +252,18 @@ export async function GET(
   }
 
   if (!data) {
-    return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   const row = data as unknown as ReservationRow;
   const ed = row.event_days;
 
   if (isReservationLookupExpired(ed.event_date)) {
-    return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   return NextResponse.json(reservationJson(row));
@@ -272,10 +280,9 @@ export async function PATCH(
   const token = normalizeReservationTokenPlain(rawToken ?? "");
 
   if (!isValidReservationTokenFormat(token)) {
-    return NextResponse.json(
-      { error: "確認コードの形式が不正です" },
-      { status: 404 }
-    );
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   let json: unknown;
@@ -345,14 +352,18 @@ export async function PATCH(
   }
 
   if (!before) {
-    return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   const row = before as unknown as ReservationRow;
   const ed = row.event_days;
 
   if (isReservationLookupExpired(ed.event_date)) {
-    return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
+    const block = recordReservationTokenLookupFailure(request);
+    if (block) return block;
+    return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
   if (ed.status !== "open") {

@@ -1,9 +1,11 @@
-import { randomBytes } from "crypto";
-
 import { NextResponse } from "next/server";
 
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { sendReservationCreatedEmailAndUpdateNotification } from "@/lib/email/reservation-created-mail";
+import {
+  formatReservationConfirmationDisplay,
+  generateReservationConfirmationRaw,
+} from "@/lib/reservations/confirmation-code";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -87,6 +89,7 @@ export async function POST(
       status,
       event_day_id,
       reservation_token_hash,
+      public_ref,
       teams (
         team_name,
         contact_name,
@@ -155,9 +158,19 @@ export async function POST(
   const oldHash = String(
     (row as { reservation_token_hash: string }).reservation_token_hash
   );
+  const publicRef = String(
+    (row as { public_ref?: string | null }).public_ref ?? ""
+  ).trim();
+  if (!publicRef) {
+    return NextResponse.json(
+      { error: "予約番号（public_ref）が未設定です。DB マイグレーションを適用してください。" },
+      { status: 500 }
+    );
+  }
 
   for (let attempt = 0; attempt < 6; attempt++) {
-    const tokenPlain = randomBytes(32).toString("hex");
+    const tokenPlain = generateReservationConfirmationRaw();
+    const tokenDisplay = formatReservationConfirmationDisplay(tokenPlain);
     const tokenHash = hashReservationTokenPlain(tokenPlain);
 
     const { error: updErr } = await supabase
@@ -209,6 +222,8 @@ export async function POST(
       gradeBand: (dayRow as { grade_band: string }).grade_band ?? null,
       representativeGradeYear: gy,
       reservationTokenPlain: tokenPlain,
+      reservationTokenDisplay: tokenDisplay,
+      publicRef,
       notificationId: notif.id,
       deliveryTrigger: "admin_resend",
     });

@@ -3,8 +3,6 @@
  * 受付可否: `create_public_reservation` が `event_days.status = open` かつ締切前を検証する。
  * 仕様の正本: `docs/spec/implemented-behavior-catalog.md` §1
  */
-import { randomBytes } from "crypto";
-
 import { NextResponse } from "next/server";
 
 import { sendReservationCreatedEmailAndUpdateNotification } from "@/lib/email/reservation-created-mail";
@@ -18,6 +16,11 @@ import {
   PUBLIC_RESERVE_API_WRITE_ERROR_JA,
 } from "@/lib/http/public-reserve-api-error";
 import { rateLimitReservationCreate } from "@/lib/rate-limit/reservation-public";
+import {
+  formatReservationConfirmationDisplay,
+  generateReservationConfirmationRaw,
+} from "@/lib/reservations/confirmation-code";
+import { generateReservationPublicRef } from "@/lib/reservations/public-ref";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
@@ -273,8 +276,10 @@ export async function POST(request: Request) {
   const supabase = createServiceRoleClient();
 
   for (let attempt = 0; attempt < 6; attempt++) {
-    const tokenPlain = randomBytes(32).toString("hex");
+    const tokenPlain = generateReservationConfirmationRaw();
+    const tokenDisplay = formatReservationConfirmationDisplay(tokenPlain);
     const tokenHash = hashReservationTokenPlain(tokenPlain);
+    const publicRef = generateReservationPublicRef();
 
     const { data, error } = await supabase.rpc("create_public_reservation", {
       p_event_day_id: eventDayId,
@@ -289,6 +294,7 @@ export async function POST(request: Request) {
       p_remarks: "",
       p_token_hash: tokenHash,
       p_representative_grade_year: gradeYear,
+      p_public_ref: publicRef,
     });
 
     if (error) {
@@ -321,6 +327,8 @@ export async function POST(request: Request) {
         gradeBand: eventDayRow?.grade_band ?? null,
         representativeGradeYear: gradeYear,
         reservationTokenPlain: tokenPlain,
+        reservationTokenDisplay: tokenDisplay,
+        publicRef,
       });
 
       return NextResponse.json(
@@ -328,6 +336,8 @@ export async function POST(request: Request) {
           reservationId: result.reservationId,
           teamId: result.teamId,
           reservationToken: tokenPlain,
+          reservationTokenDisplay: tokenDisplay,
+          publicRef,
         },
         { status: 201 }
       );

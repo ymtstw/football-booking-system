@@ -6,6 +6,7 @@ import { TEMPLATE_MATCHING_PROPOSAL } from "@/lib/email/matching-proposal-mail";
 
 import { deleteAllEventDaysForIntegration } from "./helpers/delete-all-event-days";
 import { hashReservationTokenPlainForTest } from "./helpers/hash-reservation-token";
+import { testReservationPublicRef } from "./helpers/test-reservation-public-ref";
 import { deleteEventDayById, insertEventDayWithSlots } from "./helpers/seed-event-day";
 import { getIntegrationSupabase, hasSupabaseEnv } from "./helpers/service-role-client";
 
@@ -62,6 +63,7 @@ function baseCreateRpc(
     p_remarks: "",
     p_token_hash: tokenHash,
     p_representative_grade_year: 3,
+    p_public_ref: testReservationPublicRef(),
   };
 }
 

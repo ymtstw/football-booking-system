@@ -7,6 +7,7 @@ import { PATCH } from "@/app/api/reservations/[token]/route";
 import { deleteEventDayById, insertEventDayWithSlots } from "./helpers/seed-event-day";
 import { getIntegrationSupabase, hasSupabaseEnv } from "./helpers/service-role-client";
 import { hashReservationTokenPlainForTest } from "./helpers/hash-reservation-token";
+import { testReservationPublicRef } from "./helpers/test-reservation-public-ref";
 
 const futureDeadlineIso = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
 
@@ -34,6 +35,7 @@ describe.skipIf(!hasSupabaseEnv())("integration: PATCH /api/reservations/[token]
         p_remarks: "",
         p_token_hash: tokenHash,
         p_representative_grade_year: 3,
+        p_public_ref: testReservationPublicRef(),
       });
       expect(cErr).toBeNull();
       expect(created).toMatchObject({ success: true });

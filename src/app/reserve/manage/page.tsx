@@ -35,7 +35,9 @@ export default function ReserveManagePage() {
     setLookupError(null);
     const token = normalizeReservationTokenPlain(tokenInput);
     if (!isValidReservationTokenFormat(token)) {
-      setLookupError("64 文字の英数字（確認コード）をそのまま貼り付けてください");
+      setLookupError(
+        "確認コードの形式が正しくありません。予約完了メールの内容をご確認ください。"
+      );
       return;
     }
     setLoading(true);
@@ -75,7 +77,7 @@ export default function ReserveManagePage() {
       <header className="space-y-2 text-center sm:text-left">
         <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">予約の確認・キャンセル</h1>
         <p className="text-sm leading-relaxed text-zinc-600 sm:text-base">
-          確認コードを入力すると、予約内容の確認やキャンセルができます。
+          予約完了メールに記載されている確認コードを入力すると、予約内容の確認やキャンセルができます。
         </p>
       </header>
 
@@ -87,10 +89,10 @@ export default function ReserveManagePage() {
           確認コードを入力してください
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-          予約完了時に発行された確認コードを入力してください。
+          予約完了メールに記載されている確認コードを入力してください。
         </p>
         <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
-          英数字64文字をそのまま貼り付けてください。
+          メールにハイフン付きで記載されている場合は、そのまま貼り付けて問題ありません。以前の予約で英数字が64文字のコードの方も、そのまま入力できます。
         </p>
         <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50/80">
           <label htmlFor="manage-reservation-token" className="sr-only">
@@ -104,7 +106,7 @@ export default function ReserveManagePage() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="確認コードを貼り付け"
+            placeholder="例：K3M9-P2QX-7VNA-8D4H"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
             className="min-h-12 w-full min-w-[min(100%,18rem)] border-0 bg-transparent px-3 py-3 font-mono text-sm text-zinc-900 outline-none ring-0 focus:ring-0 sm:min-h-[3.25rem] sm:px-4 sm:text-base"
@@ -155,7 +157,7 @@ export default function ReserveManagePage() {
           </summary>
           <ul className="space-y-2 border-t border-zinc-200 px-4 pb-3 pt-3 text-sm leading-relaxed text-zinc-800 sm:px-5">
             <li>・前後に空白や改行が入っていないかご確認ください。</li>
-            <li>・英数字（0-9, a-f）をそのまま入力してください。</li>
+            <li>・メールに記載の確認コードをそのままコピーして貼り付けてください。</li>
           </ul>
         </details>
       </div>
@@ -178,7 +180,7 @@ export default function ReserveManagePage() {
           <h3 className="text-sm font-bold text-rp-navy">確認コードで確認できないとき</h3>
           <ul className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-800">
             <li>・前後に空白や改行が入っていないかご確認ください。</li>
-            <li>・英数字（0-9, a-f）をそのまま入力してください。</li>
+            <li>・メールに記載の確認コードをそのままコピーして貼り付けてください。</li>
           </ul>
         </section>
       </div>
