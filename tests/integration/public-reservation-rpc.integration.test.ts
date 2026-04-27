@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 import { hashReservationTokenPlainForTest } from "./helpers/hash-reservation-token";
+import { testReservationPublicRef } from "./helpers/test-reservation-public-ref";
 import {
   deleteEventDayById,
   insertEventDayWithSlots,
@@ -30,6 +31,7 @@ function baseCreateRpcParams(
     p_remarks: "",
     p_token_hash: tokenHash,
     p_representative_grade_year: 3,
+    p_public_ref: testReservationPublicRef(),
   };
 }
 

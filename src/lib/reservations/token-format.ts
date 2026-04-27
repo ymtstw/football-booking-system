@@ -1,13 +1,28 @@
 /** 予約 token の形式・正規化・照会保持期限（ブラウザでも利用可・crypto なし）。 */
 
-/** 照合・URL 用: 前後空白除去し hex は小文字に統一 */
+import { isValidReservationConfirmationRaw } from "@/lib/reservations/confirmation-code";
+
+/** 照合・URL 用: 旧 64 hex は小文字へ。新短コードはハイフン・空白除去し大文字へ。 */
 export function normalizeReservationTokenPlain(plain: string): string {
-  return plain.trim().toLowerCase();
+  const trimmed = plain.trim();
+  if (!trimmed) return "";
+
+  const noSpaceHyphen = trimmed.replace(/[\s-]/g, "");
+  const lower = noSpaceHyphen.toLowerCase();
+  if (/^[0-9a-f]{64}$/.test(lower)) {
+    return lower;
+  }
+
+  return noSpaceHyphen.toUpperCase();
 }
 
-/** 平文 token は 32 バイト hex = 64 文字（小文字想定・normalize 後に検証） */
+/**
+ * 旧: 32 バイト hex = 64 文字。
+ * 新: 16 文字・CONFIRMATION_CODE_ALPHABET のみ。
+ */
 export function isValidReservationTokenFormat(token: string): boolean {
-  return /^[0-9a-f]{64}$/.test(token);
+  if (/^[0-9a-f]{64}$/.test(token)) return true;
+  return isValidReservationConfirmationRaw(token);
 }
 
 function parseYmdUtc(yyyyMmDd: string): number {

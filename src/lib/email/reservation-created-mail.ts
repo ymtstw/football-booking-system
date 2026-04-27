@@ -33,6 +33,13 @@ function managePageUrl(): string | null {
   return `${base}/reserve/manage`;
 }
 
+/** メール用: 確認コード付きで予約内容画面へ（token は正規化済み平文） */
+function manageViewUrlWithToken(tokenPlain: string): string | null {
+  const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
+  if (!base) return null;
+  return `${base}/reserve/manage/view?token=${encodeURIComponent(tokenPlain)}`;
+}
+
 function reserveContactPageUrl(): string | null {
   const base = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/$/, "");
   if (!base) return null;
@@ -148,7 +155,12 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   gradeBand: string | null;
   /** 予約時に選択した代表学年（1〜6） */
   representativeGradeYear: number;
+  /** 確認コード正規形（ハイフンなし）。リンク・ハッシュと一致 */
   reservationTokenPlain: string;
+  /** メール表示用（例: K3M9-P2QX-7VNA-8D4H） */
+  reservationTokenDisplay: string;
+  /** 予約番号（表示・問い合わせ用） */
+  publicRef: string;
   /** 指定時はこの通知行だけを sent/failed に更新（再送で pending を複数置いたときのため） */
   notificationId?: string | null;
   /** 統合イベント（将来 webhook）の発火元区別 */
@@ -164,6 +176,8 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     gradeBand,
     representativeGradeYear,
     reservationTokenPlain,
+    reservationTokenDisplay,
+    publicRef,
     notificationId: notificationIdRaw,
     deliveryTrigger = "public_reservation_created",
   } = params;
@@ -197,6 +211,7 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     : null;
   const repYearLine = `代表学年${colon}${gradeYearLabelJa(representativeGradeYear)}`;
   const manageUrl = managePageUrl();
+  const manageDirectUrl = manageViewUrlWithToken(reservationTokenPlain);
   const contactUrl = reserveContactPageUrl();
 
   const escaped = (s: string) =>
@@ -276,13 +291,16 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
 
   const guideLines = [
     "【ご案内】",
-    "・予約内容の確認・変更・キャンセルには、予約確認コード が必要です。",
-    "・予約確認コードは第三者に教えず、大切に保管してください。",
+    "・予約内容の確認・変更・キャンセルには、確認コード が必要です。",
+    "・確認コードは第三者に教えず、大切に保管してください。",
     "・予約内容の変更・キャンセルは、開催2日前の15:00まで可能です。",
-    "・下記ページより、予約内容の確認・変更・キャンセルができます。",
+    "・リンクが開けない場合は、下記の確認コードを「予約の確認・キャンセル」ページに入力してください。",
     "",
+    ...(manageDirectUrl
+      ? ["予約内容の確認・キャンセル（直接リンク）", manageDirectUrl, ""]
+      : []),
     ...(manageUrl
-      ? ["予約の確認・キャンセルページを開く", manageUrl, ""]
+      ? ["予約の確認・キャンセル（入力ページ）", manageUrl, ""]
       : ["サイトの「予約の確認・キャンセル」ページより操作できます。", ""]),
   ];
 
@@ -304,33 +322,39 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     "",
     ...guideLines,
     "【お申し込み内容】",
+    `予約番号${colon}${publicRef}`,
     `チーム名${colon}${teamName}`,
     `開催日${colon}${eventLine}`,
     ...(gradeLine ? [gradeLine] : []),
     repYearLine,
     ...lunchBlockText,
     "",
-    "【予約確認コード】",
-    reservationTokenPlain,
+    "【確認コード】",
+    reservationTokenDisplay,
     ...footerLines,
   ].join("\n");
 
-  const tokenHtml = `<pre style="font-size:12px;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px;border:1px solid #e4e4e7">${escaped(reservationTokenPlain)}</pre>`;
+  const tokenHtml = `<pre style="font-size:15px;letter-spacing:0.02em;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px;border:1px solid #e4e4e7">${escaped(reservationTokenDisplay)}</pre>`;
+  const manageDirectHtml = manageDirectUrl
+    ? `<p style="margin-top:12px"><a href="${escaped(manageDirectUrl)}">予約内容の確認・キャンセル（リンク）</a></p>`
+    : "";
   const manageHtml = manageUrl
-    ? `<p style="margin-top:12px"><a href="${escaped(manageUrl)}">予約の確認・キャンセルページを開く</a></p>`
+    ? `<p style="margin-top:8px"><a href="${escaped(manageUrl)}">予約の確認・キャンセル（確認コード入力）</a></p>`
     : `<p style="margin-top:12px">サイトの「予約の確認・キャンセル」ページより操作できます。</p>`;
 
   const guideHtml = `<p style="margin-top:20px;font-size:15px"><strong>【ご案内】</strong></p>
 <ul style="margin-top:8px;padding-left:1.25rem">
-<li>予約内容の確認・変更・キャンセルには、予約確認コード が必要です。</li>
-<li>予約確認コードは第三者に教えず、大切に保管してください。</li>
+<li>予約内容の確認・変更・キャンセルには、確認コード が必要です。</li>
+<li>確認コードは第三者に教えず、大切に保管してください。</li>
 <li>予約内容の変更・キャンセルは、開催2日前の15:00まで可能です。</li>
-<li>下記ページより、予約内容の確認・変更・キャンセルができます。</li>
+<li>リンクが開けない場合は、下記の確認コードを入力してください。</li>
 </ul>
+${manageDirectHtml}
 ${manageHtml}`;
 
   const applicationHtml = `<p style="margin-top:20px;font-size:15px"><strong>【お申し込み内容】</strong></p>
 <ul style="margin-top:8px;padding-left:1.25rem">
+<li>予約番号${colon}${escaped(publicRef)}</li>
 <li>チーム名${colon}${escaped(teamName)}</li>
 <li>開催日${colon}${escaped(eventLine)}</li>
 ${gradeBand?.trim() ? `<li>学年帯${colon}${escaped(gradeBand.trim())}</li>` : ""}
@@ -348,7 +372,7 @@ ${gradeBand?.trim() ? `<li>学年帯${colon}${escaped(gradeBand.trim())}</li>` :
 ${guideHtml}
 ${applicationHtml}
 ${lunchBlockHtml}
-<p style="margin-top:20px;font-size:15px"><strong>【予約確認コード】</strong></p>
+<p style="margin-top:20px;font-size:15px"><strong>【確認コード】</strong></p>
 ${tokenHtml}
 ${footerHtml}
 </body></html>`;

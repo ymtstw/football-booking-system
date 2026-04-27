@@ -1,0 +1,445 @@
+-- reservations.public_ref + create_public_reservation(p_public_ref).
+
+ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS public_ref text;
+
+DO $$
+DECLARE
+  r record;
+  cand text;
+  ok boolean;
+  alphabet text := '23456789ABCDEFGHJKMNPQRSTVWXYZ';
+  i int;
+  pos int;
+BEGIN
+  FOR r IN SELECT id FROM public.reservations WHERE public_ref IS NULL ORDER BY created_at LOOP
+    ok := false;
+    WHILE NOT ok LOOP
+      cand := 'RSV-';
+      FOR i IN 1..6 LOOP
+        pos := 1 + floor(random() * length(alphabet))::int;
+        cand := cand || substr(alphabet, pos, 1);
+      END LOOP;
+      IF NOT EXISTS (SELECT 1 FROM public.reservations WHERE public_ref = cand) THEN
+        UPDATE public.reservations SET public_ref = cand WHERE id = r.id;
+        ok := true;
+      END IF;
+    END LOOP;
+  END LOOP;
+END $$;
+
+ALTER TABLE public.reservations ALTER COLUMN public_ref SET NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS reservations_public_ref_key
+  ON public.reservations (public_ref);
+
+DROP FUNCTION IF EXISTS public.create_public_reservation(uuid, uuid, text, text, text, text, text, integer, jsonb, text, text, smallint);
+
+CREATE OR REPLACE FUNCTION public.create_public_reservation(
+  p_event_day_id uuid,
+  p_selected_morning_slot_id uuid,
+  p_team_name text,
+  p_strength_category text,
+  p_contact_name text,
+  p_contact_email text,
+  p_contact_phone text,
+  p_participant_count integer,
+  p_lunch_items jsonb,
+  p_remarks text,
+  p_token_hash text,
+  p_representative_grade_year smallint,
+  p_public_ref text
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  ed public.event_days%ROWTYPE;
+  sl public.event_day_slots%ROWTYPE;
+  v_day_count int;
+  v_day_capacity int;
+  v_slot_before int;
+  v_team_id uuid;
+  v_res_id uuid;
+  v_partner_id uuid;
+  v_mr_id uuid;
+  v_strength public.strength_category;
+  v_name text := trim(p_team_name);
+  v_email text := lower(trim(p_contact_email));
+  v_lunch_elem jsonb;
+  v_arr_len int;
+  v_qty int;
+  v_mid uuid;
+  v_menu public.lunch_menu_items%ROWTYPE;
+BEGIN
+  IF p_token_hash IS NULL OR length(trim(p_token_hash)) < 32 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'token hash');
+  END IF;
+  IF p_public_ref IS NULL OR trim(p_public_ref) = '' OR upper(trim(p_public_ref)) NOT LIKE 'RSV-%' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'public_ref');
+  END IF;
+  IF v_name = '' OR p_contact_name IS NULL OR trim(p_contact_name) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'team/contact');
+  END IF;
+  IF v_email = '' OR p_contact_phone IS NULL OR trim(p_contact_phone) = '' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'email/phone');
+  END IF;
+  IF p_participant_count IS NULL OR p_participant_count < 1 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'participantCount');
+  END IF;
+  IF p_lunch_items IS NULL OR jsonb_typeof(p_lunch_items) IS DISTINCT FROM 'array' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunchItems');
+  END IF;
+  IF p_representative_grade_year IS NULL
+    OR p_representative_grade_year < 1
+    OR p_representative_grade_year > 6 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'representative grade year');
+  END IF;
+
+  IF EXISTS (
+    SELECT 1
+    FROM (
+      SELECT 1
+      FROM (
+        SELECT NULLIF(BTRIM((p_lunch_items->(gs.i))->>'menu_item_id'), '') AS mid_key
+        FROM generate_series(
+          0,
+          COALESCE(jsonb_array_length(p_lunch_items), 0) - 1
+        ) AS gs(i)
+        WHERE (
+          CASE
+            WHEN jsonb_typeof((p_lunch_items->(gs.i))->'quantity') = 'number'
+              AND ((p_lunch_items->(gs.i))->'quantity')::text ~ '^-?[0-9]+(\.[0-9]+)?$'
+              THEN FLOOR(((p_lunch_items->(gs.i))->'quantity')::numeric)::int
+            WHEN jsonb_typeof((p_lunch_items->(gs.i))->'quantity') = 'string'
+              THEN COALESCE(NULLIF(BTRIM((p_lunch_items->(gs.i))->>'quantity'), '')::int, 0)
+            ELSE 0
+          END
+        ) > 0
+      ) raw
+      WHERE raw.mid_key IS NOT NULL
+      GROUP BY raw.mid_key
+      HAVING COUNT(*) > 1
+    ) d
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch_duplicate');
+  END IF;
+
+  BEGIN
+    v_strength := p_strength_category::public.strength_category;
+  EXCEPTION WHEN invalid_text_representation THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_strength', 'message', 'strong or potential');
+  END;
+
+  SELECT * INTO ed FROM public.event_days WHERE id = p_event_day_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'event_not_found');
+  END IF;
+  IF ed.status IS DISTINCT FROM 'open'::public.event_day_status THEN
+    RETURN jsonb_build_object('success', false, 'error', 'event_not_open');
+  END IF;
+  IF ed.reservation_deadline_at <= now() THEN
+    RETURN jsonb_build_object('success', false, 'error', 'deadline_passed');
+  END IF;
+
+  IF trim(ed.grade_band) = '1-2' AND p_representative_grade_year NOT IN (1, 2) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'grade year vs band');
+  END IF;
+  IF trim(ed.grade_band) = '3-4' AND p_representative_grade_year NOT IN (3, 4) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'grade year vs band');
+  END IF;
+  IF trim(ed.grade_band) = '5-6' AND p_representative_grade_year NOT IN (5, 6) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'grade year vs band');
+  END IF;
+
+  SELECT * INTO sl
+  FROM public.event_day_slots
+  WHERE id = p_selected_morning_slot_id AND event_day_id = p_event_day_id
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'slot_invalid');
+  END IF;
+  IF sl.phase IS DISTINCT FROM 'morning'::public.slot_phase OR sl.is_active IS NOT TRUE THEN
+    RETURN jsonb_build_object('success', false, 'error', 'slot_invalid');
+  END IF;
+  IF sl.is_locked IS TRUE THEN
+    RETURN jsonb_build_object('success', false, 'error', 'slot_locked');
+  END IF;
+
+  SELECT COALESCE(SUM(COALESCE(capacity, 2)), 0)::int INTO v_day_capacity
+  FROM public.event_day_slots
+  WHERE event_day_id = p_event_day_id
+    AND phase = 'morning'::public.slot_phase
+    AND is_active IS TRUE;
+
+  SELECT COUNT(*)::int INTO v_day_count
+  FROM public.reservations
+  WHERE event_day_id = p_event_day_id AND status = 'active';
+  IF v_day_capacity <= 0 OR v_day_count >= v_day_capacity THEN
+    RETURN jsonb_build_object('success', false, 'error', 'day_full');
+  END IF;
+
+  SELECT COUNT(*)::int INTO v_slot_before
+  FROM public.reservations
+  WHERE selected_morning_slot_id = p_selected_morning_slot_id AND status = 'active';
+  IF v_slot_before >= COALESCE(sl.capacity, 2) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'slot_full');
+  END IF;
+
+  SELECT id INTO v_team_id
+  FROM public.teams
+  WHERE team_name = v_name AND lower(trim(contact_email)) = v_email AND is_active = true
+  ORDER BY created_at ASC
+  LIMIT 1;
+
+  IF FOUND THEN
+    UPDATE public.teams
+    SET
+      contact_name = trim(p_contact_name),
+      contact_phone = trim(p_contact_phone),
+      strength_category = v_strength,
+      representative_grade_year = p_representative_grade_year,
+      updated_at = now()
+    WHERE id = v_team_id;
+  ELSE
+    IF EXISTS (
+      SELECT 1 FROM public.teams
+      WHERE team_name = v_name AND lower(trim(contact_email)) = v_email AND is_active = false
+    ) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'team_inactive');
+    END IF;
+
+    INSERT INTO public.teams (
+      team_name,
+      strength_category,
+      representative_grade_year,
+      contact_name,
+      contact_email,
+      contact_phone,
+      is_active
+    ) VALUES (
+      v_name,
+      v_strength,
+      p_representative_grade_year,
+      trim(p_contact_name),
+      v_email,
+      trim(p_contact_phone),
+      true
+    )
+    RETURNING id INTO v_team_id;
+  END IF;
+
+  INSERT INTO public.reservations (
+    event_day_id,
+    team_id,
+    selected_morning_slot_id,
+    status,
+    participant_count,
+    reservation_token_hash,
+    remarks,
+    public_ref
+  ) VALUES (
+    p_event_day_id,
+    v_team_id,
+    p_selected_morning_slot_id,
+    'active',
+    p_participant_count,
+    trim(p_token_hash),
+    NULLIF(trim(p_remarks), ''),
+    upper(trim(p_public_ref))
+  )
+  RETURNING id INTO v_res_id;
+
+  v_arr_len := COALESCE(jsonb_array_length(p_lunch_items), 0);
+  FOR v_lunch_idx IN 0 .. v_arr_len - 1 LOOP
+    v_lunch_elem := p_lunch_items->v_lunch_idx;
+    BEGIN
+      IF jsonb_typeof(v_lunch_elem->'quantity') = 'number' THEN
+        v_qty := FLOOR((v_lunch_elem->'quantity')::numeric)::int;
+      ELSE
+        v_qty := COALESCE(NULLIF(BTRIM(v_lunch_elem->>'quantity'), '')::int, 0);
+      END IF;
+    EXCEPTION WHEN invalid_text_representation THEN
+      RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch qty');
+    END;
+
+    IF v_qty = 0 THEN
+      CONTINUE;
+    END IF;
+
+    IF v_qty < 0 OR v_qty > 500 THEN
+      RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch qty range');
+    END IF;
+
+    BEGIN
+      v_mid := (NULLIF(BTRIM(v_lunch_elem->>'menu_item_id'), ''))::uuid;
+    EXCEPTION WHEN invalid_text_representation THEN
+      RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch menu id');
+    END;
+
+    SELECT lmi.* INTO v_menu
+    FROM public.lunch_menu_items lmi
+    WHERE lmi.id = v_mid
+      AND lmi.is_active IS TRUE
+      AND (
+        NOT EXISTS (
+          SELECT 1
+          FROM public.event_day_lunch_menu_items edlm
+          WHERE edlm.event_day_id = p_event_day_id
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM public.event_day_lunch_menu_items edlm
+          WHERE edlm.event_day_id = p_event_day_id
+            AND edlm.lunch_menu_item_id = lmi.id
+        )
+      );
+
+    IF NOT FOUND THEN
+      RETURN jsonb_build_object('success', false, 'error', 'invalid_input', 'message', 'lunch_menu_invalid');
+    END IF;
+
+    INSERT INTO public.reservation_lunch_items (
+      reservation_id,
+      menu_item_id,
+      item_name_snapshot,
+      unit_price_snapshot_tax_included,
+      quantity,
+      line_total
+    ) VALUES (
+      v_res_id,
+      v_menu.id,
+      v_menu.name,
+      v_menu.price_tax_included,
+      v_qty,
+      v_qty * v_menu.price_tax_included
+    );
+  END LOOP;
+
+  INSERT INTO public.reservation_events (event_day_id, reservation_id, action, metadata)
+  VALUES (
+    p_event_day_id,
+    v_res_id,
+    'created',
+    jsonb_build_object('slot_id', p_selected_morning_slot_id)
+  );
+
+  IF v_slot_before = 1 THEN
+    SELECT id INTO v_partner_id
+    FROM public.reservations
+    WHERE selected_morning_slot_id = p_selected_morning_slot_id
+      AND status = 'active'
+      AND id <> v_res_id
+    ORDER BY created_at ASC
+    LIMIT 1;
+
+    IF v_partner_id IS NOT NULL THEN
+      SELECT id INTO v_mr_id
+      FROM public.matching_runs
+      WHERE event_day_id = p_event_day_id AND is_current = true
+      LIMIT 1;
+
+      IF v_mr_id IS NULL THEN
+        INSERT INTO public.matching_runs (event_day_id, status, is_current, warning_count)
+        VALUES (p_event_day_id, 'success', true, 0)
+        RETURNING id INTO v_mr_id;
+      END IF;
+
+      INSERT INTO public.match_assignments (
+        matching_run_id,
+        event_day_id,
+        event_day_slot_id,
+        match_phase,
+        assignment_type,
+        reservation_a_id,
+        reservation_b_id,
+        status
+      ) VALUES (
+        v_mr_id,
+        p_event_day_id,
+        p_selected_morning_slot_id,
+        'morning',
+        'morning_fixed',
+        v_partner_id,
+        v_res_id,
+        'scheduled'
+      );
+    END IF;
+  END IF;
+
+  INSERT INTO public.notifications (
+    event_day_id,
+    reservation_id,
+    channel,
+    status,
+    template_key,
+    payload_summary
+  ) VALUES (
+    p_event_day_id,
+    v_res_id,
+    'email',
+    'pending',
+    'reservation_created',
+    jsonb_build_object('reservation_id', v_res_id)
+  );
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'reservationId', v_res_id,
+    'teamId', v_team_id
+  );
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('success', false, 'error', 'token_collision');
+END;
+$$;
+
+COMMENT ON FUNCTION public.create_public_reservation(
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  integer,
+  jsonb,
+  text,
+  text,
+  smallint,
+  text
+) IS
+'Public reservation create. Lunch p_lunch_items JSON array. Stores public_ref (RSV- label).';
+
+REVOKE ALL ON FUNCTION public.create_public_reservation(
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  integer,
+  jsonb,
+  text,
+  text,
+  smallint,
+  text
+) FROM PUBLIC;
+
+GRANT EXECUTE ON FUNCTION public.create_public_reservation(
+  uuid,
+  uuid,
+  text,
+  text,
+  text,
+  text,
+  text,
+  integer,
+  jsonb,
+  text,
+  text,
+  smallint,
+  text
+) TO service_role;

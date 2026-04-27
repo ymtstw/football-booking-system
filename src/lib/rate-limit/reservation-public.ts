@@ -10,15 +10,15 @@ const CREATE_LIMIT = 15;
 const CREATE_WINDOW_MS = 60_000;
 
 /** 確認コード照会 GET: 総当たりに対してやや厳しめ */
-const TOKEN_GET_LIMIT = 40;
+const TOKEN_GET_LIMIT = 28;
 const TOKEN_GET_WINDOW_MS = 60_000;
 
 /** 確認コード PATCH: 変更の乱用抑止 */
-const TOKEN_PATCH_LIMIT = 20;
+const TOKEN_PATCH_LIMIT = 16;
 const TOKEN_PATCH_WINDOW_MS = 60_000;
 
 /** 取消 POST */
-const TOKEN_CANCEL_LIMIT = 10;
+const TOKEN_CANCEL_LIMIT = 8;
 const TOKEN_CANCEL_WINDOW_MS = 60_000;
 
 function tooManyResponse(retryAfterSec: number) {

@@ -40,6 +40,7 @@ type ReservationRow = {
   participant_count: number;
   remarks: string | null;
   display_name: string | null;
+  public_ref: string | null;
   created_at: string;
   updated_at: string;
   selected_morning_slot_id: string | null;
@@ -106,6 +107,7 @@ export default async function AdminReservationDetailPage({
       participant_count,
       remarks,
       display_name,
+      public_ref,
       created_at,
       updated_at,
       selected_morning_slot_id,
@@ -211,7 +213,12 @@ export default async function AdminReservationDetailPage({
       <div>
         <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">予約詳細</h1>
         <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
-          照会番号（末尾）:{" "}
+          予約番号:{" "}
+          <span className="font-mono font-semibold text-zinc-800">
+            {row.public_ref?.trim() || "—"}
+          </span>
+          <span className="mx-2 text-zinc-400">/</span>
+          内部ID末尾:{" "}
           <span className="font-mono text-zinc-700">{formatAdminIdTail(row.id)}</span>
         </p>
       </div>

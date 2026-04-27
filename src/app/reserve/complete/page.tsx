@@ -23,12 +23,15 @@ const SESSION_COMPLETE_KEY = "football_reservation_complete_v1";
 
 type Stored = {
   reservationToken: string;
+  reservationTokenDisplay?: string;
+  publicRef?: string;
   reservationId: string;
   eventDate?: string;
 };
 
 type ReservationDetail = {
   id: string;
+  publicRef?: string;
   status: string;
   participantCount: number;
   lunchItems: ReservationLunchLinePublic[];
@@ -169,7 +172,9 @@ export default function ReserveCompletePage() {
     if (!stored) return;
     setCopying(true);
     try {
-      await navigator.clipboard.writeText(stored.reservationToken);
+      await navigator.clipboard.writeText(
+        stored.reservationTokenDisplay ?? stored.reservationToken
+      );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -238,22 +243,30 @@ export default function ReserveCompletePage() {
         </p>
       </header>
 
-      {/* 2. 確認コード（最優先） */}
+      {/* 2. 予約番号・確認コード */}
       <section
         className="rounded-2xl border-2 border-rp-brand/50 bg-rp-mint/50 p-4 shadow-sm sm:p-5"
         aria-labelledby="complete-confirmation-heading"
       >
         <h2 id="complete-confirmation-heading" className="text-base font-bold text-rp-navy">
-          確認コード
+          予約番号・確認コード
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-          確認コードは予約の確認・キャンセル時に必要です。
+        {stored.publicRef ? (
+          <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 sm:px-4">
+            <p className="text-xs font-medium text-zinc-500">予約番号</p>
+            <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-zinc-900 sm:text-base">
+              {stored.publicRef}
+            </p>
+          </div>
+        ) : null}
+        <p className="mt-3 text-sm leading-relaxed text-zinc-700">
+          確認コードは予約内容の確認・キャンセルに使用します。同じ内容を予約完了メールにもお送りしています。
         </p>
         <p className="mt-1 text-sm leading-relaxed text-zinc-700">
           第三者には共有せず、大切に保管してください。
         </p>
         <p className="mt-3 break-all rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-left font-mono text-xs font-semibold leading-relaxed text-zinc-900 sm:text-sm">
-          {stored.reservationToken}
+          {stored.reservationTokenDisplay ?? stored.reservationToken}
         </p>
         <button
           type="button"
