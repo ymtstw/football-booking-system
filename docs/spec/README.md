@@ -19,4 +19,4 @@
 
 ## 運用・セットアップ
 
-Cron の叩き方・本番チェックリスト等は `docs/ops/`、`docs/setup-*.md` を参照。業務フローの手順書は `docs/ops/mvp-day-before-runbook.md` 等。
+Cron の叩き方・本番チェックリスト等は `docs/ops/`、`docs/setup-*.md` を参照。業務フローの手順書は `docs/ops/mvp-day-before-runbook.md` 等。編成の手動保存 API の方針は `docs/ops/admin-match-batch-patch-policy.md`。

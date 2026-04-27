@@ -23,7 +23,7 @@
 
 ## 認証
 
-- **一般利用者:** ログインなし。予約はトークン URL で識別。
+- **一般利用者:** ログインなし。予約の照会・変更・取消は **確認コード**（英数字の秘密。新規は短い形式、旧予約は従来の長い hex があり得る）を `GET/PATCH/POST /api/reservations/[token]` 等に渡して識別する。あわせて **予約番号**（`public_ref`・`RSV-` で始まる表示用ラベル）を発行するが、**予約番号だけでは予約を開けない**（詳細は [implemented-behavior-catalog.md](./implemented-behavior-catalog.md) §5.1）。
 - **管理コンソール:** Supabase Auth のセッション + `app_admins` テーブルで管理者を判定（`getAdminUser()` 等）。未ログインは `/admin/login` へ。
 
 ## 外部 API（Route Handlers）
@@ -33,6 +33,13 @@
 - **Cron:** `src/app/api/cron/**`（`Authorization: Bearer ${CRON_SECRET}`）
 
 一覧と期待挙動は [implemented-behavior-catalog.md](./implemented-behavior-catalog.md)。
+
+## 一般向け予約画面（App Router・RSC）と公開 API
+
+- **契約としての HTTP:** 外部・検証用途の正は引き続き **`GET /api/event-days`** などの Route Handler。応答の組み立ては **`src/lib/` の共有関数** に寄せている。
+- **一覧（開催日）:** `GET /api/event-days` と **`/reserve/calendar`・`/reserve/schedule`** は同一の **`loadPublicEventDaysList()`** を使う。`acceptingReservations` や締切判定の意味は API と同一。
+- **時刻依存:** 一覧・締切・受付可否は **`now()` 前提**のため、`/reserve/calendar` と `/reserve/schedule` のページには **`export const dynamic = "force-dynamic"`** を付与し、**静的ビルド時刻に値が固定されない**ようにしている（詳細は [implemented-behavior-catalog.md](./implemented-behavior-catalog.md) §1.3.1）。
+- **日別:** `/reserve/[date]`（空き・昼食の初期取得）、`/reserve/schedule/[date]`（availability + public-schedule の bundle）は、それぞれ lib のローダーで **サーバー初期データ** を渡し、**ドメインルートの API と同じペイロード形**を維持する方針。
 
 ## Cron（Vercel）
 
@@ -60,4 +67,5 @@
 
 - `docs/ops/mvp-day-before-runbook.md` — 前日オペ手順
 - `docs/ops/vercel-production-checklist.md` — 本番確認
+- `docs/ops/admin-match-batch-patch-policy.md` — **手動調整の batch-patch 方針・セキュティ・eventDaySlotId の扱い**
 - `docs/setup-staging-supabase.md` — ステージング Supabase
