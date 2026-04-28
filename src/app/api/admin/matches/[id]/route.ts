@@ -5,11 +5,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
-  overlappingTeamConflict,
-  slotIntervalMinutes,
-  type AssignmentSim,
-  type SlotTimes,
-} from "@/lib/admin/match-assignment-patch-validation";
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
+import {
+  validateMergedMatchAssignments,
+  type MergedAsgRow,
+  type ResShape,
+  type SlotShape,
+} from "@/lib/admin/validate-merged-match-assignments";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -55,19 +60,9 @@ type DayRow = {
   status: string;
 };
 
-type SlotRow = {
-  id: string;
-  phase: string;
-  start_time: string;
-  end_time: string;
-  is_active: boolean | null;
-};
+type SlotRow = SlotShape;
 
-type ResRow = {
-  id: string;
-  team_id: string;
-  status: string;
-};
+type ResRow = ResShape;
 
 function logSnapshot(row: AssignmentRow) {
   return {
@@ -161,10 +156,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (asgErr) {
-    return NextResponse.json(
-      { error: asgErr.message, code: asgErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH match_assignments/[id] load assignment", asgErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!asgRaw) {
     return NextResponse.json({ error: "割当が見つかりません" }, { status: 404 });
@@ -189,10 +182,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (runErr) {
-    return NextResponse.json(
-      { error: runErr.message, code: runErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH match_assignments/[id] matching_runs", runErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!runRaw || !(runRaw as RunRow).is_current) {
     return NextResponse.json(
@@ -212,11 +203,12 @@ export async function PATCH(
     .eq("id", asg.event_day_id)
     .maybeSingle();
 
-  if (dayErr || !dayRaw) {
-    return NextResponse.json(
-      { error: dayErr?.message ?? "開催日が見つかりません" },
-      { status: 500 }
-    );
+  if (dayErr) {
+    logAdminApiDbError("PATCH match_assignments/[id] event_days", dayErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
+  }
+  if (!dayRaw) {
+    return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
   }
 
   const day = dayRaw as DayRow;
@@ -268,89 +260,38 @@ export async function PATCH(
     ]);
 
   if (slotErr || allErr || resErr) {
-    const msg = slotErr?.message ?? allErr?.message ?? resErr?.message ?? "取得エラー";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    logAdminApiDbError("PATCH match_assignments/[id] parallel slot/asg/res load", {
+      slotErr,
+      allErr,
+      resErr,
+    });
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const slots = (slotRows ?? []) as SlotRow[];
   const slotById = new Map(slots.map((s) => [s.id, s]));
-  const targetSlot = slotById.get(slotId);
-  if (!targetSlot) {
-    return NextResponse.json({ error: "指定の枠が開催日に存在しません" }, { status: 422 });
-  }
-  if (targetSlot.is_active === false) {
-    return NextResponse.json({ error: "無効な枠には移動できません" }, { status: 422 });
-  }
-  if (targetSlot.phase !== asg.match_phase) {
-    return NextResponse.json(
-      { error: "午前・午後をまたぐ枠移動はできません" },
-      { status: 422 }
-    );
-  }
 
   const resById = new Map<string, ResRow>();
   for (const r of (resRows ?? []) as ResRow[]) {
     resById.set(r.id, r);
   }
 
-  const active = (rid: string) => {
-    const r = resById.get(rid);
-    return r && r.status === "active";
-  };
-  if (!active(ra) || !active(rb)) {
-    return NextResponse.json(
-      { error: "A/B には当該開催日の active な予約のみ指定できます" },
-      { status: 422 }
-    );
-  }
-  if (refereeId !== null && !active(refereeId)) {
-    return NextResponse.json(
-      { error: "審判には当該開催日の active な予約のみ指定できます" },
-      { status: 422 }
-    );
-  }
+  const allList = (allAsg ?? []) as MergedAsgRow[];
+  const originalsById = new Map<string, MergedAsgRow>(
+    allList.map((r) => [
+      r.id,
+      {
+        id: r.id,
+        event_day_slot_id: r.event_day_slot_id,
+        match_phase: r.match_phase,
+        reservation_a_id: r.reservation_a_id,
+        reservation_b_id: r.reservation_b_id,
+        referee_reservation_id: r.referee_reservation_id,
+      },
+    ])
+  );
 
-  const teamA = resById.get(ra)!.team_id;
-  const teamB = resById.get(rb)!.team_id;
-  if (teamA === teamB) {
-    return NextResponse.json(
-      { error: "同一チーム同士の対戦にはできません（team_id が重複しています）" },
-      { status: 422 }
-    );
-  }
-  if (refereeId !== null) {
-    const tr = resById.get(refereeId)!.team_id;
-    if (tr === teamA || tr === teamB) {
-      return NextResponse.json(
-        { error: "審判のチームは対戦チームと別である必要があります" },
-        { status: 422 }
-      );
-    }
-  }
-
-  type LightAsg = {
-    id: string;
-    event_day_slot_id: string;
-    match_phase: string;
-    reservation_a_id: string;
-    reservation_b_id: string;
-    referee_reservation_id: string | null;
-  };
-  const allList = (allAsg ?? []) as LightAsg[];
-  const others = allList.filter((r) => r.id !== assignmentId);
-
-  if (asg.match_phase === "afternoon") {
-    for (const o of others) {
-      if (o.match_phase === "afternoon" && o.event_day_slot_id === slotId) {
-        return NextResponse.json(
-          { error: "移動先の午後枠には既に別の試合割当があります" },
-          { status: 409 }
-        );
-      }
-    }
-  }
-
-  const simulated: LightAsg[] = allList.map((row) => {
+  const simulated: MergedAsgRow[] = allList.map((row) => {
     if (row.id === assignmentId) {
       return {
         id: row.id,
@@ -364,51 +305,14 @@ export async function PATCH(
     return { ...row };
   });
 
-  const usedRes = new Set<string>();
-  for (const row of simulated) {
-    for (const rid of [row.reservation_a_id, row.reservation_b_id, row.referee_reservation_id]) {
-      if (rid == null) continue;
-      if (usedRes.has(rid)) {
-        return NextResponse.json(
-          { error: "同一予約が複数の試合行に割り当てられる状態になるため保存できません" },
-          { status: 422 }
-        );
-      }
-      usedRes.add(rid);
-    }
-  }
-
-  const simForOverlap: AssignmentSim[] = [];
-  for (const row of simulated) {
-    const sl = slotById.get(row.event_day_slot_id);
-    if (!sl) {
-      return NextResponse.json({ error: "枠データが不足しています" }, { status: 500 });
-    }
-    const st: SlotTimes = {
-      id: sl.id,
-      phase: sl.phase,
-      startTime: sl.start_time,
-      endTime: sl.end_time,
-    };
-    const interval = slotIntervalMinutes(st);
-    const teamIds: string[] = [
-      resById.get(row.reservation_a_id)!.team_id,
-      resById.get(row.reservation_b_id)!.team_id,
-    ];
-    if (row.referee_reservation_id) {
-      teamIds.push(resById.get(row.referee_reservation_id)!.team_id);
-    }
-    simForOverlap.push({
-      assignmentId: row.id,
-      slotId: row.event_day_slot_id,
-      interval,
-      teamIds,
-    });
-  }
-
-  const overlapErr = overlappingTeamConflict(simForOverlap);
-  if (overlapErr) {
-    return NextResponse.json({ error: overlapErr }, { status: 422 });
+  const mergedCheck = validateMergedMatchAssignments(
+    simulated,
+    originalsById,
+    slotById,
+    resById
+  );
+  if (!mergedCheck.ok) {
+    return NextResponse.json({ error: mergedCheck.message }, { status: 422 });
   }
 
   const before = logSnapshot(asg);
@@ -434,10 +338,8 @@ export async function PATCH(
     .eq("id", assignmentId);
 
   if (updErr) {
-    return NextResponse.json(
-      { error: updErr.message, code: updErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH match_assignments/[id] update assignment", updErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   const { error: logErr } = await supabase.from("match_adjustment_logs").insert({
@@ -450,12 +352,11 @@ export async function PATCH(
   });
 
   if (logErr) {
+    logAdminApiDbError("PATCH match_assignments/[id] match_adjustment_logs insert", logErr);
     return NextResponse.json(
       {
         error:
           "割当は更新されましたが監査ログの保存に失敗しました。notifications / 手動確認を推奨します",
-        code: logErr.code,
-        detail: logErr.message,
       },
       { status: 500 }
     );

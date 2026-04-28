@@ -31,7 +31,7 @@ function siteBaseUrl(): string | null {
 function adminNotificationsFailedUrl(): string | null {
   const base = siteBaseUrl();
   if (!base) return null;
-  return `${base}/admin/notifications/failed?status=failed`;
+  return `${base}/admin/notifications/failed?dateBasis=processedDate&status=failed&limit=20&offset=0`;
 }
 
 function adminEventDayNotificationsUrl(eventDayId: string): string | null {
@@ -126,7 +126,7 @@ export async function sendOpsBatchFailureDigestEmail(
       ? `<ul style="margin-top:8px">
 ${
   failedListUrl
-    ? `<li><a href="${escaped(failedListUrl)}">メール送信履歴（失敗タブ）</a></li>`
+    ? `<li><a href="${escaped(failedListUrl)}">メール送信履歴（送信できなかった）</a></li>`
     : ""
 }
 ${

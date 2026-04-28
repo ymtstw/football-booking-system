@@ -1,8 +1,16 @@
 /** 管理者のみ POST: 開催日 insert ＋ 既定枠（`default-slots` の件数ぶん `event_day_slots`）insert。 */
 import { NextResponse } from "next/server";
 
-import { toEventDaySlotRows } from "@/domains/event-days/default-slots";
+import {
+  isDefaultSlotPreset,
+  toEventDaySlotRows,
+  type DefaultSlotPreset,
+} from "@/domains/event-days/default-slots";
 import { getAdminUser } from "@/lib/auth/require-admin";
+import {
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -21,6 +29,7 @@ type CreateBody = {
   gradeBand?: string;
   reservationDeadlineAt?: string;
   status?: EventDayStatus;
+  defaultSlotPreset?: DefaultSlotPreset;
 };
 
 function parseCreateBody(body: unknown): CreateBody | null {
@@ -33,6 +42,10 @@ function parseCreateBody(body: unknown): CreateBody | null {
       : typeof gradeRaw === "number"
         ? String(gradeRaw)
         : undefined;
+  const presetRaw = o.defaultSlotPreset;
+  const defaultSlotPreset =
+    presetRaw !== undefined && isDefaultSlotPreset(presetRaw) ? presetRaw : undefined;
+
   return {
     eventDate: typeof o.eventDate === "string" ? o.eventDate : undefined,
     gradeBand,
@@ -41,6 +54,7 @@ function parseCreateBody(body: unknown): CreateBody | null {
         ? o.reservationDeadlineAt
         : undefined,
     status: typeof o.status === "string" ? (o.status as EventDayStatus) : undefined,
+    defaultSlotPreset,
   };
 }
 
@@ -77,6 +91,7 @@ export async function POST(request: Request) {
     parsed?.status && ALLOWED_STATUS.includes(parsed.status)
       ? parsed.status
       : "draft";
+  const slotPreset: DefaultSlotPreset = parsed?.defaultSlotPreset ?? "six";
 
   if (!eventDate || !isIsoDateOnly(eventDate)) {
     return NextResponse.json(
@@ -127,22 +142,20 @@ export async function POST(request: Request) {
       dayErr.code === "42501" ||
       /row-level security/i.test(dayErr.message ?? "");
     if (rlsHint) {
+      logAdminApiDbError("POST event-days INSERT RLS or policy", dayErr);
       return NextResponse.json(
         {
           error:
             "DB の行レベル制限に引っかかりました。サーバー用の SUPABASE_SECRET_KEY に NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY（Publishable）を入れていないか確認し、db:status の Secret と NEXT_PUBLIC_SUPABASE_URL を揃えたうえで next dev を再起動してください。",
-          code: dayErr.code,
         },
         { status: 503 }
       );
     }
-    return NextResponse.json(
-      { error: dayErr.message, code: dayErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST event-days INSERT", dayErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
-  const slotRows = toEventDaySlotRows(day.id);
+  const slotRows = toEventDaySlotRows(day.id, slotPreset);
   const { error: slotsErr } = await supabase.from("event_day_slots").insert(slotRows);
 
   if (slotsErr) {
@@ -151,19 +164,17 @@ export async function POST(request: Request) {
       slotsErr.code === "42501" ||
       /row-level security/i.test(slotsErr.message ?? "");
     if (rlsHint) {
+      logAdminApiDbError("POST event-days event_day_slots INSERT RLS", slotsErr);
       return NextResponse.json(
         {
           error:
             "event_day_slots の INSERT が RLS で拒否されました。SUPABASE_SECRET_KEY（Secret）を確認してください。",
-          code: slotsErr.code,
         },
         { status: 503 }
       );
     }
-    return NextResponse.json(
-      { error: slotsErr.message, code: slotsErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST event-days event_day_slots INSERT", slotsErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   if (status === "open") {

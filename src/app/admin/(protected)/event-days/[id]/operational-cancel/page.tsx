@@ -56,15 +56,15 @@ export default async function AdminEventDayOperationalCancelPage({
     <div className="mx-auto max-w-lg px-4 py-8">
       <EventDayOpsBreadcrumb
         eventDayId={id}
-        items={[
-          { href: `/admin/event-days/${id}/slots`, label: "枠・時刻設定" },
-          { href: `/admin/event-days/${id}/weather`, label: "天候対応" },
-          { label: "緊急中止（運営）" },
-        ]}
+        items={[{ label: "緊急中止（運営の都合）" }]}
       />
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">緊急中止（運営の都合）</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
-        雨天とは別枠です。登録すると開催日は<strong>運営都合中止</strong>となり、参加者向けメールにはここで入力した文面が載ります（原則は前日の一括メール・16:30頃開始・目安17:30まで）。天候による中止は{" "}
+        雨天とは別枠です。登録すると開催日は<strong>運営都合中止</strong>となり、お知らせ文は必須です。
+        <strong className="font-semibold text-zinc-800">①</strong>
+        前日の一括送信に載せるか、
+        <strong className="font-semibold text-zinc-800">②</strong>
+        登録と同時に即時メールするか、フォームで選べます（天候対応と同じ考え方）。天候による中止は{" "}
         <Link
           href={`/admin/event-days/${id}/weather`}
           className="font-medium text-sky-800 underline decoration-sky-600/60 underline-offset-2"

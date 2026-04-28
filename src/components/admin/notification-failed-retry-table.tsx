@@ -5,6 +5,7 @@ import {
   notificationTemplateLabelJa,
   summarizeOutboundEmailError,
 } from "@/lib/admin/notification-failed-display";
+import { formatDateTimeTokyo } from "@/lib/dates/format-jp-display";
 import { useCallback, useEffect, useState } from "react";
 
 const RETRY_COOLDOWN_MS = 5 * 60 * 1000;
@@ -100,11 +101,7 @@ function outboundPayloadSummaryForStaffDisplay(value: unknown): string {
     return String(value).trim();
   }
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    try {
-      return JSON.stringify(value);
-    } catch {
-      return "";
-    }
+    return "この送信には追加情報があります。詳細が必要な場合はメール設定が分かる担当へ相談してください。";
   }
   const o = value as Record<string, unknown>;
   const keys = Object.keys(o);
@@ -123,14 +120,10 @@ function outboundPayloadSummaryForStaffDisplay(value: unknown): string {
           ? "運営中止"
           : v === "normal"
             ? "通常"
-            : v;
+            : "その他";
     return `前日最終メール（${kind}）。開催日 ${o.event_date}。`;
   }
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return "";
-  }
+  return "この送信には追加情報があります。詳細が必要な場合はメール設定が分かる担当へ相談してください。";
 }
 
 /** 失敗以外の一覧: 概要（送信・更新の時刻は「処理日時」列のみ。補足欄に sent_at は出さない） */
@@ -193,7 +186,7 @@ function FailedNotificationErrorCell({
           }
         >
           <summary className="cursor-pointer select-none font-medium text-red-950/90">
-            詳しい内容を開く{compact ? "（英語などが混じることがあります）" : ""}
+            送信サービスからの詳細を開く
           </summary>
           <pre
             className={
@@ -245,7 +238,7 @@ export function NotificationFailedRetryTable({
       const json = (await res.json()) as { notifications?: FailedNotificationRow[]; error?: string };
       if (!res.ok) {
         setRows(null);
-        setError(json.error ?? `取得失敗（${res.status}）`);
+        setError(json.error ?? "一覧を取得できませんでした。再読み込みするか、ログイン状態を確認してください。");
         return;
       }
       setRows(json.notifications ?? []);
@@ -271,7 +264,7 @@ export function NotificationFailedRetryTable({
       });
       const json = (await res.json()) as { ok?: boolean; status?: string; error?: string };
       if (!res.ok) {
-        setMessage(json.error ?? `再送失敗（${res.status}）`);
+        setMessage(json.error ?? "再送できませんでした。しばらくしてから試すか、システム担当へ相談してください。");
         return;
       }
       writeRetryCooldownUntil(id, Date.now() + RETRY_COOLDOWN_MS);
@@ -347,8 +340,10 @@ export function NotificationFailedRetryTable({
               const cooldownUntil = readRetryCooldownUntil(n.id);
               const cooldownRemainingMs =
                 cooldownUntil != null ? Math.max(0, cooldownUntil - Date.now()) : 0;
-              const updatedUtc =
-                (n.updated_at ?? n.created_at)?.replace("T", " ").slice(0, 19) ?? "—";
+              const processedAtJa = (() => {
+                const raw = n.updated_at ?? n.created_at;
+                return raw ? formatDateTimeTokyo(raw) : "—";
+              })();
               return (
                 <article
                   key={n.id}
@@ -366,7 +361,7 @@ export function NotificationFailedRetryTable({
                   <dl className="mt-3 space-y-2.5 text-sm">
                     <div>
                       <dt className="text-xs font-medium text-zinc-500">処理日時</dt>
-                      <dd className="mt-0.5 font-mono text-xs text-zinc-800">{updatedUtc}</dd>
+                      <dd className="mt-0.5 text-xs text-zinc-800">{processedAtJa}</dd>
                     </div>
                     <div>
                       <dt className="text-xs font-medium text-zinc-500">種類</dt>
@@ -426,8 +421,8 @@ export function NotificationFailedRetryTable({
                           {retryingId === n.id
                             ? "送信中…"
                             : cooldownRemainingMs > 0
-                              ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
-                              : "再送"}
+                              ? `再送まで ${formatRetryRemainingMs(cooldownRemainingMs)}`
+                              : "このメールを再送する"}
                         </button>
                       )}
                     </div>
@@ -475,13 +470,12 @@ export function NotificationFailedRetryTable({
                         ) : null}
                       </td>
                     ) : null}
-                    <td className="whitespace-nowrap px-3 py-2 font-mono text-[11px] text-zinc-600">
-                      {(n.updated_at ?? n.created_at)?.replace("T", " ").slice(0, 19) ?? "—"}
+                    <td className="whitespace-nowrap px-3 py-2 text-[11px] text-zinc-600">
+                      {(n.updated_at ?? n.created_at)
+                        ? formatDateTimeTokyo((n.updated_at ?? n.created_at) as string)
+                        : "—"}
                     </td>
-                    <td
-                      className="max-w-[10rem] px-3 py-2 text-[11px] text-zinc-800 lg:max-w-[12rem] lg:text-xs"
-                      title={n.template_key ?? ""}
-                    >
+                    <td className="max-w-[10rem] px-3 py-2 text-[11px] text-zinc-800 lg:max-w-[12rem] lg:text-xs">
                       {notificationTemplateLabelJa(n.template_key)}
                     </td>
                     <td className="max-w-56 truncate px-3 py-2 text-zinc-700" title={n.toEmail ?? ""}>
@@ -535,8 +529,8 @@ export function NotificationFailedRetryTable({
                             {retryingId === n.id
                               ? "送信中…"
                               : cooldownRemainingMs > 0
-                                ? `再送（${formatRetryRemainingMs(cooldownRemainingMs)}）`
-                                : "再送"}
+                                ? `再送まで ${formatRetryRemainingMs(cooldownRemainingMs)}`
+                                : "このメールを再送する"}
                           </button>
                         )}
                       </td>
@@ -551,9 +545,9 @@ export function NotificationFailedRetryTable({
       )}
       {rows?.length && showRetry ? (
         <p className="mt-3 text-xs leading-relaxed text-zinc-600">
-          「予約直後の確認メール」だけは安全のため再送できません（ボタンなし）。その他は表示の内容を確認してから「再送」を試してください。
-          この一覧に出るのは、<strong className="font-medium text-zinc-800">送信を試みたときに送れなかったもの</strong>
-          だけです。あとから「届いていない」と分かるケースは、ここに出てこないことがあります。
+          「予約完了メール」だけは確認のため再送できません（ボタンなし）。そのほかは内容を確認してから「このメールを再送する」を試してください。
+          この一覧は<strong className="font-medium text-zinc-800">送信できなかったものだけ</strong>
+          です。あとから「届いていない」と分かった場合でも、ここに出ないことがあります。
         </p>
       ) : null}
     </div>

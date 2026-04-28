@@ -49,6 +49,13 @@
 
 **BC-PUB-01〜:** 各組み合わせ（締切前後 × status）で 200 / 409 が仕様どおりであること。
 
+#### 1.3.1 Web ページ（Next.js RSC）と一覧・日別 API の関係
+
+- **開催日一覧の単一ソース:** `GET /api/event-days` の本体は **`loadPublicEventDaysList()`**（`src/lib/event-days/load-public-event-days-list.ts`）。**`/reserve/calendar` と `/reserve/schedule` も同一関数でサーバー取得**するため、上表の「一覧」の意味（`acceptingReservations`＝**`open` かつ締切が未来** 等）は **HTTP API とページで一致**する。
+- **`force-dynamic`（一覧ページ）:** `acceptingReservations` は現在時刻に依存する。**静的プリレンダー（ビルド時刻の `now` で固定）だと運用上まずい**ため、`/reserve/calendar` と `/reserve/schedule` には **`dynamic = force-dynamic`** を設定し、**リクエストごとにサーバーで一覧を組み立てる**。
+- **日別・試合予定:** `GET …/availability`・`GET …/public-schedule` と同一ペイロード生成は lib に集約。**`/reserve/[date]`・`/reserve/schedule/[date]`** はサーバーで初期データを渡す（動的ルート／bundle 取得）。仕様の意味（予約可否・試合表示条件）は API 準拠を維持する。
+- **変更時の注意:** 一覧ロジックを変える場合は **`loadPublicEventDaysList` と API ルートの両方が同じ関数を呼ぶ**構造を崩さないこと。
+
 ### 1.4 開催日枠の管理更新
 
 | 条件 | 期待 |
@@ -168,6 +175,7 @@
 | `/api/admin/notifications` | GET | P | Notification | フィルタ・`eventDayId` 時は `limit` 上限 |
 | `/api/admin/notifications/[id]/retry` | POST | C | Notification | 再送 |
 | `/api/admin/reservations/[id]` | PATCH | C | Reservation, Team 一部 | 連絡先・人数等 |
+| `/api/admin/reservations/[id]/resend-created-email` | POST | C | Reservation（`reservation_token_hash`）・notifications・メール | 予約完了メール再送。**確認コードのみ再発行**（`public_ref` は不変）。管理者認可・Resend 環境必須（実装を正とする） |
 | `/api/admin/lunch-menu-items` | GET / POST | P / C | LunchMenu | マスタ。POST はグローバル有効が0件のとき非公開のみは拒否 |
 | `/api/admin/lunch-menu-items/[id]` | PATCH / DELETE | C | LunchMenu | 有効メニューは常に1件以上。PATCH `is_active:false` 時は任意 `co_activate_menu_item_id` で先に別メニューを公開可。DELETE は `?promote_active_first=` で同様 |
 | `/api/admin/event-days/[id]/lunch-menu` | GET / PUT | P / C | `event_day_lunch_menu_items`, LunchMenu | 開催日別昼食（既定グローバル or 専用サブセット） |
@@ -203,7 +211,26 @@
 | `/api/tournament-inquiries` | POST | 問い合わせ |
 | `/api/lunch-menu` | GET | 公開昼食。`?eventDayId=` でその開催日の有効セット（専用行があればサブセット、なければグローバル有効のみ） |
 
-### 5.1 昼食メニュー（DB と解決ルール）
+### 5.1 予約番号・確認コードと照会 API（`[token]`）
+
+一般利用者は **ログインしない**。予約の照会・変更・取消は、**確認コード**（平文をユーザーが保持し、URL やフォームでサーバに渡す）と `reservations.reservation_token_hash` の照合で行う。
+
+| 概念 | DB / 生成 | 利用者への見せ方 | 認証への使い方 |
+|------|-----------|------------------|----------------|
+| **予約番号** | `reservations.public_ref`（`RSV-` + 6 文字、NOT NULL・一意）。マイグレーション例: `20260527120000_reservations_public_ref.sql` | 予約完了画面・予約完了メール・管理画面・キャンセル完了メール等。**お問い合わせ時に伝える記号**として使う | **`GET/PATCH/POST .../api/reservations/[token]` の `[token]` としては使わない**（予約番号だけでは予約を開けない。セキュリティ回帰テストで担保） |
+| **確認コード** | 平文はユーザー／メールのみ。DB には **`reservation_token_hash`**（正規化した平文の SHA-256 hex 全文、切り詰めなし） | **新規予約:** 英数字 16 文字（紛らわしい文字除外）。メール・画面では見やすさのため **4 文字ごとのハイフン表示**があり得る。入力時はハイフン・空白を除いて正規化して照合。**旧予約:** 従来どおり **64 文字の hex（0-9a-f）** のコードが残り得る。API は両形式を受理（`src/lib/reservations/token-format.ts` の `isValidReservationTokenFormat`） | `[token]` として送られた文字列を正規化 → ハッシュ → `reservation_token_hash` で検索 |
+
+**補足（実装パス）**
+
+- 新規予約: `POST /api/reservations` が `generateReservationPublicRef` と `generateReservationConfirmationRaw`（およびハッシュ）を用い、`create_public_reservation` に `p_public_ref` と `p_token_hash` を渡す。
+- 予約完了メール: `src/lib/email/reservation-created-mail.ts` で **予約番号と確認コードの役割を本文で区別**して記載する。
+- **管理からの予約完了メール再送:** `POST /api/admin/reservations/[id]/resend-created-email` は **確認コードのみ再発行**（`reservation_token_hash` 更新）。**予約番号は不変**。
+- **誤入力・不存在の抑止:** 同一 IP などのレート制限・失敗記録は `src/lib/rate-limit/reservation-token-lookup-failure.ts` 等（実装を正とする）。列挙対策のため、失敗時の利用者向け文言は一定の統一文面に揃える。
+
+**BC-PUB-RES-TOKEN-01:** `public_ref` のみを `[token]` に渡しても予約詳細を取得できないこと（200 にならない）。  
+**BC-PUB-RES-TOKEN-02:** 新形式（16 文字・許容アルファベット）および旧形式（64 hex）のいずれでも、対応するハッシュが DB にあれば `GET /api/reservations/[token]` が 200 になること。
+
+### 5.2 昼食メニュー（DB と解決ルール）
 
 - **グローバル:** `lunch_menu_items`。`is_active` が予約で選べるマスタ行。管理 API で **有効行は常に1件以上**（最後の1件を非公開／削除で0件にしない。別メニューを同時に公開するパラメータあり）。
 - **開催日上書き:** `event_day_lunch_menu_items`（`event_day_id` + `lunch_menu_item_id`）。**その開催日に0件**なら、予約・公開 API はグローバルの有効行のみを使う。**1件以上**なら、その ID に含まれるうち `is_active` な行だけがその日の予約で有効。`create_public_reservation` も同じ集合で検証する。
@@ -280,3 +307,7 @@
 
 - 新規 API・画面・Cron を追加したら **本書に BC-* 観点で追記**する。
 - エラーコード・HTTP ステータスは **Route Handler / RPC の返却値**が正。本書の日本語説明は補助。
+
+### 10.1 改訂履歴（抜粋）
+
+- **2026-04-27:** §5.1 を追加。予約番号（`public_ref`）と短い確認コードの分離、旧 64 hex 確認コードの互換、管理再送時の「確認コードのみ再発行」を文書化。旧 §5.1「昼食メニュー」を **§5.2** に繰り下げ。

@@ -63,7 +63,7 @@ export function EventDayMobileCard({ row }: { row: EventDayListRow }) {
           href={`/admin/event-days/${row.id}`}
           className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-zinc-800/25 bg-zinc-900 px-3 text-sm font-semibold text-white shadow-sm hover:bg-zinc-800"
         >
-          この開催のまとめを見る
+          この日の運営画面を見る
         </Link>
         <Link
           href={`/admin/event-days/${row.id}/slots`}

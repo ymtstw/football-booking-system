@@ -28,37 +28,37 @@ export function buildAdminBreadcrumbTrail(pathname: string): AdminBreadcrumbSegm
   if (pathUsesEventDayOpsBreadcrumb(p)) return null;
 
   if (p === "/admin/pre-day-results") {
-    return [DASHBOARD, { kind: "current", label: "試合編成（前日確定）" }];
+    return [DASHBOARD, { kind: "current", label: "試合表・編成" }];
   }
 
   if (p === "/admin/event-days") {
-    return [DASHBOARD, { kind: "current", label: "開催日の登録・一覧" }];
+    return [DASHBOARD, { kind: "current", label: "開催日の登録・管理" }];
   }
 
   const hubOnly = p.match(/^\/admin\/event-days\/([^/]+)$/);
   if (hubOnly) {
     return [
       DASHBOARD,
-      { kind: "link", href: "/admin/event-days", label: "開催日の登録・一覧" },
-      { kind: "current", label: "この開催のまとめ" },
+      { kind: "link", href: "/admin/event-days", label: "開催日の登録・管理" },
+      { kind: "current", label: "この日の運営画面" },
     ];
   }
 
   if (p === "/admin/reservations") {
-    return [DASHBOARD, { kind: "current", label: "予約一覧" }];
+    return [DASHBOARD, { kind: "current", label: "予約を確認" }];
   }
 
   const resDetail = p.match(/^\/admin\/reservations\/([^/]+)$/);
   if (resDetail) {
     return [
       DASHBOARD,
-      { kind: "link", href: "/admin/reservations", label: "予約一覧" },
+      { kind: "link", href: "/admin/reservations", label: "予約を確認" },
       { kind: "current", label: "予約の詳細" },
     ];
   }
 
   if (p === "/admin/lunch-menu") {
-    return [DASHBOARD, { kind: "current", label: "昼食メニュー" }];
+    return [DASHBOARD, { kind: "current", label: "昼食メニュー設定" }];
   }
 
   if (p === "/admin/notifications/failed") {

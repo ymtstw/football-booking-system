@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import {
   CAMP_INQUIRY_STATUS_VALUES_HINT,
@@ -47,11 +51,15 @@ export async function PATCH(
     .select("id, status, updated_at")
     .single();
 
-  if (error || !data) {
-    return NextResponse.json(
-      { error: error?.message ?? "更新に失敗しました" },
-      { status: 500 }
-    );
+  if (error) {
+    logAdminApiDbError("PATCH camp-inquiries/[id] update", error);
+    if (error.code === "PGRST116") {
+      return NextResponse.json({ error: "合宿相談が見つかりません" }, { status: 404 });
+    }
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "合宿相談が見つかりません" }, { status: 404 });
   }
 
   return NextResponse.json({ ok: true, ...data });

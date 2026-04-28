@@ -5,6 +5,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  ADMIN_API_READ_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -66,6 +70,7 @@ type TeamEmbed = {
   team_name: string;
   strength_category: string;
   contact_name: string;
+  representative_grade_year?: number | null;
 };
 
 type ReservationTeamRow = {
@@ -132,10 +137,8 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (dayErr) {
-    return NextResponse.json(
-      { error: dayErr.message, code: dayErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET /api/admin/matches event_days", dayErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!eventDay) {
     return NextResponse.json(
@@ -162,7 +165,7 @@ export async function GET(request: NextRequest) {
         display_name,
         participant_count,
         team_id,
-        teams ( team_name, strength_category, contact_name )
+        teams ( team_name, strength_category, contact_name, representative_grade_year )
       `
         )
         .eq("event_day_id", day.id)
@@ -170,16 +173,12 @@ export async function GET(request: NextRequest) {
     ]);
 
   if (slotListErr) {
-    return NextResponse.json(
-      { error: slotListErr.message, code: slotListErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET /api/admin/matches event_day_slots", slotListErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (allResErr) {
-    return NextResponse.json(
-      { error: allResErr.message, code: allResErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET /api/admin/matches reservations", allResErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const slotsRaw = (slotRows ?? []) as EventSlotRow[];
@@ -211,11 +210,15 @@ export async function GET(request: NextRequest) {
   function sideFromMap(reservationId: string) {
     const r = reservationMap.get(reservationId);
     const t = singleTeam(r?.teams);
+    const gyRaw = t?.representative_grade_year;
+    const representativeGradeYear =
+      typeof gyRaw === "number" && gyRaw >= 1 && gyRaw <= 6 ? gyRaw : null;
     if (!t) {
       return {
         reservationId,
         teamName: null as string | null,
         strengthCategory: null as string | null,
+        representativeGradeYear: null as number | null,
         contactName: null as string | null,
         displayName: r?.display_name ?? null,
         participantCount: r?.participant_count ?? null,
@@ -225,6 +228,7 @@ export async function GET(request: NextRequest) {
       reservationId,
       teamName: t.team_name,
       strengthCategory: t.strength_category,
+      representativeGradeYear,
       contactName: t.contact_name,
       displayName: r?.display_name ?? null,
       participantCount: r?.participant_count ?? null,
@@ -258,10 +262,14 @@ export async function GET(request: NextRequest) {
               const code = morningSlotCodeById.get(playSlotId) ?? playSlotId;
               morningMatchNote = `試合は ${code} 枠`;
             }
+            const gyRaw = t?.representative_grade_year;
+            const representativeGradeYear =
+              typeof gyRaw === "number" && gyRaw >= 1 && gyRaw <= 6 ? gyRaw : null;
             return {
               reservationId: row.id,
               teamName: t?.team_name ?? null,
               strengthCategory: t?.strength_category ?? null,
+              representativeGradeYear,
               displayName: row.display_name,
               morningMatchNote,
             };
@@ -283,6 +291,7 @@ export async function GET(request: NextRequest) {
             reservationId: string;
             teamName: string | null;
             strengthCategory: string | null;
+            representativeGradeYear: number | null;
             displayName: string | null;
             morningMatchNote: string | null;
           }[],
@@ -315,10 +324,8 @@ export async function GET(request: NextRequest) {
     .maybeSingle();
 
   if (runErr) {
-    return NextResponse.json(
-      { error: runErr.message, code: runErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET /api/admin/matches matching_runs", runErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const activeReservationsPayload = [...reservationMap.values()]
@@ -370,10 +377,8 @@ export async function GET(request: NextRequest) {
     .eq("matching_run_id", run.id);
 
   if (asgErr) {
-    return NextResponse.json(
-      { error: asgErr.message, code: asgErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET /api/admin/matches match_assignments", asgErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const assignmentRows = (rawAssignments ?? []) as AssignmentRow[];

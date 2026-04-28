@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { InquiryStatusBadge } from "@/components/admin/inquiry-status-badge";
 import {
   type InquiryListPeriod,
   type InquiryListTab,
@@ -8,7 +9,7 @@ import {
   parseInquiryListQuery,
   rollingThirtyDaysCutoffIso,
 } from "@/lib/admin/inquiry-admin-list-query";
-import { campInquiryStatusLabelJa } from "@/lib/camp-inquiry/camp-inquiry-status";
+import { fetchInquiryTabCountsForPage } from "@/lib/admin/inquiry-count-queries";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
@@ -39,8 +40,12 @@ function previewMessage(text: string, max = 72): string {
   return `${t.slice(0, max)}…`;
 }
 
+function tabLabelWithCount(base: string, count: number): string {
+  return count > 0 ? `${base} · ${count}` : base;
+}
+
 function emptyMessageTournament(tab: InquiryListTab, period: InquiryListPeriod): string {
-  if (tab === "todo") return "未対応・要再対応のお問い合わせはありません。";
+  if (tab === "todo") return "要対応のお問い合わせはありません。";
   if (tab === "in_progress") return "対応中のお問い合わせはありません。";
   if (tab === "done") {
     return period === "recent"
@@ -52,7 +57,7 @@ function emptyMessageTournament(tab: InquiryListTab, period: InquiryListPeriod):
     : "30日より前のお問い合わせはありません。";
 }
 
-/** 管理: 大会・お問い合わせ一覧 */
+/** 管理: お問い合わせ一覧 */
 export default async function AdminTournamentInquiriesPage({
   searchParams,
 }: {
@@ -68,6 +73,12 @@ export default async function AdminTournamentInquiriesPage({
   const filters = inquiryListSupabaseFilters(tab, period, cutoffIso);
 
   const supabase = await createClient();
+  const tabCounts = await fetchInquiryTabCountsForPage(
+    supabase,
+    "tournament_inquiries",
+    period
+  );
+
   let query = supabase
     .from("tournament_inquiries")
     .select(
@@ -94,22 +105,15 @@ export default async function AdminTournamentInquiriesPage({
 
   return (
     <div className="min-w-0 space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">お問い合わせ</h1>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-          公開の「お問い合わせ」フォームから届いた内容です。合宿相談（
-          <Link
-            href="/admin/camp-inquiries"
-            className="font-medium text-sky-800 underline underline-offset-2 hover:text-sky-950"
-          >
-            合宿相談
-          </Link>
-          ）とは別の受付です。
+      <header className="space-y-2">
+        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">対応案件</h1>
+        <h2 className="text-lg font-semibold text-zinc-800 sm:text-xl">お問い合わせ</h2>
+        <p className="text-sm leading-relaxed text-zinc-600">
+          公開フォームから届いたお問い合わせを確認できます。
+          <br />
+          対応が必要なものから順に確認してください。
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-          新着は、システム側で「お問い合わせ用の通知先メール」と「運営共通の通知先メール」のいずれか（または両方）が設定されているときに、あわせて通知メールでも届きます。どちらも未設定のときは、この画面での確認と記録のみです。
-        </p>
-      </div>
+      </header>
 
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
@@ -118,28 +122,28 @@ export default async function AdminTournamentInquiriesPage({
             className={tabClass(tab === "todo")}
             aria-current={tab === "todo" ? "page" : undefined}
           >
-            要対応
+            {tabLabelWithCount("要対応", tabCounts.todo)}
           </Link>
           <Link
             href={inquiryListHref("/admin/tournament-inquiries", "in_progress", "recent")}
             className={tabClass(tab === "in_progress")}
             aria-current={tab === "in_progress" ? "page" : undefined}
           >
-            対応中
+            {tabLabelWithCount("対応中", tabCounts.inProgress)}
           </Link>
           <Link
             href={inquiryListHref("/admin/tournament-inquiries", "done", "recent")}
             className={tabClass(tab === "done")}
             aria-current={tab === "done" ? "page" : undefined}
           >
-            対応済み
+            {tabLabelWithCount("対応済み", tabCounts.done)}
           </Link>
           <Link
             href={inquiryListHref("/admin/tournament-inquiries", "all", "recent")}
             className={tabClass(tab === "all")}
             aria-current={tab === "all" ? "page" : undefined}
           >
-            すべて
+            {tabLabelWithCount("すべて", tabCounts.all)}
           </Link>
         </div>
         {(tab === "done" || tab === "all") && (
@@ -161,9 +165,6 @@ export default async function AdminTournamentInquiriesPage({
             </Link>
           </div>
         )}
-        <p className="text-xs leading-relaxed text-zinc-500">
-          要対応・対応中はステータスで全期間を表示します。対応済み・すべては受付日時が直近30日以内か、それより前かで切り替えます（いずれも最大200件）。
-        </p>
       </div>
 
       {error ? (
@@ -181,7 +182,7 @@ export default async function AdminTournamentInquiriesPage({
                 className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-100/80"
               >
                 <p className="text-xs text-zinc-500">
-                  <span className="font-medium text-zinc-700">受付</span>{" "}
+                  <span className="font-medium text-zinc-700">受付日時</span>{" "}
                   {formatDateTimeTokyoWithWeekday(row.created_at)}
                 </p>
                 <dl className="mt-3 space-y-2.5 text-sm text-zinc-900">
@@ -190,24 +191,16 @@ export default async function AdminTournamentInquiriesPage({
                     <dd className="mt-0.5 wrap-break-word">{row.contact_name?.trim() || "—"}</dd>
                   </div>
                   <div>
-                    <dt className="text-xs font-medium text-zinc-500">メール</dt>
-                    <dd className="mt-0.5 wrap-break-word text-xs sm:text-sm">{row.contact_email}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs font-medium text-zinc-500">電話</dt>
-                    <dd className="mt-0.5 wrap-break-word font-mono text-xs">
-                      {row.contact_phone?.trim() || "—"}
-                    </dd>
-                  </div>
-                  <div>
                     <dt className="text-xs font-medium text-zinc-500">内容（抜粋）</dt>
-                    <dd className="mt-0.5 wrap-break-word text-xs leading-relaxed text-zinc-700 whitespace-pre-wrap">
+                    <dd className="mt-0.5 wrap-break-word text-xs leading-relaxed whitespace-pre-wrap text-zinc-700">
                       {previewMessage(row.message)}
                     </dd>
                   </div>
                   <div className="border-t border-zinc-100 pt-2">
                     <dt className="text-xs font-medium text-zinc-500">ステータス</dt>
-                    <dd className="mt-0.5 font-medium">{campInquiryStatusLabelJa(row.status)}</dd>
+                    <dd className="mt-1">
+                      <InquiryStatusBadge status={row.status} />
+                    </dd>
                   </div>
                 </dl>
                 <div className="mt-4 border-t border-zinc-100 pt-3">
@@ -228,8 +221,6 @@ export default async function AdminTournamentInquiriesPage({
                   <tr>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">受付日時</th>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">お名前</th>
-                    <th className="min-w-[12rem] px-3 py-2.5 sm:px-4">メール</th>
-                    <th className="min-w-[8rem] px-3 py-2.5 sm:px-4">電話</th>
                     <th className="min-w-[14rem] px-3 py-2.5 sm:px-4">内容（抜粋）</th>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">ステータス</th>
                     <th className="sticky right-0 z-20 min-w-[6.5rem] whitespace-nowrap border-l border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] sm:px-4">
@@ -247,18 +238,6 @@ export default async function AdminTournamentInquiriesPage({
                         {row.contact_name?.trim() || "—"}
                       </td>
                       <td
-                        className="max-w-[14rem] truncate px-3 py-2.5 text-xs sm:px-4 sm:text-sm"
-                        title={row.contact_email}
-                      >
-                        {row.contact_email}
-                      </td>
-                      <td
-                        className="max-w-[10rem] truncate px-3 py-2.5 font-mono text-xs sm:px-4 sm:text-sm"
-                        title={row.contact_phone?.trim() ?? ""}
-                      >
-                        {row.contact_phone?.trim() || "—"}
-                      </td>
-                      <td
                         className="max-w-md px-3 py-2.5 text-xs leading-snug text-zinc-700 sm:px-4 sm:text-sm"
                         title={row.message}
                       >
@@ -267,7 +246,7 @@ export default async function AdminTournamentInquiriesPage({
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
-                        {campInquiryStatusLabelJa(row.status)}
+                        <InquiryStatusBadge status={row.status} />
                       </td>
                       <td className="sticky right-0 z-10 min-w-[6.5rem] whitespace-nowrap border-l border-zinc-200 bg-white px-2 py-2 shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] group-hover:bg-zinc-50 sm:px-3">
                         <Link

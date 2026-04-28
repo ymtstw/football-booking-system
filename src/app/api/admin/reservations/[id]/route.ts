@@ -1,8 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { getAdminUser } from "@/lib/auth/require-admin";
 import {
-  isAtLeastFourDigitCount,
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
+import { getAdminUser } from "@/lib/auth/require-admin";
+import { parseLunchItemsInput } from "@/lib/lunch/parse-lunch-items-body";
+import { replaceReservationLunchItems } from "@/lib/lunch/replace-reservation-lunch-items";
+import {
+  exceedsReserveCountMaxAllowed,
   RESERVE_COUNT_MAX_ALLOWED,
 } from "@/lib/reservations/reserve-numeric-sanity";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -19,7 +26,7 @@ function isStrength(s: string): s is Strength {
   return s === "strong" || s === "potential";
 }
 
-/** 管理: 予約に紐づくチーム連絡先・人数・備考のみ更新（枠・試合の変更は別導線） */
+/** 管理: 予約に紐づくチーム連絡先・人数・備考・昼食明細の更新（枠・試合の変更は別導線） */
 export async function PATCH(
   request: Request,
   context: { params: Promise<{ id: string }> }
@@ -53,18 +60,22 @@ export async function PATCH(
 
   const { data: row, error: fetchErr } = await supabase
     .from("reservations")
-    .select("id, team_id, participant_count, remarks, display_name")
+    .select("id, team_id, event_day_id, participant_count, remarks, display_name")
     .eq("id", id)
     .maybeSingle();
 
-  if (fetchErr || !row) {
-    return NextResponse.json(
-      { error: fetchErr?.message ?? "予約が見つかりません" },
-      { status: fetchErr ? 500 : 404 }
-    );
+  if (fetchErr) {
+    logAdminApiDbError("PATCH /api/admin/reservations/[id] fetch reservation", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
+  }
+  if (!row) {
+    return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
   }
 
   const teamId = row.team_id as string;
+  const eventDayId = row.event_day_id as string;
+
+  let lunchItemsUpdated = false;
 
   const reservationPatch: Record<string, unknown> = {};
   if ("participant_count" in b) {
@@ -80,7 +91,7 @@ export async function PATCH(
         { status: 422 }
       );
     }
-    if (isAtLeastFourDigitCount(n)) {
+    if (exceedsReserveCountMaxAllowed(n)) {
       return NextResponse.json(
         { error: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数で指定してください` },
         { status: 422 }
@@ -187,24 +198,72 @@ export async function PATCH(
     }
     if (team.representative_grade_year !== undefined) {
       if (team.representative_grade_year === null) {
-        teamPatch.representative_grade_year = null;
-      } else {
-        const gy =
-          typeof team.representative_grade_year === "number"
-            ? team.representative_grade_year
-            : typeof team.representative_grade_year === "string" &&
-                team.representative_grade_year.trim() !== ""
-              ? Number(team.representative_grade_year.trim())
-              : NaN;
-        if (!Number.isInteger(gy) || gy < 1 || gy > 6) {
-          return NextResponse.json(
-            { error: "代表学年は 1〜6 の整数、または null です" },
-            { status: 422 }
-          );
-        }
-        teamPatch.representative_grade_year = gy;
+        return NextResponse.json(
+          { error: "代表学年は 1〜6 で指定してください（空にできません）" },
+          { status: 422 }
+        );
       }
+      const gy =
+        typeof team.representative_grade_year === "number"
+          ? team.representative_grade_year
+          : typeof team.representative_grade_year === "string" &&
+              team.representative_grade_year.trim() !== ""
+            ? Number(team.representative_grade_year.trim())
+            : NaN;
+      if (!Number.isInteger(gy) || gy < 1 || gy > 6) {
+        return NextResponse.json(
+          { error: "代表学年は 1〜6 の整数で指定してください" },
+          { status: 422 }
+        );
+      }
+      teamPatch.representative_grade_year = gy;
     }
+  }
+
+  if ("lunchItems" in b) {
+    const parsed = parseLunchItemsInput(b.lunchItems);
+    if (parsed === null) {
+      return NextResponse.json(
+        { error: "昼食（lunchItems）の形式が不正です" },
+        { status: 422 }
+      );
+    }
+    const lunchTotalUnits = parsed.reduce((s, item) => s + item.quantity, 0);
+    if (lunchTotalUnits === 0) {
+      return NextResponse.json(
+        { error: "昼食の食数を1以上にしてください" },
+        { status: 422 }
+      );
+    }
+    if (exceedsReserveCountMaxAllowed(lunchTotalUnits)) {
+      return NextResponse.json(
+        {
+          error: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください`,
+        },
+        { status: 422 }
+      );
+    }
+    const lunchRes = await replaceReservationLunchItems(
+      supabase,
+      id,
+      eventDayId,
+      parsed
+    );
+    if (!lunchRes.ok) {
+      const status =
+        lunchRes.code === "lunch_menu_invalid" || lunchRes.code === "lunch_duplicate"
+          ? 422
+          : 500;
+      if (status === 422) {
+        return NextResponse.json({ error: lunchRes.message }, { status });
+      }
+      logAdminApiDbError(
+        "PATCH /api/admin/reservations/[id] replaceReservationLunchItems",
+        lunchRes.message
+      );
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
+    }
+    lunchItemsUpdated = true;
   }
 
   if (Object.keys(teamPatch).length > 0) {
@@ -213,8 +272,9 @@ export async function PATCH(
       .update(teamPatch)
       .eq("id", teamId);
     if (teamErr) {
+      logAdminApiDbError("PATCH /api/admin/reservations/[id] teams update", teamErr);
       return NextResponse.json(
-        { error: teamErr.message ?? "チーム情報の更新に失敗しました" },
+        { error: ADMIN_API_SAVE_ERROR_JA },
         { status: 500 }
       );
     }
@@ -226,14 +286,19 @@ export async function PATCH(
       .update(reservationPatch)
       .eq("id", id);
     if (resErr) {
+      logAdminApiDbError("PATCH /api/admin/reservations/[id] reservations update", resErr);
       return NextResponse.json(
-        { error: resErr.message ?? "予約の更新に失敗しました" },
+        { error: ADMIN_API_SAVE_ERROR_JA },
         { status: 500 }
       );
     }
   }
 
-  if (Object.keys(teamPatch).length === 0 && Object.keys(reservationPatch).length === 0) {
+  if (
+    Object.keys(teamPatch).length === 0 &&
+    Object.keys(reservationPatch).length === 0 &&
+    !lunchItemsUpdated
+  ) {
     return NextResponse.json({ error: "更新項目がありません" }, { status: 422 });
   }
 

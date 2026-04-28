@@ -124,7 +124,7 @@ export function ReservePreCheckAgreement({
           aria-expanded={mobileDetailsOpen}
           aria-controls={mobileDetailsOpen ? listRegionId : undefined}
         >
-          {mobileDetailsOpen ? "確認事項を閉じる" : "確認事項を開く"}
+          {mobileDetailsOpen ? "確認事項を閉じる" : "確認する"}
         </button>
       ) : null}
 

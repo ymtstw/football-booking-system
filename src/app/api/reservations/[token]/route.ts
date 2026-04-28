@@ -18,6 +18,7 @@ import {
 import {
   parseLunchItemsInput,
 } from "@/lib/lunch/parse-lunch-items-body";
+import { fetchEffectiveLunchMenuItemsForEventDay } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { replaceReservationLunchItems } from "@/lib/lunch/replace-reservation-lunch-items";
 import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
 import { RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA } from "@/lib/reservations/reservation-token-auth-message";
@@ -29,7 +30,7 @@ import {
 } from "@/lib/reservations/token";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
-  isAtLeastFourDigitCount,
+  exceedsReserveCountMaxAllowed,
   RESERVE_COUNT_MAX_ALLOWED,
 } from "@/lib/reservations/reserve-numeric-sanity";
 import {
@@ -157,13 +158,11 @@ function reservationJson(row: ReservationRow) {
 
   return {
     reservation: {
-      id: row.id,
       publicRef: row.public_ref,
       status: row.status,
       participantCount: row.participant_count,
       lunchItems,
       lunchTotalTaxIncluded,
-      createdAt: row.created_at,
       eventDay: {
         id: ed.id,
         eventDate: ed.event_date,
@@ -173,11 +172,8 @@ function reservationJson(row: ReservationRow) {
       },
       morningSlot: slotObj
         ? {
-            id: slotObj.id,
-            slotCode: slotObj.slot_code,
             startTime: slotObj.start_time,
             endTime: slotObj.end_time,
-            phase: slotObj.phase,
           }
         : null,
       team: {
@@ -245,10 +241,7 @@ export async function GET(
 
   if (error) {
     logPublicReserveApiSupabaseError("GET /api/reservations/[token] reservations", error);
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: error.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_READ_ERROR_JA }, { status: 500 });
   }
 
   if (!data) {
@@ -266,7 +259,16 @@ export async function GET(
     return NextResponse.json({ error: RESERVATION_CONFIRM_CODE_AUTH_ERROR_JA }, { status: 404 });
   }
 
-  return NextResponse.json(reservationJson(row));
+  const base = reservationJson(row);
+  const { items: lunchMenuItems } = await fetchEffectiveLunchMenuItemsForEventDay(
+    supabase,
+    ed.id
+  );
+
+  return NextResponse.json({
+    ...base,
+    lunchMenuItems,
+  });
 }
 
 export async function PATCH(
@@ -315,7 +317,7 @@ export async function PATCH(
     );
   }
 
-  if (isAtLeastFourDigitCount(parsed.participantCount)) {
+  if (exceedsReserveCountMaxAllowed(parsed.participantCount)) {
     return NextResponse.json(
       {
         error: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください`,
@@ -325,7 +327,7 @@ export async function PATCH(
   }
 
   const lunchTotalUnits = parsed.lunchItems.reduce((s, item) => s + item.quantity, 0);
-  if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+  if (exceedsReserveCountMaxAllowed(lunchTotalUnits)) {
     return NextResponse.json(
       {
         error: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください`,
@@ -345,10 +347,7 @@ export async function PATCH(
 
   if (fetchErr) {
     logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] fetch", fetchErr);
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: fetchErr.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_READ_ERROR_JA }, { status: 500 });
   }
 
   if (!before) {
@@ -399,10 +398,7 @@ export async function PATCH(
 
   if (rErr) {
     logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] update reservations", rErr);
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: rErr.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
   }
 
   const lunchRes = await replaceReservationLunchItems(
@@ -421,10 +417,7 @@ export async function PATCH(
         message: lunchRes.message,
         code: lunchRes.code,
       });
-      return NextResponse.json(
-        { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: lunchRes.code },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
     }
     return NextResponse.json({ error: lunchRes.message }, { status });
   }
@@ -439,10 +432,7 @@ export async function PATCH(
 
   if (tErr) {
     logPublicReserveApiSupabaseError("PATCH /api/reservations/[token] update teams", tErr);
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: tErr.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
   }
 
   const { data: after, error: afterErr } = await supabase

@@ -24,7 +24,7 @@ import { generateReservationPublicRef } from "@/lib/reservations/public-ref";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
-  isAtLeastFourDigitCount,
+  exceedsReserveCountMaxAllowed,
   RESERVE_COUNT_MAX_ALLOWED,
 } from "@/lib/reservations/reserve-numeric-sanity";
 import {
@@ -125,7 +125,7 @@ function mapRpcError(error: string): { status: number; body: Record<string, stri
     case "invalid_strength":
       return {
         status: 422,
-        body: { error: "チームカテゴリはハイレベルまたはポテンシャルを選んでください" },
+        body: { error: "チームカテゴリはストロングまたはポテンシャルを選んでください" },
       };
     case "invalid_input":
       return { status: 400, body: { error: "入力内容を確認してください" } };
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
 
   if (!team.strengthCategory || !["strong", "potential"].includes(team.strengthCategory)) {
     return NextResponse.json(
-      { error: "チームカテゴリはハイレベルまたはポテンシャルを選んでください" },
+      { error: "チームカテゴリはストロングまたはポテンシャルを選んでください" },
       { status: 422 }
     );
   }
@@ -221,7 +221,7 @@ export async function POST(request: Request) {
     );
   }
 
-  if (isAtLeastFourDigitCount(participantCount)) {
+  if (exceedsReserveCountMaxAllowed(participantCount)) {
     return NextResponse.json(
       {
         error: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください`,
@@ -253,7 +253,7 @@ export async function POST(request: Request) {
   }
 
   const lunchTotalUnits = lunchItems.reduce((s, item) => s + item.quantity, 0);
-  if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+  if (exceedsReserveCountMaxAllowed(lunchTotalUnits)) {
     return NextResponse.json(
       {
         error: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください`,
@@ -299,10 +299,7 @@ export async function POST(request: Request) {
 
     if (error) {
       logPublicReserveApiSupabaseError("POST /api/reservations create_public_reservation", error);
-      return NextResponse.json(
-        { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error.code },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
     }
 
     const result = data as RpcResult | null;
@@ -333,8 +330,6 @@ export async function POST(request: Request) {
 
       return NextResponse.json(
         {
-          reservationId: result.reservationId,
-          teamId: result.teamId,
           reservationToken: tokenPlain,
           reservationTokenDisplay: tokenDisplay,
           publicRef,
@@ -349,11 +344,13 @@ export async function POST(request: Request) {
     }
 
     const { status, body } = mapRpcError(err);
-    const detail =
-      err === "invalid_input" && result.message
-        ? { ...body, detail: result.message }
-        : body;
-    return NextResponse.json(detail, { status });
+    if (err === "invalid_input" && typeof result.message === "string" && result.message.trim()) {
+      /** RPC は短い内部タグのみ返すが、公開レスポンスには載せずログで追跡する */
+      console.error("[public-reserve-api] POST /api/reservations create_public_reservation invalid_input", {
+        rpcMessageTag: result.message.trim(),
+      });
+    }
+    return NextResponse.json(body, { status });
   }
 
   return NextResponse.json(

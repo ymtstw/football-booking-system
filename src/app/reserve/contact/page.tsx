@@ -8,8 +8,16 @@ import {
   reserveFlowUserVisibleMessage,
   RESERVE_FLOW_NETWORK_ERROR_JA,
 } from "@/lib/reserve/reserve-flow-user-message";
-import { IconInfoCircle } from "../_components/reserve-icons";
+import { IconCheck, IconInfoCircle } from "../_components/reserve-icons";
 import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-icon";
+
+/** 予約関連の問い合わせ時に本文へ書いてほしい内容の案内（お問い合わせ内容の入力欄直上） */
+const RESERVATION_INQUIRY_HINT_LINES_JA = [
+  "予約に関するお問い合わせの場合は、予約番号をご記入ください。",
+  "不明な場合は、予約日・チーム名などで構いません。",
+] as const;
+
+const CONTACT_REPLY_NOTE_JA = "お問い合わせ内容を確認のうえ、担当者よりご連絡いたします。";
 
 export default function ReserveContactPage() {
   const [name, setName] = useState("");
@@ -19,7 +27,7 @@ export default function ReserveContactPage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [doneMessage, setDoneMessage] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,7 +54,6 @@ export default function ReserveContactPage() {
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
-        message?: string;
       };
       if (!res.ok) {
         setError(
@@ -58,10 +65,7 @@ export default function ReserveContactPage() {
         );
         return;
       }
-      setDoneMessage(
-        json.message ??
-          "お問い合わせを受け付けました。内容を確認のうえ、必要に応じてご連絡します。"
-      );
+      setSubmitted(true);
       setName("");
       setEmail("");
       setEmailConfirm("");
@@ -80,7 +84,7 @@ export default function ReserveContactPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-6">
       <div>
         <ReserveHeadingWithIcon
           as="h1"
@@ -90,27 +94,39 @@ export default function ReserveContactPage() {
         >
           お問い合わせ
         </ReserveHeadingWithIcon>
-        <div className="mt-3 space-y-2.5 text-sm leading-relaxed text-zinc-600 sm:text-base sm:leading-relaxed">
-          <p>大会運営へのお問い合わせはこちらからお送りください。</p>
-          <p>内容を確認のうえ、運営側よりご連絡いたします。</p>
-          <p>
-            予約に関するお問い合わせの場合は、「予約日」「チーム名」を分かる範囲でご記入ください。
-          </p>
+        {!submitted ? (
+          <div className="mt-2 text-sm leading-snug text-zinc-600">
+            <p>{CONTACT_REPLY_NOTE_JA}</p>
+          </div>
+        ) : null}
+      </div>
+
+      {!submitted ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-snug text-amber-950 sm:px-4 sm:py-2.5">
+          お急ぎの方は、ページ下部の電話番号までご連絡ください。
         </div>
-      </div>
+      ) : null}
 
-      <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-        お急ぎの方は、ページ下部の電話番号までご連絡ください。
-      </div>
-
-      {doneMessage ? (
-        <p className="rounded-xl border border-rp-mint-2 bg-rp-mint/50 px-4 py-3 text-sm text-zinc-800">
-          {doneMessage}
-        </p>
+      {submitted ? (
+        <div className="space-y-4 rounded-xl border border-rp-mint-2 bg-rp-mint/70 px-4 py-4 sm:px-5">
+          <ReserveHeadingWithIcon
+            as="h2"
+            shell="navy"
+            icon={<IconCheck className="h-5 w-5" strokeWidth={2.25} />}
+            textClassName="text-sm font-bold text-rp-navy"
+          >
+            お問い合わせを受け付けました
+          </ReserveHeadingWithIcon>
+          <div className="space-y-3 text-[15px] leading-relaxed text-zinc-800 sm:text-sm">
+            <p>お問い合わせありがとうございます。</p>
+            <p>内容を確認のうえ、必要に応じて担当者よりご連絡します。</p>
+            <p>お急ぎの場合は、ページ下部の電話番号までご連絡ください。</p>
+          </div>
+        </div>
       ) : (
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="space-y-5 rounded-2xl border border-rp-mint-2 bg-white p-5 shadow-sm sm:p-8"
+          className="space-y-4 rounded-2xl border border-rp-mint-2 bg-white p-4 shadow-sm sm:space-y-5 sm:p-6"
         >
           <label className="block text-sm">
             <span className="font-medium text-zinc-800">お名前</span>
@@ -170,9 +186,13 @@ export default function ReserveContactPage() {
           <label className="block text-sm">
             <span className="font-medium text-zinc-800">お問い合わせ内容</span>
             <span className="text-red-600"> *</span>
-            <span className="mt-1 block text-xs leading-relaxed text-zinc-500 sm:text-sm">
-              予約に関する内容の場合は、予約日・チーム名もあわせてご記入ください。
-            </span>
+            <div className="mt-1 space-y-0.5 text-xs leading-snug text-zinc-500 sm:text-sm sm:leading-snug">
+              {RESERVATION_INQUIRY_HINT_LINES_JA.map((line) => (
+                <p key={line} className="m-0">
+                  {line}
+                </p>
+              ))}
+            </div>
             <textarea
               required
               rows={5}

@@ -133,7 +133,7 @@ export function CampInquiryForm({
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [doneMessage, setDoneMessage] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   function update(id: string, v: string) {
     setValues((prev) => ({ ...prev, [id]: v }));
@@ -154,7 +154,6 @@ export function CampInquiryForm({
       });
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
-        message?: string;
       };
       if (!res.ok) {
         setError(
@@ -166,10 +165,7 @@ export function CampInquiryForm({
         );
         return;
       }
-      setDoneMessage(
-        json.message ??
-          "ご相談を受け付けました。内容を確認のうえ、運営よりご連絡します。この時点では予約の確定ではありません。"
-      );
+      setSubmitted(true);
       setValues(emptyCampInquiryFormState());
     } catch (e) {
       setError(
@@ -190,7 +186,7 @@ export function CampInquiryForm({
     return { contact, consult, optional };
   }, []);
 
-  if (doneMessage) {
+  if (submitted) {
     return (
       <div className="space-y-4 rounded-xl border border-rp-mint-2 bg-rp-mint/70 px-4 py-4 sm:px-5">
         <ReserveHeadingWithIcon
@@ -201,10 +197,11 @@ export function CampInquiryForm({
         >
           ご相談を受け付けました
         </ReserveHeadingWithIcon>
-        <p className="text-[15px] leading-relaxed text-zinc-800 sm:text-sm">{doneMessage}</p>
-        <p className="text-sm leading-relaxed text-zinc-600 sm:text-xs">
-          開催前のご調整は、運営からの返信で進めます。日帰りの交流試合の予約とは別のお手続きです。
-        </p>
+        <div className="space-y-3 text-[15px] leading-relaxed text-zinc-800 sm:text-sm">
+          <p>内容を確認のうえ、担当者よりご連絡します。</p>
+          <p>この時点では、合宿の予約はまだ確定していません。</p>
+          <p>日程・人数・宿泊内容などの調整は、担当者からの返信で進めます。</p>
+        </div>
       </div>
     );
   }

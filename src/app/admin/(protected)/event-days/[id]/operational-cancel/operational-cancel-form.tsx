@@ -1,6 +1,7 @@
 "use client";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { MAIL_BODY_SERVICE_NAME } from "@/lib/email/mail-brand";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -19,7 +20,11 @@ export function OperationalCancelForm({
 }) {
   const router = useRouter();
   const [notice, setNotice] = useState("");
-  const [immediate, setImmediate] = useState(false);
+  /** ① 前日バッチ／② 即時（天候対応フォームと同様の区分） */
+  const [operationalDelivery, setOperationalDelivery] = useState<
+    "day_before_17" | "immediate"
+  >("day_before_17");
+  const [immediateSendConfirmed, setImmediateSendConfirmed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -30,12 +35,13 @@ export function OperationalCancelForm({
       setMessage("参加者向けのお知らせ文を入力してください");
       return;
     }
+    const sendImmediate =
+      operationalDelivery === "immediate" && immediateSendConfirmed;
     const ok = window.confirm(
       "運営都合による開催中止として登録します。\n" +
-        "予約カレンダーでは中止表示になり、前日の一括最終メール（16:30頃開始・目安17:30まで）にこの文面が反映されます。\n" +
-        (immediate
-          ? "「即時送信」がオンです。登録と同時に参加者へメールが送られます。\n"
-          : "") +
+        (sendImmediate
+          ? "② のとおり、登録と同時に「運営都合により開催中止」の即時メールを送ります。\n"
+          : "① のとおり、この画面ではまだ送信せず、開催前日の定時バッチ（目安16:30開始・届くのは目安17:30頃まで）にこの文面が載ります。\n") +
         "\n実行してよいですか？"
     );
     if (!ok) return;
@@ -49,7 +55,7 @@ export function OperationalCancelForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           participantNotice: trimmed,
-          sendImmediateOperationalNotice: immediate,
+          sendImmediateOperationalNotice: sendImmediate,
         }),
       });
       const json = (await res.json().catch(() => ({}))) as {
@@ -57,7 +63,7 @@ export function OperationalCancelForm({
         immediateNotice?: { sent: number; skipped: number };
       };
       if (!res.ok) {
-        setMessage(json.error ?? `エラー（${res.status}）`);
+        setMessage(json.error ?? "送信に失敗しました。再試行するか、しばらくしてからお試しください。");
         return;
       }
       const im = json.immediateNotice;
@@ -72,12 +78,45 @@ export function OperationalCancelForm({
     }
   }
 
+  const batchPreviewSample = [
+    `（お届け先のお名前） 様`,
+    "",
+    `${MAIL_BODY_SERVICE_NAME}について、明日のご案内です。`,
+    "",
+    "明日の開催は中止といたします。",
+    "",
+    "チーム名: （予約のチーム名）",
+    "開催日: （開催日・曜日）",
+    gradeBandLinePreview(eventDay.grade_band),
+    "【中止理由・ご連絡事項】",
+    "← この見出しの直下に、下の「参加者向けのお知らせ文」に入力した全文がそのまま入ります（送信実装と同じ位置です）。",
+    "",
+    "こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
+    "ご不明な点がございましたら、お問い合わせフォームよりご連絡ください。",
+  ].join("\n");
+
+  const immediatePreviewSample = [
+    `（お届け先のお名前） 様`,
+    "",
+    "運営上の都合により、下記の開催日は中止となります。",
+    "",
+    "・チーム名：（予約データのチーム名）",
+    `・開催日：${formatIsoDateWithWeekdayJa(eventDay.event_date)}`,
+    `・学年帯：${eventDay.grade_band.trim() || "（学年帯）"}`,
+    "",
+    "【お知らせ】",
+    "← 下の「参加者向けのお知らせ文」に入力した全文（即時メールの差し込みと同じ）",
+    "",
+    "【中止理由・ご連絡事項】",
+    "← 同じお知らせ文がそのまま入ります（即時メールの差し込みと同じ）",
+  ].join("\n");
+
   return (
     <form
       onSubmit={(ev) => void handleSubmit(ev)}
-      className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm"
+      className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5"
     >
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-medium text-zinc-800">
           {formatIsoDateWithWeekdayJa(eventDay.event_date)}（{eventDay.grade_band}）
         </p>
@@ -88,21 +127,18 @@ export function OperationalCancelForm({
         <label htmlFor="op-notice" className="block text-sm font-medium text-zinc-800">
           参加者向けのお知らせ文（必須）
         </label>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          前日の一括メール（16:30頃開始・目安17:30まで）および、下の即時送信にそのまま載ります。電話番号・集合場所の変更など、ユーザーが取れる行動を書いてください。
+        <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+          <strong className="font-semibold text-zinc-900">緊急中止では必須です。</strong>
+          電話・振替の期限など、ご家庭が次に取れる行動が分かるように書いてください。
         </p>
-        <div className="mt-2 rounded-md border border-rose-200 bg-rose-50/90 px-3 py-2 text-[11px] leading-relaxed text-rose-950">
-          <p className="font-semibold text-rose-900">前日一括メールでの差し込みイメージ（抜粋）</p>
-          <p className="mt-1 whitespace-pre-wrap font-mono text-zinc-800">
-            {`明日の開催は中止といたします。
-
-チーム名: （予約データ）
-開催日: （開催日）
-
-【中止理由・ご連絡事項】
-← ここに、下の「参加者向けのお知らせ文」に入力した内容がそのまま入ります
-
-ご不明な点がございましたら、サイトのお問い合わせページより…`}
+        <div className="mt-3 rounded-md border border-rose-200 bg-rose-50/90 px-3 py-2.5 text-xs leading-relaxed text-rose-950 sm:text-sm">
+          <p className="font-semibold text-rose-900">
+            {operationalDelivery === "day_before_17"
+              ? "① で送るメール（前日・一括）の差し込み位置"
+              : "② で送るメール（即時）の差し込み位置"}
+          </p>
+          <p className="mt-1 whitespace-pre-wrap wrap-break-word text-zinc-800">
+            {operationalDelivery === "day_before_17" ? batchPreviewSample : immediatePreviewSample}
           </p>
         </div>
         <textarea
@@ -111,27 +147,84 @@ export function OperationalCancelForm({
           onChange={(ev) => setNotice(ev.target.value)}
           rows={8}
           required
-          className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+          aria-required
+          className="mt-2 min-h-11 w-full rounded-md border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
           placeholder="例: 施設都合により当該日の開催を中止します。別日の振替は〇〇までにメールでご連絡します。"
         />
       </div>
 
-      <label className="flex items-start gap-2 text-sm text-zinc-800">
-        <input
-          type="checkbox"
-          checked={immediate}
-          onChange={(ev) => setImmediate(ev.target.checked)}
-          className="mt-1"
-        />
-        <span>
-          <strong>例外:</strong> 至急、上記の文面で運営中止のメールを即時送信する（通常は前日の一括最終版に含めます）
-        </span>
-      </label>
+      <fieldset className="space-y-3 rounded-md border border-rose-200/90 bg-rose-50/50 p-3">
+        <legend className="text-sm font-medium text-zinc-800">
+          運営中止の連絡（どちらか一方）
+        </legend>
+        <p className="text-xs leading-relaxed text-zinc-600">
+          <strong className="text-zinc-800">①</strong>
+          はこの画面では送らず、
+          <strong className="text-zinc-800">開催前日に自動で一斉送信</strong>
+          されます（届くのは目安
+          <strong className="text-zinc-800"> 17:30頃まで</strong>）。
+          <strong className="text-zinc-800">②</strong>
+          は運営中止の確定と、参加者への即時メール送信をセットで行う経路です。
+          誤送信を防ぐため、下のチェックをオンにしないと「緊急中止として登録する」を押せません。
+        </p>
+        <label className="flex min-h-10 items-start gap-2 text-sm text-zinc-800">
+          <input
+            type="radio"
+            name="operationalDelivery"
+            checked={operationalDelivery === "day_before_17"}
+            onChange={() => {
+              setOperationalDelivery("day_before_17");
+              setImmediateSendConfirmed(false);
+            }}
+            className="mt-1"
+          />
+          <span>
+            <span className="font-semibold text-zinc-900">
+              ① 前日・自動で一斉送信（目安17:30頃までに届く）
+            </span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
+              開催前日の定時処理（目安16:30開始）で送信。ここで登録しただけではまだ送りません。
+            </span>
+          </span>
+        </label>
+        <label className="flex min-h-10 items-start gap-2 text-sm text-zinc-800">
+          <input
+            type="radio"
+            name="operationalDelivery"
+            checked={operationalDelivery === "immediate"}
+            onChange={() => setOperationalDelivery("immediate")}
+            className="mt-1"
+          />
+          <span>
+            <span className="font-semibold text-zinc-900">② 今すぐメールで通知</span>
+            <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
+              運営中止の確定と即時メールをまとめて行う経路です。下のチェックをオンにしたうえで登録してください。
+            </span>
+          </span>
+        </label>
+        {operationalDelivery === "immediate" ? (
+          <label className="ml-0 flex min-h-10 items-start gap-2 rounded-md border border-amber-200 bg-amber-50/90 px-3 py-2 text-sm text-amber-950 sm:ml-6">
+            <input
+              type="checkbox"
+              checked={immediateSendConfirmed}
+              onChange={(ev) => setImmediateSendConfirmed(ev.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              登録と同時に「運営都合により開催中止」のメールを送信する（必須・オンのときだけ登録できます）
+            </span>
+          </label>
+        ) : null}
+      </fieldset>
 
       <button
         type="submit"
-        disabled={loading || !notice.trim()}
-        className="inline-flex min-h-10 items-center justify-center rounded-md bg-rose-700 px-4 text-sm font-medium text-white disabled:opacity-50"
+        disabled={
+          loading ||
+          !notice.trim() ||
+          (operationalDelivery === "immediate" && !immediateSendConfirmed)
+        }
+        className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-rose-700 px-4 text-sm font-medium text-white hover:bg-rose-800 disabled:opacity-50 sm:w-auto"
       >
         {loading ? <InlineSpinner variant="onDark" /> : null}
         {loading ? "送信中…" : "緊急中止として登録する"}
@@ -140,4 +233,9 @@ export function OperationalCancelForm({
       {message ? <p className="text-sm text-zinc-700">{message}</p> : null}
     </form>
   );
+}
+
+function gradeBandLinePreview(gradeBand: string): string {
+  const g = gradeBand?.trim();
+  return g ? `学年帯: ${g}` : "学年帯: （学年帯）";
 }

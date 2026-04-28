@@ -4,6 +4,11 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { sendWeatherCancelImmediateEmailAndUpdateNotification } from "@/lib/email/day-before-final-mail";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
@@ -89,10 +94,8 @@ export async function POST(
     .maybeSingle();
 
   if (fetchErr) {
-    return NextResponse.json(
-      { error: fetchErr.message, code: fetchErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST weather-decision fetch event_days", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!ed) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -179,10 +182,8 @@ export async function POST(
   });
 
   if (insErr) {
-    return NextResponse.json(
-      { error: insErr.message, code: insErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST weather-decision insert weather_decisions", insErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   if (decisionRaw === "cancel") {
@@ -196,10 +197,8 @@ export async function POST(
         .eq("id", eventDayId);
 
       if (upErr) {
-        return NextResponse.json(
-          { error: upErr.message, code: upErr.code },
-          { status: 500 }
-        );
+        logAdminApiDbError("POST weather-decision update day_before_17", upErr);
+        return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
       }
     } else {
       const { error: upErr } = await supabase
@@ -213,10 +212,8 @@ export async function POST(
         .eq("id", eventDayId);
 
       if (upErr) {
-        return NextResponse.json(
-          { error: upErr.message, code: upErr.code },
-          { status: 500 }
-        );
+        logAdminApiDbError("POST weather-decision update cancel immediate", upErr);
+        return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
       }
     }
   } else {
@@ -239,10 +236,8 @@ export async function POST(
       .eq("id", eventDayId);
 
     if (upErr) {
-      return NextResponse.json(
-        { error: upErr.message, code: upErr.code },
-        { status: 500 }
-      );
+      logAdminApiDbError("POST weather-decision update go branch", upErr);
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
     }
   }
 
@@ -274,11 +269,15 @@ export async function POST(
     const activeReservationCount = reservations?.length ?? 0;
 
     if (resErr) {
+      logAdminApiDbError(
+        "POST weather-decision reservations list for immediate mail",
+        resErr
+      );
       immediateNoticeDetail = {
         sent: 0,
         skipped: 0,
         activeReservationCount: 0,
-        reservationLoadError: resErr.message,
+        reservationLoadError: "予約一覧の取得に失敗しました",
         hint: "予約一覧の取得に失敗したため、即時メールは送っていません（雨天判断の保存は完了しています）。",
       };
     } else if (activeReservationCount === 0) {

@@ -2,6 +2,7 @@
 import "server-only";
 
 import type { User } from "@supabase/supabase-js";
+import { cache } from "react";
 
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,7 +12,8 @@ export type AdminGateResult =
   | { kind: "no_session" }
   | { kind: "not_allowlisted"; user: User };
 
-export async function getAdminGate(): Promise<AdminGateResult> {
+/** 同一リクエスト内でレイアウト・各ページの二重チェックをまとめる（Supabase 往復削減） */
+export const getAdminGate = cache(async function getAdminGate(): Promise<AdminGateResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -28,7 +30,7 @@ export async function getAdminGate(): Promise<AdminGateResult> {
 
   if (!adminRow) return { kind: "not_allowlisted", user };
   return { kind: "ok", user };
-}
+});
 
 export async function getAdminUser(): Promise<User | null> {
   const gate = await getAdminGate();

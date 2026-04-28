@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { ScheduleDayClient } from "./schedule-day-client";
+import { loadScheduleDayViewBundle } from "@/lib/event-days/schedule-day-view-bundle";
 
 function isIsoDateOnly(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -33,5 +34,15 @@ export default async function ReserveScheduleDayPage({
   const decoded = decodeURIComponent(date ?? "").trim();
   if (!isIsoDateOnly(decoded)) notFound();
 
-  return <ScheduleDayClient eventDate={decoded} />;
+  const bundle = await loadScheduleDayViewBundle(decoded);
+
+  return (
+    <ScheduleDayClient
+      key={decoded}
+      initialAvailability={bundle.availability}
+      initialSchedule={bundle.schedule}
+      initialAvailabilityError={bundle.availabilityError}
+      initialScheduleError={bundle.scheduleError}
+    />
+  );
 }

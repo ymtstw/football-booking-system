@@ -3,6 +3,10 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_READ_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -37,10 +41,8 @@ export async function GET(
     .maybeSingle();
 
   if (edErr) {
-    return NextResponse.json(
-      { error: edErr.message, code: edErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET notification-summary event_days", edErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!ed) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -53,10 +55,8 @@ export async function GET(
     .eq("status", "active");
 
   if (cErr) {
-    return NextResponse.json(
-      { error: cErr.message, code: cErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET notification-summary reservations count", cErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const { data: notifRows, error: nErr } = await supabase
@@ -65,10 +65,8 @@ export async function GET(
     .eq("event_day_id", eventDayId);
 
   if (nErr) {
-    return NextResponse.json(
-      { error: nErr.message, code: nErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET notification-summary notifications", nErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const rows = notifRows ?? [];

@@ -7,6 +7,10 @@ import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
+import {
+  isDefaultSlotPreset,
+  type DefaultSlotPreset,
+} from "@/domains/event-days/default-slots";
 import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +20,9 @@ const GRADE_BAND_OPTIONS = [
   { value: "3-4", label: "3-4年生" },
   { value: "5-6", label: "5-6年生" },
 ] as const;
+
+/** このブラウザでの「開催日作成時の枠プリセット」既定（切替するまで維持）。 */
+const SLOT_PRESET_STORAGE_KEY = "fb_admin_create_event_day_slot_preset_v1";
 
 export function CreateEventDayForm() {
   const router = useRouter();
@@ -30,9 +37,33 @@ export function CreateEventDayForm() {
   const [publishBusy, setPublishBusy] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [completionBanner, setCompletionBanner] = useState<string | null>(null);
+  const [globalLunchMenuCount, setGlobalLunchMenuCount] = useState<number | null>(null);
+  const [globalLunchMenuLoading, setGlobalLunchMenuLoading] = useState(false);
+  /** 作成時に挿入する既定枠テンプレ（localStorage と同期・切替するまで維持）。 */
+  const [slotPreset, setSlotPreset] = useState<DefaultSlotPreset>("six");
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const createdDayRef = useRef(createdDay);
   createdDayRef.current = createdDay;
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SLOT_PRESET_STORAGE_KEY);
+      if (raw !== null && isDefaultSlotPreset(raw)) {
+        setSlotPreset(raw);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistSlotPreset = useCallback((next: DefaultSlotPreset) => {
+    setSlotPreset(next);
+    try {
+      window.localStorage.setItem(SLOT_PRESET_STORAGE_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const declinePublish = useCallback(() => {
     const d = createdDayRef.current;
@@ -58,10 +89,65 @@ export function CreateEventDayForm() {
     return () => window.removeEventListener("keydown", onKey);
   }, [publishDialogOpen, publishBusy, declinePublish]);
 
+  useEffect(() => {
+    if (!publishDialogOpen || !createdDay) return;
+    let cancelled = false;
+
+    setGlobalLunchMenuLoading(true);
+    setGlobalLunchMenuCount(null);
+
+    void (async () => {
+      try {
+        const res = await fetch("/api/lunch-menu", { cache: "no-store" });
+        const json = (await res.json().catch(() => ({}))) as { items?: unknown };
+        const items = Array.isArray(json.items) ? json.items : null;
+        if (cancelled) return;
+        setGlobalLunchMenuCount(items ? items.length : null);
+      } catch {
+        if (cancelled) return;
+        setGlobalLunchMenuCount(null);
+      } finally {
+        if (cancelled) return;
+        setGlobalLunchMenuLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [publishDialogOpen, createdDay]);
+
+  const openLunchMenuSettings = useCallback(() => {
+    setPublishDialogOpen(false);
+    setCreatedDay(null);
+    router.push("/admin/lunch-menu");
+  }, [router]);
+
+  const ensureLunchMenuExists = useCallback(async (): Promise<boolean> => {
+    setGlobalLunchMenuLoading(true);
+    try {
+      const res = await fetch("/api/lunch-menu", { cache: "no-store" });
+      const json = (await res.json().catch(() => ({}))) as { items?: unknown };
+      const items = Array.isArray(json.items) ? json.items : null;
+      const count = items ? items.length : null;
+      setGlobalLunchMenuCount(count);
+      return count !== 0;
+    } catch {
+      setGlobalLunchMenuCount(null);
+      // 不明（通信失敗など）は「作成は許可」ではなく「止める」方が安全だが、
+      // MVP の運用上は「作れない」より「作れる」ほうが困る事故が少ない。
+      // よって、このケースは作成を止めてメッセージを出す。
+      return false;
+    } finally {
+      setGlobalLunchMenuLoading(false);
+    }
+  }, []);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setMessage(null);
     setCompletionBanner(null);
+    setPublishError(null);
     const form = e.currentTarget;
     const eventDateVal = (form.elements.namedItem("eventDate") as HTMLInputElement)
       .value;
@@ -75,6 +161,16 @@ export function CreateEventDayForm() {
       setMessage("対象学年を選択してください");
       return;
     }
+
+    // 昼食メニューが 0 件の状態では、開催日作成（draft を含む）自体を禁止する
+    const okLunch = await ensureLunchMenuExists();
+    if (!okLunch) {
+      setMessage(
+        "昼食メニューが未登録のため、先に「昼食メニュー設定」からメニューを追加してください。"
+      );
+      return;
+    }
+
     setLoading(true);
     const res = await fetch("/api/admin/event-days", {
       method: "POST",
@@ -84,6 +180,7 @@ export function CreateEventDayForm() {
         eventDate: eventDateVal,
         gradeBand: gradeBandVal,
         status: "draft",
+        defaultSlotPreset: slotPreset,
       }),
     });
     setLoading(false);
@@ -103,7 +200,6 @@ export function CreateEventDayForm() {
     }
     setEventDate("");
     setGradeBand("3-4");
-    setPublishError(null);
     setCreatedDay({ id: day.id, eventDate: day.event_date });
     setPublishDialogOpen(true);
   }
@@ -158,8 +254,9 @@ export function CreateEventDayForm() {
       </div>
       <form
         onSubmit={handleSubmit}
-        className="relative mt-4 flex flex-col gap-3 border-t border-emerald-100/90 pt-4 pl-3 sm:flex-row sm:flex-wrap sm:items-end sm:pl-4"
+        className="relative mt-4 flex flex-col gap-3 border-t border-emerald-100/90 pt-4 pl-3 sm:pl-4"
       >
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
         <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[9rem] sm:flex-none">
           <span className="text-zinc-600">開催日</span>
           <DateInputWithPicker
@@ -197,16 +294,56 @@ export function CreateEventDayForm() {
               : "開催日を選択すると自動で表示されます"}
           </p>
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white whitespace-normal shadow-sm ring-1 ring-emerald-900/20 hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
-        >
-          {loading ? <InlineSpinner variant="onDark" /> : null}
-          {loading ? "作成中…" : "公開前で作成"}
-        </button>
+          <button
+            type="submit"
+            disabled={loading || globalLunchMenuLoading}
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-3 py-2.5 text-center text-sm font-semibold leading-snug text-white whitespace-normal shadow-sm ring-1 ring-emerald-900/20 hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:self-end sm:px-4 sm:leading-normal"
+          >
+            {loading || globalLunchMenuLoading ? <InlineSpinner variant="onDark" /> : null}
+            {loading ? "作成中…" : globalLunchMenuLoading ? "確認中…" : "作成"}
+          </button>
+        </div>
+
+        <div className="min-w-0 border-t border-emerald-100/70 pt-3 text-sm leading-snug text-zinc-600">
+          {slotPreset === "six" ? (
+            <span className="inline-flex min-h-10 w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span>現在設定；6枠</span>
+              <button
+                type="button"
+                onClick={() => persistSlotPreset("eight")}
+                className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-emerald-200/90 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/55"
+                aria-label="作成時の枠を8枠運用で登録する"
+              >
+                8枠に切り替える
+              </button>
+            </span>
+          ) : (
+            <span className="inline-flex min-h-10 w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+              <span>現在設定；8枠</span>
+              <button
+                type="button"
+                onClick={() => persistSlotPreset("six")}
+                className="inline-flex min-h-10 shrink-0 items-center rounded-md border border-emerald-200/90 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/55"
+                aria-label="作成時の枠を6枠運用で登録する"
+              >
+                6枠に切り替える
+              </button>
+            </span>
+          )}
+        </div>
       </form>
       {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
+      {!publishDialogOpen && globalLunchMenuCount === 0 ? (
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={openLunchMenuSettings}
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800 sm:w-auto"
+          >
+            昼食メニュー設定へ
+          </button>
+        </div>
+      ) : null}
 
       {completionBanner ? (
         <div
@@ -242,6 +379,11 @@ export function CreateEventDayForm() {
               <strong className="font-semibold text-zinc-900"> 公開して作成 </strong>
               を選んでください。
             </p>
+            {globalLunchMenuCount === 0 ? (
+              <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                昼食メニューが 1 件も登録されていないため、先に「昼食メニュー設定」からメニューを追加してください。
+              </p>
+            ) : null}
             {publishError ? (
               <p className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
                 {publishError}
@@ -254,18 +396,32 @@ export function CreateEventDayForm() {
                 onClick={() => declinePublish()}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:w-auto"
               >
-                公開前のまま閉じる
+                公開せずに閉じる
               </button>
-              <button
-                ref={yesButtonRef}
-                type="button"
-                disabled={publishBusy}
-                onClick={() => void confirmPublish()}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-70 sm:w-auto"
-              >
-                {publishBusy ? <InlineSpinner variant="onDark" /> : null}
-                {publishBusy ? "公開処理中…" : "公開して作成"}
-              </button>
+              {globalLunchMenuCount === 0 ? (
+                <button
+                  type="button"
+                  onClick={openLunchMenuSettings}
+                  className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800 sm:w-auto"
+                >
+                  昼食メニュー設定へ
+                </button>
+              ) : (
+                <button
+                  ref={yesButtonRef}
+                  type="button"
+                  disabled={publishBusy || globalLunchMenuLoading}
+                  onClick={() => void confirmPublish()}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-emerald-800 px-4 text-sm font-semibold text-white hover:bg-emerald-900 disabled:cursor-wait disabled:opacity-70 sm:w-auto"
+                >
+                  {publishBusy || globalLunchMenuLoading ? <InlineSpinner variant="onDark" /> : null}
+                  {publishBusy
+                    ? "公開処理中…"
+                    : globalLunchMenuLoading
+                      ? "確認中…"
+                      : "公開して作成"}
+                </button>
+              )}
             </div>
           </div>
         </div>

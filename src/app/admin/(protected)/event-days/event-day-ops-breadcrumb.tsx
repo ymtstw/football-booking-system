@@ -11,7 +11,7 @@ type Props = {
   items: readonly EventDayOpsBreadcrumbItem[];
 };
 
-/** 開催日まわりの深い画面から「この開催のまとめ」へ戻す共通パンくず */
+/** 広い順：ダッシュボード → 開催日一覧 → この日の運営画面 → 直下の画面 */
 export function EventDayOpsBreadcrumb({ eventDayId, items }: Props) {
   return (
     <nav aria-label="開催日まわりのパンくず" className="mb-4 text-sm text-zinc-600">
@@ -19,12 +19,12 @@ export function EventDayOpsBreadcrumb({ eventDayId, items }: Props) {
         ダッシュボード
       </Link>
       <span className="mx-1.5 text-zinc-400">·</span>
-      <Link href={`/admin/event-days/${eventDayId}`} className={linkMuted}>
-        ← この開催のまとめ
-      </Link>
-      <span className="mx-1.5 text-zinc-400">·</span>
       <Link href="/admin/event-days" className={linkMuted}>
         開催日一覧
+      </Link>
+      <span className="mx-1.5 text-zinc-400">·</span>
+      <Link href={`/admin/event-days/${eventDayId}`} className={linkMuted}>
+        この日の運営画面
       </Link>
       {items.map((item, i) => (
         <span key={`${item.label}-${i}`}>

@@ -2,16 +2,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { LunchOrderSummary } from "@/app/reserve/_components/lunch-order-summary";
-
+import { ReservationAdminCancelClient } from "../reservation-admin-cancel-client";
 import { ReservationCreatedMailResendClient } from "../reservation-created-mail-resend-client";
+import { ReservationDetailCollapsibleMobile } from "../reservation-detail-collapsible-mobile";
 import { ReservationDetailEditClient } from "../reservation-detail-edit-client";
+import { ReservationStatusBadge } from "@/components/admin/reservation-status-badge";
 import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
+import { fetchEffectiveLunchMenuItemsForEventDay } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import type { ReservationLunchLinePublic } from "@/lib/lunch/types";
-import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
-import { formatAdminIdTail } from "@/lib/admin/operator-display";
+import { summarizeOutboundEmailError } from "@/lib/admin/notification-failed-display";
+import { formatReservationPublicRefForDisplay } from "@/lib/reservations/public-ref";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE =
@@ -39,7 +42,6 @@ type ReservationRow = {
   status: string;
   participant_count: number;
   remarks: string | null;
-  display_name: string | null;
   public_ref: string | null;
   created_at: string;
   updated_at: string;
@@ -52,46 +54,48 @@ function single<T>(x: T | T[] | null | undefined): T | null {
   return Array.isArray(x) ? x[0] ?? null : x;
 }
 
-function reservationStatusLabelJa(s: string): string {
-  switch (s) {
-    case "active":
-      return "有効";
-    case "cancelled":
-      return "取消済み";
-    default:
-      return s;
-  }
+/** アコーディオン用に短い日時（例: 2026/4/27 18:50） */
+function formatShortDateTimeJa(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
 }
 
-/** notifications.status（送信処理の記録・表示のみ。到達可否ではない） */
+/** notifications.status（送信処理の記録・表示のみ） */
 function reservationCreatedMailNotifyStatusJa(s: string): string {
   switch (s) {
     case "pending":
       return "送信待ち";
     case "sent":
-      return "送信処理済み";
+      return "送信済み";
     case "failed":
-      return "送信エラー";
+      return "失敗";
     default:
-      return s;
+      return "要確認";
   }
-}
-
-const NOTIFY_ERR_SNIP = 200;
-function snipNotificationError(msg: string | null): string | null {
-  if (!msg?.trim()) return null;
-  const t = msg.trim();
-  if (t.length <= NOTIFY_ERR_SNIP) return t;
-  return `${t.slice(0, NOTIFY_ERR_SNIP - 1)}…`;
 }
 
 /** 管理: 予約詳細（読み取り＋チーム・予約情報の編集） */
 export default async function AdminReservationDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ edit?: string | string[] }>;
 }) {
   const { id } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const initialEditOpen =
+    typeof sp.edit === "string" && sp.edit.trim() === "1";
+
   if (!id || !UUID_RE.test(id)) {
     notFound();
   }
@@ -106,7 +110,6 @@ export default async function AdminReservationDetailPage({
       status,
       participant_count,
       remarks,
-      display_name,
       public_ref,
       created_at,
       updated_at,
@@ -174,6 +177,9 @@ export default async function AdminReservationDetailPage({
   );
   const lunchTotal = lunchLines.reduce((s, x) => s + x.lineTotal, 0);
 
+  const { items: lunchMenuForEdit } =
+    await fetchEffectiveLunchMenuItemsForEventDay(supabase, row.event_day_id);
+
   const { data: createdMailNotifyRows } = await supabase
     .from("notifications")
     .select("id, status, created_at, sent_at, updated_at, error_message")
@@ -198,12 +204,35 @@ export default async function AdminReservationDetailPage({
   }
 
   const preDayHref = `/admin/pre-day-results?date=${encodeURIComponent(day.event_date)}&tab=adjust`;
+  const hubHref = `/admin/event-days/${row.event_day_id}`;
+  const listHref = `/admin/reservations?date=${encodeURIComponent(day.event_date)}`;
+
+  const refDisplay =
+    formatReservationPublicRefForDisplay(row.public_ref) || "—";
+
+  const lunchQtyTotal = lunchLines.reduce((s, x) => s + x.quantity, 0);
+  const lunchSectionPreview =
+    lunchLines.length === 0
+      ? "なし"
+      : `${lunchQtyTotal}食 / 合計 ${Math.round(lunchTotal).toLocaleString("ja-JP")}円`;
+
+  const teamContactPreview = `${team.team_name} / ${team.contact_email}`;
+
+  const firstNotify = (createdMailNotifyRows ?? [])[0] as
+    | {
+        status: string;
+        created_at: string;
+      }
+    | undefined;
+  const mailHistoryPreview = firstNotify
+    ? `${reservationCreatedMailNotifyStatusJa(firstNotify.status)} ${formatShortDateTimeJa(firstNotify.created_at)}`
+    : "記録なし";
 
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-5">
       <div>
         <Link
-          href={`/admin/reservations?date=${encodeURIComponent(day.event_date)}`}
+          href={listHref}
           className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
         >
           ← この開催日の一覧へ
@@ -211,148 +240,223 @@ export default async function AdminReservationDetailPage({
       </div>
 
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">予約詳細</h1>
-        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
-          予約番号:{" "}
-          <span className="font-mono font-semibold text-zinc-800">
-            {row.public_ref?.trim() || "—"}
-          </span>
-          <span className="mx-2 text-zinc-400">/</span>
-          内部ID末尾:{" "}
-          <span className="font-mono text-zinc-700">{formatAdminIdTail(row.id)}</span>
+        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
+          予約詳細
+        </h1>
+        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-700 sm:text-sm">
+          予約内容の確認・変更を行います。
         </p>
-      </div>
-
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50/90 px-4 py-3 text-sm text-zinc-800">
-        <p>
-          枠・試合の変更は{" "}
-          <Link href={preDayHref} className="font-medium text-sky-800 underline underline-offset-2">
-            編成を調整
+        <p className="mt-2 max-w-3xl text-xs leading-relaxed text-zinc-700 sm:text-sm">
+          試合時間や対戦相手を変更する場合は、「
+          <Link
+            href={preDayHref}
+            className="font-semibold text-sky-800 underline decoration-sky-600/40 underline-offset-2 hover:text-sky-950"
+          >
+            試合表を調整
           </Link>
-          または「対戦表・自動編成」タブの運用へ。
+          」から行ってください。
         </p>
       </div>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">読み取り専用</h2>
-        <dl className="mt-4 space-y-3 text-sm">
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">開催日</dt>
-            <dd>{formatIsoDateWithWeekdayJa(day.event_date)}</dd>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">開催の学年帯</dt>
-            <dd>{day.grade_band}</dd>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">開催日ステータス</dt>
-            <dd>{eventDayStatusLabelJa(day.status)}</dd>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">午前枠（選択中）</dt>
-            <dd>{morningSlotLabel}</dd>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">予約状態</dt>
-            <dd>{reservationStatusLabelJa(row.status)}</dd>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">作成日時</dt>
-            <dd>{formatDateTimeTokyoWithWeekday(row.created_at)}</dd>
-          </div>
-          <div className="grid gap-1 sm:grid-cols-[10rem_1fr]">
-            <dt className="text-zinc-500">更新日時</dt>
-            <dd>{formatDateTimeTokyoWithWeekday(row.updated_at)}</dd>
-          </div>
-        </dl>
-      </section>
+      <div className="space-y-3 md:space-y-5">
+        <section className="scroll-mt-24 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+          <h2 className="text-sm font-semibold text-zinc-900">
+            予約の基本情報
+          </h2>
+          <div className="mt-4 min-w-0 space-y-4">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-100 pb-4">
+              <div>
+                <p className="text-xs font-medium text-zinc-500">予約状態</p>
+                <div className="mt-1.5">
+                  <ReservationStatusBadge status={row.status} />
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs font-medium text-zinc-500">予約番号</p>
+                <p className="mt-1 font-mono text-base font-semibold tracking-wide text-zinc-900">
+                  {refDisplay}
+                </p>
+              </div>
+            </div>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">昼食（予約したときの内容）</h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          単価・メニュー名は、予約した時点の税込です。あとから昼食メニューを直しても、この予約に表示されている金額・品名は変わりません。
-        </p>
-        <div className="mt-3">
-          <LunchOrderSummary lines={lunchLines} totalTaxIncluded={lunchTotal} />
-        </div>
-      </section>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">開催日</dt>
+                <dd className="mt-0.5 font-medium text-zinc-900">
+                  {formatIsoDateWithWeekdayJa(day.event_date)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium text-zinc-500">時間帯</dt>
+                <dd className="mt-0.5 text-zinc-900">{morningSlotLabel}</dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs font-medium text-zinc-500">申込日時</dt>
+                <dd className="mt-0.5 wrap-break-word text-zinc-900">
+                  {formatDateTimeTokyoWithWeekday(row.created_at)}
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-xs font-medium text-zinc-500">最終更新</dt>
+                <dd className="mt-0.5 wrap-break-word text-zinc-900">
+                  {formatDateTimeTokyoWithWeekday(row.updated_at)}
+                </dd>
+              </div>
+            </dl>
 
-      <ReservationDetailEditClient
-        reservationId={row.id}
-        initial={{
-          participant_count: row.participant_count,
-          remarks: row.remarks ?? "",
-          display_name: row.display_name ?? "",
-          team_name: team.team_name,
-          contact_name: team.contact_name,
-          contact_email: team.contact_email,
-          contact_phone: team.contact_phone,
-          strength_category: team.strength_category,
-          representative_grade_year: team.representative_grade_year,
-        }}
-      />
+            <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:flex-wrap">
+              <Link
+                href={hubHref}
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
+              >
+                この日の運営画面へ
+              </Link>
+              <Link
+                href={preDayHref}
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900 shadow-sm hover:bg-zinc-50"
+              >
+                試合表を調整
+              </Link>
+            </div>
+          </div>
+        </section>
 
-      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">
-          予約完了メール（送信ログ）
-        </h2>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          送信処理の記録です（受信者への到達を保証するものではありません）。再送のたびに行が増えます（最新が上）。画面の再送クールダウンとは別の情報です。
-        </p>
-        {(createdMailNotifyRows ?? []).length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-600">
-            該当する通知行はまだありません。
-          </p>
-        ) : (
-          <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-100">
-            {(createdMailNotifyRows ?? []).map((raw) => {
-              const n = raw as {
-                id: string;
-                status: string;
-                created_at: string;
-                sent_at: string | null;
-                updated_at: string | null;
-                error_message: string | null;
-              };
-              const err = snipNotificationError(n.error_message);
-              return (
-                <li key={n.id} className="px-3 py-3 text-sm sm:px-4">
-                  <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                    <span className="font-semibold text-zinc-900">
-                      {reservationCreatedMailNotifyStatusJa(n.status)}
-                    </span>
-                    <span className="text-xs text-zinc-500">
-                      登録: {formatDateTimeTokyoWithWeekday(n.created_at)}
-                    </span>
-                    {n.status === "sent" && n.sent_at ? (
-                      <span className="text-xs text-zinc-500">
-                        送信完了: {formatDateTimeTokyoWithWeekday(n.sent_at)}
-                      </span>
-                    ) : null}
-                    {n.status === "failed" && n.updated_at ? (
-                      <span className="text-xs text-zinc-500">
-                        失敗記録: {formatDateTimeTokyoWithWeekday(n.updated_at)}
-                      </span>
-                    ) : null}
-                  </div>
-                  {err ? (
-                    <p className="mt-2 font-mono text-xs leading-relaxed text-red-800">
-                      {err}
-                    </p>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+        <ReservationDetailCollapsibleMobile
+          title="予約チーム情報"
+          sectionPreview={teamContactPreview}
+          defaultOpen={initialEditOpen}
+          anchorId="team-contact"
+        >
+          <ReservationDetailEditClient
+            key={row.updated_at}
+            reservationId={row.id}
+            initialEditOpen={initialEditOpen}
+            chrome="nested"
+            lunchMenuItems={lunchMenuForEdit}
+            initialLunchLines={lunchLines}
+            initial={{
+              participant_count: row.participant_count,
+              remarks: row.remarks ?? "",
+              team_name: team.team_name,
+              contact_name: team.contact_name,
+              contact_email: team.contact_email,
+              contact_phone: team.contact_phone,
+              strength_category: team.strength_category,
+              representative_grade_year: team.representative_grade_year,
+            }}
+          />
+        </ReservationDetailCollapsibleMobile>
 
-      <ReservationCreatedMailResendClient
-        key={`${row.id}-${team.contact_email}`}
-        reservationId={row.id}
-        defaultToEmail={team.contact_email}
-        reservationActive={row.status === "active"}
-      />
+        <ReservationDetailCollapsibleMobile
+          title="昼食・お弁当"
+          sectionPreview={lunchSectionPreview}
+          defaultOpen={false}
+        >
+          <div className="min-w-0">
+            <div className="mt-0 space-y-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+              <p>当日用意する昼食の内容です。</p>
+              <p>数量と合計金額を確認してください。</p>
+            </div>
+            <div className="mt-4">
+              <LunchOrderSummary
+                lines={lunchLines}
+                totalTaxIncluded={lunchTotal}
+              />
+            </div>
+            {lunchLines.length > 0 ? (
+              <p className="mt-4 border-t border-zinc-100 pt-4 text-center text-lg font-bold tabular-nums text-zinc-900 sm:text-left">
+                合計：
+                {Math.round(lunchTotal).toLocaleString("ja-JP")}
+                円（税込）
+              </p>
+            ) : null}
+          </div>
+        </ReservationDetailCollapsibleMobile>
+
+        <ReservationDetailCollapsibleMobile
+          title="送信履歴"
+          sectionPreview={mailHistoryPreview}
+          defaultOpen={false}
+        >
+          <div className="min-w-0">
+            <p className="mt-0 text-xs text-zinc-500">
+              予約完了メールの送信履歴です。
+            </p>
+            {(createdMailNotifyRows ?? []).length === 0 ? (
+              <p className="mt-3 text-sm text-zinc-600">
+                記録はまだありません。
+              </p>
+            ) : (
+              <ul className="mt-3 divide-y divide-zinc-100 rounded-lg border border-zinc-100">
+                {(createdMailNotifyRows ?? []).map((raw) => {
+                  const n = raw as {
+                    id: string;
+                    status: string;
+                    created_at: string;
+                    sent_at: string | null;
+                    updated_at: string | null;
+                    error_message: string | null;
+                  };
+                  const errDisp = summarizeOutboundEmailError(n.error_message);
+                  return (
+                    <li key={n.id} className="px-3 py-3 text-sm sm:px-4">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="font-semibold text-zinc-900">
+                          {reservationCreatedMailNotifyStatusJa(n.status)}
+                        </span>
+                        <span className="text-xs text-zinc-500">
+                          {formatDateTimeTokyoWithWeekday(n.created_at)}
+                        </span>
+                      </div>
+                      {n.status === "failed" ? (
+                        <div className="mt-2 text-xs leading-relaxed text-red-800">
+                          <p>{errDisp.summaryJa}</p>
+                          {errDisp.rawDetail ? (
+                            <details className="mt-1 rounded border border-red-100 bg-red-50/50 px-2 py-1">
+                              <summary className="cursor-pointer font-medium text-red-950">
+                                詳細を開く
+                              </summary>
+                              <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[10px] text-zinc-800">
+                                {errDisp.rawDetail}
+                              </pre>
+                            </details>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </ReservationDetailCollapsibleMobile>
+
+        <ReservationDetailCollapsibleMobile
+          title="予約完了メール再送"
+          sectionPreview={team.contact_email.trim() || "送信先メールアドレス"}
+          defaultOpen={false}
+        >
+          <ReservationCreatedMailResendClient
+            key={`${row.id}-${team.contact_email}`}
+            reservationId={row.id}
+            defaultToEmail={team.contact_email}
+            reservationActive={row.status === "active"}
+            embedded
+          />
+        </ReservationDetailCollapsibleMobile>
+
+        <ReservationDetailCollapsibleMobile
+          title="予約のキャンセル"
+          sectionPreview="危険操作"
+          defaultOpen={false}
+        >
+          <ReservationAdminCancelClient
+            reservationId={row.id}
+            reservationActive={row.status === "active"}
+            embedded
+          />
+        </ReservationDetailCollapsibleMobile>
+      </div>
     </div>
   );
 }

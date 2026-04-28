@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_DB_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { countGloballyActiveLunchMenus } from "@/lib/lunch/admin-lunch-constraints";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -31,10 +35,8 @@ export async function GET() {
     .order("created_at", { ascending: true });
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET /api/admin/lunch-menu-items", error);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 
   return NextResponse.json({ items: (data ?? []) as Row[] });
@@ -99,13 +101,20 @@ export async function POST(request: Request) {
     typeof b.sort_order === "number" && Number.isFinite(b.sort_order)
       ? Math.round(b.sort_order)
       : 0;
+  if (sortOrder < 0) {
+    return NextResponse.json(
+      { error: "表示順は 0 以上の整数で指定してください" },
+      { status: 422 }
+    );
+  }
 
   const supabase = createServiceRoleClient();
 
   const { count: activeCount, error: cErr } =
     await countGloballyActiveLunchMenus(supabase);
   if (cErr) {
-    return NextResponse.json({ error: cErr }, { status: 500 });
+    logAdminApiDbError("POST /api/admin/lunch-menu-items countGloballyActiveLunchMenus", cErr);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
   if (activeCount === 0 && !isActive) {
     return NextResponse.json(
@@ -132,10 +141,8 @@ export async function POST(request: Request) {
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST /api/admin/lunch-menu-items insert", error);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 
   return NextResponse.json({ item: data as Row }, { status: 201 });

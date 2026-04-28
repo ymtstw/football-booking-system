@@ -74,7 +74,7 @@ function EventDayCard(props: {
       <div className="mx-auto grid w-full max-w-[52rem] grid-cols-1 items-start gap-5 px-4 py-5 sm:grid-cols-2 sm:gap-x-6 sm:px-6 sm:py-6 lg:gap-x-8">
         <dl className="min-w-0 divide-y divide-zinc-100 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50/40 text-sm shadow-inner lg:max-w-md xl:max-w-lg">
           <div className="grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5">
-            <dt className="text-zinc-500">active 予約チーム数</dt>
+            <dt className="text-zinc-500">予約中のチーム数</dt>
             <dd className="font-semibold tabular-nums text-zinc-900 sm:text-right">{summary.activeTeamCount}</dd>
           </div>
           <div className="grid grid-cols-1 items-start gap-x-3 gap-y-2 px-3 py-2.5 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)] sm:px-3.5">
@@ -103,7 +103,7 @@ function EventDayCard(props: {
             </dd>
           </div>
           <div className="grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5">
-            <dt className="text-zinc-500">試合編成（確定）</dt>
+            <dt className="text-zinc-500">試合表（確定）</dt>
             <dd className="font-semibold text-zinc-900 sm:text-right">{preDayConfirmedJa(summary.status)}</dd>
           </div>
           <div className="grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5">
@@ -118,8 +118,22 @@ function EventDayCard(props: {
               )}
             </dd>
           </div>
-          <div className="grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5">
-            <dt className="text-zinc-500">送信エラー</dt>
+          <div
+            className={`grid grid-cols-1 items-baseline gap-x-3 gap-y-0.5 px-3 py-2.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:px-3.5 ${
+              summary.failedForDay > 0
+                ? "rounded-b-xl bg-red-50/95 ring-1 ring-inset ring-red-200/90 sm:bg-red-50/90"
+                : ""
+            }`}
+          >
+            <dt
+              className={
+                summary.failedForDay > 0
+                  ? "font-medium text-red-950/90"
+                  : "text-zinc-500"
+              }
+            >
+              送信エラー
+            </dt>
             <dd className="sm:text-right">
               {summary.failedForDay > 0 ? (
                 <Link
@@ -141,7 +155,7 @@ function EventDayCard(props: {
               href={hubHref}
               className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 text-sm font-semibold text-white shadow-sm ring-1 ring-emerald-900/15 hover:from-emerald-700 hover:to-emerald-800"
             >
-              この開催のまとめを開く
+              この日の運営画面へ
             </Link>
             <Link
               href={preDayBase}
@@ -151,11 +165,11 @@ function EventDayCard(props: {
                   : "inline-flex min-h-11 w-full items-center justify-center rounded-lg border-2 border-emerald-500/70 bg-white px-4 text-sm font-semibold text-emerald-900 shadow-sm hover:border-emerald-600 hover:bg-emerald-50/90"
               }
             >
-              試合編成へ
+              試合表を確認・編集
             </Link>
           </div>
           <p className="text-xs leading-snug text-zinc-500">
-            「この開催のまとめを開く」から、枠・雨天・試合編成・通知・運営中止などの操作ができます。
+            「この日の運営画面へ」から予約・試合表・天候・メールなどへの導線があります。
           </p>
         </div>
       </div>
@@ -187,7 +201,7 @@ export function DashboardUpcomingChain(props: {
       );
       const json = (await res.json()) as ApiOk & Partial<ApiErr>;
       if (!res.ok) {
-        setLoadMessage(json.error ?? `読み込みに失敗しました (${res.status})`);
+        setLoadMessage(json.error ?? "一覧を読み込めませんでした。通信とログイン状態を確認してください。");
         return;
       }
       if (!json.day) {

@@ -59,19 +59,19 @@ export function DeadlineCatchupEmergencyClient({ eventDayId }: Props) {
       if (data.outcome === "cancelled_minimum") {
         setBanner({
           tone: "ok",
-          text: "開催中止（人数不足）にしました。お知らせの送信結果は「送信結果を開く」で確認してください。",
+          text: "開催中止（人数不足）にしました。お知らせの送信結果は「メール送信履歴」で確認してください。",
         });
       } else if (data.matching && !data.matching.ok) {
         setBanner({
           tone: "err",
           text:
-            "締め切り（locked）は完了しましたが、自動編成に失敗しました。試合編成画面で再実行するか、開発者に連絡してください。" +
+            "予約の締め切りは完了しましたが、対戦表の自動作成に失敗しました。「試合表・編成」画面で対戦表を作成し直すか、システム担当へ相談してください。" +
             (data.matching.message ? `（${data.matching.message}）` : ""),
         });
       } else {
         setBanner({
           tone: "ok",
-          text: "予約を締め切り、自動編成まで実行しました。試合編成画面で内容を確認してください。",
+          text: "予約を締め切り、対戦表の自動作成まで実行しました。「試合表・編成」画面で内容を確認してください。",
         });
       }
       router.refresh();
@@ -105,7 +105,7 @@ export function DeadlineCatchupEmergencyClient({ eventDayId }: Props) {
         onClick={() => void run()}
         className="mt-3 inline-flex min-h-9 w-full items-center justify-center rounded-lg border border-amber-800/30 bg-amber-900 px-3 text-sm font-semibold text-amber-50 shadow-sm hover:bg-amber-950 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? "実行中…" : "締め切り処理を実行"}
+        {busy ? "処理中…" : "締め切りと対戦表の準備を今すぐ行う"}
       </button>
       {banner ? (
         <p

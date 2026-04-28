@@ -6,6 +6,11 @@
 import { after, NextResponse } from "next/server";
 
 import {
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
+import {
   enqueueMorningSlotForceChangedNotifications,
   sendMorningSlotForceChangedNotificationJobs,
 } from "@/lib/admin/notify-morning-slot-force-changed";
@@ -69,10 +74,8 @@ export async function PATCH(
     .eq("id", eventDayId)
     .maybeSingle();
   if (dayErr) {
-    return NextResponse.json(
-      { error: dayErr.message, code: dayErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH slots/force event_days", dayErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!day) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -90,6 +93,10 @@ export async function PATCH(
   const ids = parsedRows.rows.map((r) => r.id);
   const verify = await verifySlotIdsBelongToEventDay(supabase, eventDayId, ids);
   if (!verify.ok) {
+    if (verify.status >= 500) {
+      logAdminApiDbError("PATCH slots/force verifySlotIdsBelongToEventDay", verify.error);
+      return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
+    }
     return NextResponse.json(
       { error: verify.error },
       { status: verify.status }
@@ -102,6 +109,10 @@ export async function PATCH(
     parsedRows.rows
   );
   if (!applied.ok) {
+    if (applied.status >= 500) {
+      logAdminApiDbError("PATCH slots/force applySlotPatchRows", applied.error);
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
+    }
     return NextResponse.json(
       { error: applied.error },
       { status: applied.status }
@@ -110,7 +121,8 @@ export async function PATCH(
 
   const slotsResult = await loadSlotsOrdered(supabase, eventDayId);
   if (!slotsResult.ok) {
-    return NextResponse.json({ error: slotsResult.error }, { status: 500 });
+    logAdminApiDbError("PATCH slots/force loadSlotsOrdered", slotsResult.error);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const patchedSlotIds = parsedRows.rows.map((row) => row.id);
@@ -184,10 +196,8 @@ export async function POST(
     .eq("id", eventDayId)
     .maybeSingle();
   if (dayErr) {
-    return NextResponse.json(
-      { error: dayErr.message, code: dayErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH slots/force event_days", dayErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!day) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -204,6 +214,10 @@ export async function POST(
 
   const inserted = await appendEventDaySlotRow(supabase, eventDayId, phase);
   if (!inserted.ok) {
+    if (inserted.status >= 500) {
+      logAdminApiDbError("POST slots/force appendEventDaySlotRow", inserted.error);
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
+    }
     return NextResponse.json(
       { error: inserted.error },
       { status: inserted.status }

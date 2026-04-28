@@ -12,7 +12,7 @@
 
 **方針:** 広く網羅しない。**毎回の CI は unit のみ**。結合はローカル（またはシークレット整備済み CI）で **`npm run test:integration`**。マッチングの純関数 unit は一段落として扱い、詳細な枠数・警告の考え方は下記「マッチング unit（参照）」へ。
 
-**integration の前提（重要）:** `npm run test:integration` は **結合専用のローカル Supabase** を想定する（`supabase start` かつ **`supabase db reset` で空に近い状態** を推奨）。**共有のローカル DB・本番系 URL では実行しないこと。** 一部のテストは開始時に `matching_runs` → `reservations` → `event_days` の順でデータを削除するため、**他用途の `event_days` 行も消える**。
+**integration の前提（重要）:** `npm run test:integration` は **結合専用のローカル Supabase** を想定する（`supabase start` かつ **`supabase db reset` で空に近い状態** を推奨）。**共有のローカル DB・本番系 URL では実行しないこと。** 開催日の掃除は **`tests/integration/helpers/seed-event-day.ts` の `deleteEventDayById`** が担当する。`reservations.event_day_id` が **`event_days` に対して ON DELETE RESTRICT** のため、**`matching_runs`・通知・`reservations`・`teams` を先に削除してから `event_days`** を消す（順序を誤ると削除が無視され、古い `token_hash` が残って後続テストが不安定になる）。
 
 ---
 
@@ -65,7 +65,7 @@ npm run test:staging       # .env.staging.example で STAGING_BASE_URL 既定。
 | `event_day_slots` | 上記ヘルパ内で `toEventDaySlotRows` により **6 枠運用初期形**（M4/A4 inactive）を投入済み。 |
 | `reservations` + `teams` | **`create_public_reservation` RPC を 3 回**（午前 active 枠を 1 枠ずつ割り当て、メールはテストごとにユニーク）。 |
 | 編成 payload | **`buildMatchingAssignments`** の戻り `assignments` をそのまま `p_assignments` に渡す。 |
-| 掃除 | **`deleteEventDayById(eventDayId)`**（`finally`）。 |
+| 掃除 | **`deleteEventDayById(eventDayId)`**（`finally`。**RESTRICT 回避の削除順はヘルパ内に実装**）。 |
 
 **補助修正:** `tests/integration/helpers/seed-event-day.ts` の `nextUniqueEventDate` は、DB に残ったテスト用 `event_date` と衝突しないよう **ランダムオフセット付き**に変更済み。
 
@@ -113,6 +113,7 @@ npx vitest run tests/unit/build-matching-assignments --config vitest.config.ts
 | `public-reservation-rpc.integration.test.ts` | `create_public_reservation` / `cancel_public_reservation` の戻り値と DB 前提。**RSV-006（昼食合計 > 参加人数）**・**RSV-010（成功）**・**RSV-021（slot_locked）** を含む。 |
 | `public-reservation-post-route.integration.test.ts` | **`POST /api/reservations`** の **RSV-022**（UUID 形式不正 422・幽霊 ID 404。404 は `hasSupabaseEnv` 時のみ）。 |
 | `reservation-token-patch.integration.test.ts` | **`PATCH /api/reservations/[token]`** の **TK-002**（締切後 409・DB 不変）。 |
+| `reservation-token-get.integration.test.ts` | **`GET /api/reservations/[token]`** 等: 新形式・旧 64 hex・`public_ref` のみでは照会不可・失敗レート制限・キャンセルメール・管理再送（`public_ref` 不変・確認コードのみ再発行）。DB に `public_ref` 列が無い環境ではスキップ（CI では `CI` / `INTEGRATION_STRICT_SCHEMA` で失敗にできる）。 |
 | `admin-apply-matching-run.integration.test.ts` | **`admin_apply_matching_run`** の `not_locked` と **locked 後の成功縦割り**。 |
 | `admin-undo-matching.integration.test.ts` | **`admin_undo_afternoon_matching` RPC（TC-EX-UN-200）**・`confirmed`→`locked`。 |
 | `admin-weather-op-notification-retry.integration.test.ts` | 管理 API **`/api/admin/event-days/[id]/weather-decision`**（**TC-EX-WX-200GO/200CIM/200CDB**）・**`operational-cancel`（OP-200/200IM）**・**`POST /api/admin/notifications/[id]/retry`（NF-001 / TC-EX-NR-200S）**。`getAdminUser` を Vitest でモックし、**`auth.admin.createUser` で `decided_by` 用のユーザーを作る**（`weather_decisions.decided_by` の FK 用）。 |

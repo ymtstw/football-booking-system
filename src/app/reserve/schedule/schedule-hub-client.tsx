@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import {
   ReserveEventDaysCalendar,
@@ -14,14 +14,8 @@ import {
   tokyoIsoDateToday,
 } from "@/lib/dates/tokyo-calendar-grid";
 import { toIsoDateKey } from "@/lib/dates/iso-date-key";
-import {
-  reserveFlowApiErrorDisplay,
-  reserveFlowUserVisibleMessage,
-  RESERVE_FLOW_NETWORK_ERROR_JA,
-} from "@/lib/reserve/reserve-flow-user-message";
-
 /** 開催確認ハブ上部のカード一覧は直近のみ（カレンダーは全件） */
-const SCHEDULE_HUB_LIST_MAX = 2;
+const SCHEDULE_HUB_LIST_MAX = 3;
 
 function gradeYearsDisplay(gradeBand: string): string {
   const s = gradeBand.trim();
@@ -30,49 +24,19 @@ function gradeYearsDisplay(gradeBand: string): string {
   return `${s}年`;
 }
 
-export function ScheduleHubClient() {
-  const [days, setDays] = useState<EventDayPublic[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/event-days");
-        const json = (await res.json().catch(() => ({}))) as {
-          eventDays?: EventDayPublic[];
-          error?: string;
-        };
-        if (cancelled) return;
-        if (!res.ok) {
-          setError(
-            reserveFlowApiErrorDisplay(res.status, json.error, "一覧の取得に失敗しました")
-          );
-          setDays([]);
-          return;
-        }
-        setError(null);
-        setDays(json.eventDays ?? []);
-      } catch (e) {
-        if (cancelled) return;
-        setError(
-          reserveFlowUserVisibleMessage(
-            e instanceof Error ? e.message : String(e),
-            RESERVE_FLOW_NETWORK_ERROR_JA
-          )
-        );
-        setDays([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+export function ScheduleHubClient({
+  initialEventDays,
+  initialListError,
+}: {
+  initialEventDays: EventDayPublic[];
+  initialListError: string | null;
+}) {
+  const [days] = useState<EventDayPublic[]>(initialEventDays);
+  const [error] = useState<string | null>(initialListError);
 
   const today = tokyoIsoDateToday();
 
   const upcomingDays = useMemo(() => {
-    if (!days) return [];
     return [...days]
       .filter((d) => {
         const k = toIsoDateKey(d.event_date);
@@ -91,14 +55,6 @@ export function ScheduleHubClient() {
     [upcomingDays]
   );
 
-  if (!days) {
-    return (
-      <p className="text-sm text-zinc-500" role="status">
-        読み込み中…
-      </p>
-    );
-  }
-
   if (error) {
     return (
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -114,20 +70,7 @@ export function ScheduleHubClient() {
           開催日ごとの参加チーム・試合予定
         </h1>
         <p className="text-sm leading-relaxed text-slate-600">
-          開催日ごとに、参加チーム・試合予定・開催可否を確認できます。
-        </p>
-        <p className="text-sm leading-relaxed text-slate-600">
-          開催日を選ぶと、その日の参加チームや試合スケジュールの詳細を確認できます。
-        </p>
-        <p className="text-sm leading-relaxed text-slate-600">
-          前日17:30頃までに最終の開催可否を反映します。予約の変更・取消は
-          <Link
-            href="/reserve/manage"
-            className="font-semibold text-rp-brand underline underline-offset-2 hover:text-rp-navy"
-          >
-            「予約の確認・キャンセル」
-          </Link>
-          から行えます。
+        開催可否は、開催日前日17:30頃までに反映します。
         </p>
       </header>
 
@@ -147,10 +90,7 @@ export function ScheduleHubClient() {
               ) : null}
             </div>
             <p className="text-sm leading-relaxed text-slate-600">
-              直近の開催日を一覧で確認できます。
-            </p>
-            <p className="text-sm leading-relaxed text-slate-600">
-              参加チーム数や現在の状況を確認し、詳しく見たい日程を選択してください。
+            詳しく見たい開催日を選択してください。
             </p>
             <ul className="flex flex-col gap-2">
               {upcomingListDays.map((d) => {
@@ -213,9 +153,6 @@ export function ScheduleHubClient() {
             >
               カレンダーから開催日を探す
             </h2>
-            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-              カレンダーから開催日を選ぶと、その日の参加チーム・試合予定・開催可否を確認できます。
-            </p>
             <div className="mt-2 sm:mt-3">
               <ReserveEventDaysCalendar
                 days={upcomingDays}
@@ -223,9 +160,6 @@ export function ScheduleHubClient() {
                 navigationMode="schedule"
               />
             </div>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500 sm:text-sm">
-              ※試合予定や開催可否は、開催日の詳細画面で確認できます。
-            </p>
           </section>
         </>
       )}

@@ -66,10 +66,46 @@ export async function insertEventDayWithSlots(input: {
   return { eventDayId: day.id, morningSlotId: morning.id, eventDate: event_date };
 }
 
-/** 開催日と依存行を削除（CASCADE 前提） */
+/**
+ * 開催日と依存行を削除。
+ * `reservations` は `event_days` に ON DELETE RESTRICT のため、
+ * 先に予約・マッチング行を掃除してから `event_days` を消す。
+ */
 export async function deleteEventDayById(eventDayId: string): Promise<void> {
   const supabase = getIntegrationSupabase();
-  await supabase.from("event_days").delete().eq("id", eventDayId);
+
+  const { error: delRunErr } = await supabase
+    .from("matching_runs")
+    .delete()
+    .eq("event_day_id", eventDayId);
+  if (delRunErr) throw delRunErr;
+
+  const { data: resList, error: resListErr } = await supabase
+    .from("reservations")
+    .select("id, team_id")
+    .eq("event_day_id", eventDayId);
+  if (resListErr) throw resListErr;
+
+  const resIds = (resList ?? []).map((r) => r.id);
+  const teamIds = [...new Set((resList ?? []).map((r) => r.team_id))];
+
+  const { error: nDayErr } = await supabase.from("notifications").delete().eq("event_day_id", eventDayId);
+  if (nDayErr) throw nDayErr;
+  if (resIds.length > 0) {
+    const { error: nErr } = await supabase.from("notifications").delete().in("reservation_id", resIds);
+    if (nErr) throw nErr;
+  }
+
+  const { error: delResErr } = await supabase.from("reservations").delete().eq("event_day_id", eventDayId);
+  if (delResErr) throw delResErr;
+
+  if (teamIds.length > 0) {
+    const { error: teamErr } = await supabase.from("teams").delete().in("id", teamIds);
+    if (teamErr) throw teamErr;
+  }
+
+  const { error: delDayErr } = await supabase.from("event_days").delete().eq("id", eventDayId);
+  if (delDayErr) throw delDayErr;
 }
 
 /** Cron / JOB02 結合テスト用。同一 grade_band の開催日をまとめて削除する */

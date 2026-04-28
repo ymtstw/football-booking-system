@@ -1,6 +1,10 @@
 import "server-only";
 
 import {
+  ADMIN_API_GENERIC_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
+import {
   buildReservationScheduleLines,
   buildReservationScheduleRows,
 } from "@/lib/day-before/reservation-schedule-lines";
@@ -171,7 +175,8 @@ export async function retryFailedNotificationById(
     .maybeSingle();
 
   if (nErr) {
-    return { ok: false, error: nErr.message, statusCode: 500 };
+    logAdminApiDbError("retryFailedNotificationById notifications select", nErr);
+    return { ok: false, error: ADMIN_API_GENERIC_ERROR_JA, statusCode: 500 };
   }
   const row = n as NotificationRow | null;
   if (!row) {
@@ -190,7 +195,7 @@ export async function retryFailedNotificationById(
     return {
       ok: false,
       error:
-        "予約完了メール（確認コード同封）はセキュリティ上ここから再送できません。Resend ダッシュボードで配信を確認するか、利用者に予約確認ページの案内を別途送ってください。",
+        "予約完了メール（予約番号・確認コード同封）はセキュリティ上ここから再送できません。Resend ダッシュボードで配信を確認するか、管理画面の予約詳細からメール再送を行ってください。",
       statusCode: 422,
     };
   }
@@ -218,7 +223,8 @@ export async function retryFailedNotificationById(
     .eq("status", "failed");
 
   if (upErr) {
-    return { ok: false, error: upErr.message, statusCode: 500 };
+    logAdminApiDbError("retryFailedNotificationById pending update", upErr);
+    return { ok: false, error: ADMIN_API_GENERIC_ERROR_JA, statusCode: 500 };
   }
 
   const { reservation_id: reservationId, event_day_id: eventDayId } = row;
@@ -401,12 +407,15 @@ export async function retryFailedNotificationById(
       };
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "再送処理で例外が発生しました";
+    logAdminApiDbError("retryFailedNotificationById template branch catch", e);
     await supabase
       .from("notifications")
-      .update({ status: "failed", error_message: msg })
+      .update({
+        status: "failed",
+        error_message: "再送処理でエラーが発生しました（サーバーログを確認してください）",
+      })
       .eq("id", notificationId);
-    return { ok: false, error: msg, statusCode: 500 };
+    return { ok: false, error: ADMIN_API_GENERIC_ERROR_JA, statusCode: 500 };
   }
 
   const { data: after } = await supabase

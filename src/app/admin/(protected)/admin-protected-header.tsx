@@ -4,9 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { AdminSignOutButton } from "./sign-out-button";
+import type { InquiryBellCounts } from "@/lib/admin/inquiry-count-queries";
 
-type AdminSection = "ops" | "reserve" | "settings";
+import { AdminSignOutButton } from "./sign-out-button";
+import { ADMIN_OPS_SECTION_LINKS } from "./admin-section-ops-links";
+
+type AdminSection = "ops" | "reserve" | "inquiries" | "settings";
 
 type SectionDef = {
   id: AdminSection;
@@ -15,38 +18,52 @@ type SectionDef = {
   links: readonly { href: string; label: string }[];
 };
 
-const SECTIONS: readonly SectionDef[] = [
-  {
-    id: "ops",
-    label: "開催運営",
-    defaultHref: "/admin/dashboard",
-    links: [
-      { href: "/admin/dashboard", label: "直近の開催状況" },
-      { href: "/admin/pre-day-results", label: "試合編成（前日確定）" },
-      { href: "/admin/event-days", label: "開催日の登録・一覧" },
-      { href: "/admin/notifications/failed", label: "メール送信履歴" },
-      { href: "/admin/camp-inquiries", label: "合宿相談" },
-      { href: "/admin/tournament-inquiries", label: "お問い合わせ" },
-    ],
-  },
-  {
-    id: "reserve",
-    label: "予約管理",
-    defaultHref: "/admin/reservations",
-    links: [{ href: "/admin/reservations", label: "予約一覧" }],
-  },
-  {
-    id: "settings",
-    label: "設定",
-    defaultHref: "/admin/lunch-menu",
-    links: [{ href: "/admin/lunch-menu", label: "昼食メニュー" }],
-  },
-] as const;
+function buildSections(inquiry: InquiryBellCounts | null): readonly SectionDef[] {
+  const campLabel =
+    inquiry && inquiry.campTodo > 0 ? `合宿相談 · ${inquiry.campTodo}` : "合宿相談";
+  const tourLabel =
+    inquiry && inquiry.tournamentTodo > 0
+      ? `お問い合わせ · ${inquiry.tournamentTodo}`
+      : "お問い合わせ";
+  const inqMain =
+    inquiry && inquiry.totalOpen > 0 ? `対応案件 · ${inquiry.totalOpen}` : "対応案件";
+
+  return [
+    {
+      id: "ops",
+      label: "開催運営",
+      defaultHref: "/admin/dashboard",
+      links: [...ADMIN_OPS_SECTION_LINKS],
+    },
+    {
+      id: "reserve",
+      label: "予約管理",
+      defaultHref: "/admin/reservations",
+      links: [{ href: "/admin/reservations", label: "予約を確認" }],
+    },
+    {
+      id: "inquiries",
+      label: inqMain,
+      defaultHref: "/admin/camp-inquiries",
+      links: [
+        { href: "/admin/camp-inquiries", label: campLabel },
+        { href: "/admin/tournament-inquiries", label: tourLabel },
+      ],
+    },
+    {
+      id: "settings",
+      label: "設定",
+      defaultHref: "/admin/lunch-menu",
+      links: [{ href: "/admin/lunch-menu", label: "昼食メニュー設定" }],
+    },
+  ];
+}
 
 /** モバイル左上アイコン背景（現在区分） */
 const MOBILE_ICON_GRAD: Record<AdminSection, string> = {
   ops: "from-emerald-700 to-emerald-900",
   reserve: "from-sky-700 to-sky-900",
+  inquiries: "from-violet-600 to-violet-900",
   settings: "from-amber-600 to-amber-800",
 };
 
@@ -65,6 +82,12 @@ const SECTION_THEME: Record<
       "bg-sky-800 !text-white hover:!text-white shadow-sm ring-1 ring-sky-900/20",
     drawerTop: "bg-sky-600",
     drawerIcon: "text-sky-700",
+  },
+  inquiries: {
+    segmentActive:
+      "bg-violet-800 !text-white hover:!text-white shadow-sm ring-1 ring-violet-900/25",
+    drawerTop: "bg-violet-600",
+    drawerIcon: "text-violet-800",
   },
   settings: {
     segmentActive:
@@ -110,6 +133,21 @@ function SectionIcon({ id, className }: { id: AdminSection; className?: string }
           <path d="M16 3.13a4 4 0 0 1 0 7.75" />
         </svg>
       );
+    case "inquiries":
+      return (
+        <svg
+          className={cn}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      );
     case "settings":
       return (
         <svg
@@ -143,9 +181,9 @@ function eventDayHubHrefFromPathname(pathname: string | null): string | null {
 
 function getOpsSubnavLinks(pathname: string | null): readonly { href: string; label: string }[] {
   const hub = eventDayHubHrefFromPathname(pathname);
-  const base = SECTIONS[0].links;
+  const base = [...ADMIN_OPS_SECTION_LINKS];
   if (!hub) return base;
-  return [...base, { href: hub, label: "この開催のまとめ" }];
+  return [...base, { href: hub, label: "この日の運営画面" }];
 }
 
 function isSubnavCurrent(pathname: string | null, href: string): boolean {
@@ -169,14 +207,10 @@ function resolveSection(pathname: string | null): AdminSection {
   if (!pathname) return "ops";
   if (pathname.startsWith("/admin/reservations")) return "reserve";
   if (pathname.startsWith("/admin/lunch-menu")) return "settings";
-  // メール失敗・問い合わせ一覧はメインナビに載せないが、ヘッダー区分は開催運営に寄せる
-  if (
-    pathname.startsWith("/admin/notifications") ||
-    pathname.startsWith("/admin/camp-inquiries") ||
-    pathname.startsWith("/admin/tournament-inquiries")
-  ) {
-    return "ops";
+  if (pathname.startsWith("/admin/camp-inquiries") || pathname.startsWith("/admin/tournament-inquiries")) {
+    return "inquiries";
   }
+  if (pathname.startsWith("/admin/notifications")) return "ops";
   if (
     pathname.startsWith("/admin/dashboard") ||
     pathname.startsWith("/admin/event-days") ||
@@ -212,15 +246,113 @@ function HamburgerIcon({ open }: { open: boolean }) {
   );
 }
 
+function BellIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+function InquiryBellButton({ counts }: { counts: InquiryBellCounts }) {
+  const n = counts.totalOpen;
+  return (
+    <div className="group relative shrink-0">
+      <Link
+        href="/admin/camp-inquiries"
+        className={`relative inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl border shadow-sm ${
+          n > 0
+            ? "border-violet-300 bg-violet-50 text-violet-900 hover:bg-violet-100/90"
+            : "border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-50"
+        }`}
+        aria-label={
+          n > 0
+            ? `未対応の対応案件が${n}件（合宿 ${counts.campTodo}・お問い合わせ ${counts.tournamentTodo}）`
+            : "対応案件を開く（要対応なし）"
+        }
+      >
+        <BellIcon className="h-5 w-5" />
+        {n > 0 ? (
+          <span className="absolute -right-1 -top-1 flex h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-600 px-0.5 text-[10px] font-bold leading-none text-white">
+            {n > 99 ? "99+" : n}
+          </span>
+        ) : null}
+      </Link>
+      <div
+        className="absolute right-0 top-full z-[60] mt-1 hidden w-[min(calc(100vw-2rem),16rem)] rounded-lg border border-zinc-200 bg-white p-3 text-sm shadow-lg ring-1 ring-zinc-100 md:block md:invisible md:opacity-0 md:transition-opacity md:duration-150 md:group-hover:visible md:group-hover:opacity-100 md:group-focus-within:visible md:group-focus-within:opacity-100"
+        role="region"
+        aria-label="未対応の内訳"
+      >
+        {n > 0 ? (
+          <>
+            <p className="text-xs font-semibold text-zinc-800">未対応の内訳</p>
+            <ul className="mt-2 space-y-1.5 text-sm text-zinc-700">
+              <li className="flex justify-between gap-2">
+                <span>合宿相談</span>
+                <span className="tabular-nums font-semibold text-zinc-900">
+                  {counts.campTodo}件
+                </span>
+              </li>
+              <li className="flex justify-between gap-2">
+                <span>お問い合わせ</span>
+                <span className="tabular-nums font-semibold text-zinc-900">
+                  {counts.tournamentTodo}件
+                </span>
+              </li>
+            </ul>
+          </>
+        ) : (
+          <p className="text-xs text-zinc-600">いま、要対応の案件はありません。</p>
+        )}
+        <div className="mt-3 space-y-1 border-t border-zinc-100 pt-2">
+          <Link
+            href="/admin/camp-inquiries"
+            className="block rounded-md px-2 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50"
+          >
+            合宿相談を開く →
+          </Link>
+          <Link
+            href="/admin/tournament-inquiries"
+            className="block rounded-md px-2 py-1.5 text-xs font-medium text-violet-800 hover:bg-violet-50"
+          >
+            お問い合わせを開く →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 type Props = {
   userEmail: string;
+  /** レイアウトで取得。失敗時は null（ベルは描画しない） */
+  inquiryBellCounts?: InquiryBellCounts | null;
 };
 
 /** 業務4区分＋サブナビ。色・枠で区切りをはっきりさせる。 */
-export function AdminProtectedHeader({ userEmail }: Props) {
+export function AdminProtectedHeader({
+  userEmail,
+  inquiryBellCounts = null,
+}: Props) {
   const pathname = usePathname();
+  const sections = useMemo(
+    () => buildSections(inquiryBellCounts ?? null),
+    [inquiryBellCounts]
+  );
   const activeSection = useMemo(() => resolveSection(pathname), [pathname]);
-  const activeDef = SECTIONS.find((s) => s.id === activeSection) ?? SECTIONS[0];
+  const activeDef = sections.find((s) => s.id === activeSection) ?? sections[0];
   const theme = SECTION_THEME[activeSection];
 
   const subnavLinks = useMemo(() => {
@@ -297,12 +429,12 @@ export function AdminProtectedHeader({ userEmail }: Props) {
         </div>
 
         <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 bg-white/60 px-2 py-1.5 md:hidden">
-          <span
-            className="min-w-0 flex-1 truncate pl-1 text-xs text-zinc-600"
-            title={userEmail || undefined}
-          >
-            {userEmail || "—"}
-          </span>
+          <div className="flex min-w-0 flex-1 items-center gap-2 pl-1">
+            {inquiryBellCounts ? <InquiryBellButton counts={inquiryBellCounts} /> : null}
+            <span className="min-w-0 flex-1 truncate text-xs text-zinc-600" title={userEmail || undefined}>
+              {userEmail || "—"}
+            </span>
+          </div>
           <AdminSignOutButton />
         </div>
 
@@ -325,6 +457,7 @@ export function AdminProtectedHeader({ userEmail }: Props) {
             </Link>
 
             <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {inquiryBellCounts ? <InquiryBellButton counts={inquiryBellCounts} /> : null}
               <span
                 className="max-w-[min(100vw,16rem)] truncate rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-right text-xs text-zinc-700 shadow-sm sm:max-w-[min(100%,240px)] sm:text-sm"
                 title={userEmail || undefined}
@@ -337,7 +470,7 @@ export function AdminProtectedHeader({ userEmail }: Props) {
 
           <div className="rounded-xl border border-zinc-200/90 bg-white/90 p-2 shadow-sm ring-1 ring-zinc-100/80 backdrop-blur-sm">
             <nav aria-label="メイン" className="flex flex-wrap gap-1 rounded-lg bg-zinc-100/90 p-1">
-              {SECTIONS.map((sec) => {
+              {sections.map((sec) => {
                 const isActive = sec.id === activeSection;
                 const th = SECTION_THEME[sec.id];
                 return (
@@ -416,7 +549,7 @@ export function AdminProtectedHeader({ userEmail }: Props) {
                 className="flex-1 space-y-3 overflow-y-auto overscroll-y-contain bg-zinc-100/80 px-3 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
                 aria-label="区分別リンク"
               >
-                {SECTIONS.map((sec) => {
+                {sections.map((sec) => {
                   const th = SECTION_THEME[sec.id];
                   return (
                     <div

@@ -28,7 +28,7 @@ import {
   representativeGradeYearChoicesForBand,
 } from "@/lib/reservations/grade-year";
 import {
-  isAtLeastFourDigitCount,
+  exceedsReserveCountMaxAllowed,
   RESERVE_COUNT_MAX_ALLOWED,
   RESERVE_COUNT_REJECT_FROM,
 } from "@/lib/reservations/reserve-numeric-sanity";
@@ -72,7 +72,6 @@ type MorningSlot = {
     unknown: number;
   };
   bookedTeams?: Array<{
-    reservationId: string;
     teamName: string;
     strengthCategory: string;
     /** 1〜6。旧データで欠ける場合は未表示 */
@@ -120,18 +119,36 @@ type AvailabilityLoadIssue =
 export function ReserveDateClient({
   eventDate,
   initialMorningSlotId,
+  initialAvailability,
+  initialLoadIssue,
+  initialLunchMenus,
 }: {
   eventDate: string;
   /** 開催日選択画面から引き継いだ午前枠（任意） */
   initialMorningSlotId?: string;
+  /** サーバーで取得済みの空き状況（同一レスポンス形） */
+  initialAvailability: AvailabilityJson | null;
+  initialLoadIssue: AvailabilityLoadIssue | null;
+  /** サーバーで昼食メニューまで取得済みのとき（eventDayId が無いときは null） */
+  initialLunchMenus: LunchMenuItemPublic[] | null;
 }) {
   const router = useRouter();
-  const [data, setData] = useState<AvailabilityJson | null>(null);
-  const [loadIssue, setLoadIssue] = useState<AvailabilityLoadIssue>(null);
-  const [selectedSlotId, setSelectedSlotId] = useState<string>("");
+  const data = initialAvailability;
+  const loadIssue = initialLoadIssue;
+  const selectedSlotId = useMemo(
+    () =>
+      initialAvailability
+        ? pickInitialMorningSlot(initialAvailability, initialMorningSlotId)
+        : "",
+    [initialAvailability, initialMorningSlotId]
+  );
   const [teamName, setTeamName] = useState("");
   const [strengthCategory, setStrengthCategory] = useState<string>("strong");
-  const [representativeGradeYear, setRepresentativeGradeYear] = useState<string>("");
+  const [representativeGradeYear, setRepresentativeGradeYear] = useState<string>(() => {
+    if (!initialAvailability) return "";
+    const first = representativeGradeYearChoicesForBand(initialAvailability.gradeBand)[0];
+    return first != null ? String(first) : "";
+  });
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactEmailConfirm, setContactEmailConfirm] = useState("");
@@ -139,9 +156,13 @@ export function ReserveDateClient({
   /** 入力画面 → 登録前の内容確認 */
   const [phase, setPhase] = useState<"edit" | "confirm">("edit");
   const [participantCount, setParticipantCount] = useState("18");
-  const [lunchMenus, setLunchMenus] = useState<LunchMenuItemPublic[] | null>(null);
-  const [lunchMenuLoadError, setLunchMenuLoadError] = useState<string | null>(null);
-  const [qtyByMenuId, setQtyByMenuId] = useState<Record<string, string>>({});
+  const lunchMenus = initialLunchMenus;
+  const lunchMenuLoadError: string | null = null;
+  const [qtyByMenuId, setQtyByMenuId] = useState<Record<string, string>>(() =>
+    initialLunchMenus?.length
+      ? Object.fromEntries(initialLunchMenus.map((m) => [m.id, ""]))
+      : {}
+  );
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -165,99 +186,6 @@ export function ReserveDateClient({
     window.addEventListener(RESERVE_DATE_HEADER_BACK_REQUEST, onHeaderBack);
     return () => window.removeEventListener(RESERVE_DATE_HEADER_BACK_REQUEST, onHeaderBack);
   }, [router]);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/event-days/${encodeURIComponent(eventDate)}/availability`)
-      .then(async (res) => {
-        const json = (await res.json().catch(() => ({}))) as AvailabilityJson & {
-          error?: string;
-        };
-        return { res, json };
-      })
-      .then(({ res, json }) => {
-        if (cancelled) return;
-        if (!res.ok) {
-          setData(null);
-          if (res.status === 404) {
-            setLoadIssue({ kind: "no_open_day" });
-            return;
-          }
-          setLoadIssue({
-            kind: "error",
-            message: reserveFlowApiErrorDisplay(
-              res.status,
-              typeof json.error === "string" ? json.error : undefined,
-              `空き状況を取得できませんでした（${res.status}）`
-            ),
-          });
-          return;
-        }
-        setData(json);
-        setLoadIssue(null);
-        setSelectedSlotId(pickInitialMorningSlot(json, initialMorningSlotId));
-        {
-          const first = representativeGradeYearChoicesForBand(json.gradeBand)[0];
-          setRepresentativeGradeYear(first != null ? String(first) : "");
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setData(null);
-        setLoadIssue({ kind: "error", message: RESERVE_FLOW_NETWORK_ERROR_JA });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [eventDate, initialMorningSlotId]);
-
-  useEffect(() => {
-    const eventDayId = data?.eventDayId?.trim();
-    if (!eventDayId) {
-      setLunchMenus(null);
-      setLunchMenuLoadError(null);
-      setQtyByMenuId({});
-      return;
-    }
-
-    let cancelled = false;
-    fetch(
-      `/api/lunch-menu?eventDayId=${encodeURIComponent(eventDayId)}`
-    )
-      .then(async (res) => {
-        const j = (await res.json().catch(() => ({}))) as {
-          items?: LunchMenuItemPublic[];
-          error?: string;
-        };
-        return { res, j };
-      })
-      .then(({ res, j }) => {
-        if (cancelled) return;
-        if (!res.ok) {
-          setLunchMenus([]);
-          setLunchMenuLoadError(
-            reserveFlowApiErrorDisplay(
-              res.status,
-              typeof j.error === "string" ? j.error : undefined,
-              "昼食メニューを取得できませんでした"
-            )
-          );
-          return;
-        }
-        setLunchMenuLoadError(null);
-        const items = Array.isArray(j.items) ? j.items : [];
-        setLunchMenus(items);
-        setQtyByMenuId(Object.fromEntries(items.map((m) => [m.id, ""])));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLunchMenus([]);
-        setLunchMenuLoadError(RESERVE_FLOW_NETWORK_ERROR_JA);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [data?.eventDayId]);
 
   useEffect(() => {
     if (phase !== "confirm") return;
@@ -289,7 +217,7 @@ export function ReserveDateClient({
     if (!Number.isInteger(pc) || pc < 1) {
       return { ok: false, message: "参加人数は 1 以上の整数にしてください" };
     }
-    if (isAtLeastFourDigitCount(pc)) {
+    if (exceedsReserveCountMaxAllowed(pc)) {
       return {
         ok: false,
         message: `参加人数は ${RESERVE_COUNT_MAX_ALLOWED} 以下の整数にしてください。`,
@@ -316,7 +244,7 @@ export function ReserveDateClient({
     if (lunchTotalUnits === 0) {
       return { ok: false, message: "昼食は、必ずご予約が必要です。", alert: "昼食は、必ずご予約が必要です。" };
     }
-    if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+    if (exceedsReserveCountMaxAllowed(lunchTotalUnits)) {
       return {
         ok: false,
         message: `昼食の食数の合計は ${RESERVE_COUNT_MAX_ALLOWED} 以下にしてください。`,
@@ -420,7 +348,6 @@ export function ReserveDateClient({
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
         detail?: string;
-        reservationId?: string;
         reservationToken?: string;
         reservationTokenDisplay?: string;
         publicRef?: string;
@@ -440,7 +367,7 @@ export function ReserveDateClient({
         );
         return;
       }
-      if (!json.reservationToken || !json.reservationId || !json.publicRef) {
+      if (!json.reservationToken || !json.publicRef) {
         setSubmitError(
           "予約は完了したが表示用データが返りませんでした。運営へ連絡してください。"
         );
@@ -455,7 +382,6 @@ export function ReserveDateClient({
             reservationTokenDisplay:
               json.reservationTokenDisplay ?? json.reservationToken,
             publicRef: json.publicRef,
-            reservationId: json.reservationId,
             eventDate: data.eventDate,
           })
         );
@@ -578,10 +504,6 @@ export function ReserveDateClient({
         </p>
       )}
 
-      {!data && !loadIssue && (
-        <p className="text-sm text-zinc-500">空き状況を読み込み中…</p>
-      )}
-
       {data && phase === "edit" && (
         <>
           <div className="space-y-6">
@@ -647,7 +569,7 @@ export function ReserveDateClient({
                   <p className="font-semibold text-rp-brand">カテゴリについて</p>
                   <ul className="mt-0.5 space-y-0.5">
                     <li>
-                      <span className="font-medium">ハイレベル</span>
+                      <span className="font-medium">ストロング</span>
                       ：経験が多く試合に慣れているチーム
                     </li>
                     <li>
@@ -755,12 +677,14 @@ export function ReserveDateClient({
                     required
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    maxLength={3}
+                    maxLength={4}
                     placeholder="18"
                     className="mt-1 min-h-9 w-full rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-base text-zinc-900 outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:mt-2 sm:min-h-11 sm:py-2.5 sm:text-sm"
                     value={participantCount}
                     onChange={(e) =>
-                      setParticipantCount(inputAsciiDigitsOnly(e.target.value))
+                      setParticipantCount(
+                        inputAsciiDigitsOnly(e.target.value).slice(0, 4)
+                      )
                     }
                   />
                   <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500 sm:mt-1">
@@ -768,15 +692,13 @@ export function ReserveDateClient({
                   </span>
                 </label>
                 <div className="space-y-1.5 sm:space-y-3">
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">
-                      <FieldLabel required>昼食のご注文</FieldLabel>
-                    </p>
-                    <div className="mt-1 space-y-2 sm:mt-1.5">
+                  <div className="text-sm">
+                    <FieldLabel required>昼食のご注文</FieldLabel>
+                    <div className="mt-1.5 space-y-2.5 sm:mt-2 sm:space-y-3">
                       {RESERVE_LUNCH_ORDER_HELP_LINES_JA.map((line) => (
                         <p
                           key={line}
-                          className="text-[15px] leading-relaxed text-zinc-700 sm:text-sm"
+                          className="text-xs leading-relaxed text-zinc-500"
                         >
                           {line}
                         </p>
@@ -793,7 +715,7 @@ export function ReserveDateClient({
                     </p>
                   ) : (
                     <div className="space-y-3 sm:space-y-2">
-                      <p className="text-sm font-semibold text-zinc-800 sm:text-sm">
+                      <p className="text-sm font-medium leading-snug text-zinc-800">
                         メニュー・数量入力
                       </p>
 
@@ -834,7 +756,7 @@ export function ReserveDateClient({
                                   <input
                                     inputMode="numeric"
                                     pattern="[0-9]*"
-                                    maxLength={3}
+                                    maxLength={LUNCH_MENU_QTY_MAX_DIGITS}
                                     className="block w-full max-w-[9rem] min-h-11 rounded-xl border border-zinc-200 px-3 py-2 text-center text-base tabular-nums outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20"
                                     value={raw}
                                     onChange={(e) => {
@@ -918,7 +840,7 @@ export function ReserveDateClient({
                                     <input
                                       inputMode="numeric"
                                       pattern="[0-9]*"
-                                      maxLength={3}
+                                      maxLength={LUNCH_MENU_QTY_MAX_DIGITS}
                                       className="ml-auto block w-16 min-h-8 rounded-lg border border-zinc-200 px-2 py-1 text-center text-base tabular-nums outline-none focus:border-rp-brand focus:ring-2 focus:ring-rp-brand/20 sm:min-h-9 sm:py-1.5 sm:text-sm"
                                       value={raw}
                                       onChange={(e) => {
@@ -967,12 +889,6 @@ export function ReserveDateClient({
                   )}
                   <LunchPaymentNote className="text-[15px] sm:text-sm" />
                 </div>
-                <div className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-3 py-2.5 text-[15px] leading-relaxed text-amber-950 sm:px-3 sm:py-3 sm:text-sm">
-                  <p className="font-semibold text-amber-900">昼食について</p>
-                  <p className="mt-1 sm:mt-1.5">
-                    会場外への飲食の持ち出しはできません。
-                  </p>
-                </div>
               </div>
             </div>
 
@@ -1003,41 +919,41 @@ export function ReserveDateClient({
       {data && phase === "confirm" && (
         <section
           aria-labelledby="reserve-confirm-heading"
-          className="space-y-3 rounded-2xl border-2 border-rp-brand/25 bg-white p-4 shadow-md sm:space-y-4 sm:p-5"
+          className="space-y-2.5 rounded-2xl border-2 border-rp-brand/25 bg-white p-3 shadow-md sm:space-y-4 sm:p-5"
         >
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
             <div className="min-w-0 flex-1">
               <h2
                 id="reserve-confirm-heading"
-                className="text-lg font-bold text-rp-navy sm:text-xl"
+                className="text-base font-bold leading-tight text-rp-navy sm:text-xl sm:leading-snug"
               >
                 ご入力内容の確認
               </h2>
-              <p className="mt-1 text-xs leading-snug text-zinc-600 sm:text-sm sm:leading-normal">
+              <p className="mt-0.5 text-[11px] leading-snug text-zinc-600 sm:mt-1 sm:text-sm sm:leading-normal">
                 内容をご確認のうえ、問題なければ登録してください。
               </p>
             </div>
             <button
               type="button"
               onClick={() => setPhase("edit")}
-              className="inline-flex shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 sm:py-2 sm:text-sm"
+              className="inline-flex shrink-0 items-center justify-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-800 shadow-sm transition-colors hover:bg-zinc-50 sm:px-3 sm:py-2 sm:text-sm"
             >
               内容を修正する
             </button>
           </div>
 
-          <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-zinc-200 bg-zinc-200 text-sm md:grid-cols-2">
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+          <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-lg border border-zinc-200 bg-zinc-200 text-sm sm:rounded-xl md:grid-cols-2 [&_dd]:leading-snug sm:[&_dd]:leading-normal">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">ご利用日</dt>
               <dd className="font-semibold text-zinc-900">
                 {formatIsoDateWithWeekdayJa(eventDate)}
               </dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">対象学年帯</dt>
               <dd className="font-semibold text-zinc-900">{gradeBandLabelJa(data.gradeBand)}</dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">午前の枠</dt>
               <dd className="font-semibold tabular-nums text-zinc-900">
                 {selectedMorningSlot
@@ -1045,50 +961,50 @@ export function ReserveDateClient({
                   : "—"}
               </dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">チーム名</dt>
               <dd className="wrap-break-word font-medium text-zinc-900">{teamName.trim()}</dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">カテゴリ</dt>
               <dd className="font-medium text-zinc-900">{strengthLabel}</dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">代表学年</dt>
               <dd className="font-medium text-zinc-900">
                 {gradeYearLabelJa(parseInt(representativeGradeYear, 10))}
               </dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">チーム代表者名</dt>
               <dd className="wrap-break-word font-medium text-zinc-900">{contactName.trim()}</dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">メール</dt>
               <dd className="wrap-break-word text-zinc-900">{contactEmail.trim()}</dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">電話</dt>
               <dd className="font-mono tabular-nums text-zinc-900">
                 {normalizeContactPhoneDigits(contactPhone)}
               </dd>
             </div>
-            <div className="grid gap-1 bg-zinc-50/60 px-4 py-3 sm:px-5">
+            <div className="grid gap-0.5 bg-zinc-50/60 px-3 py-2 sm:gap-1 sm:px-5 sm:py-3">
               <dt className="text-xs font-medium text-zinc-500">参加人数</dt>
               <dd className="font-semibold tabular-nums text-zinc-900">{participantCount.trim()}名</dd>
             </div>
           </dl>
 
           {lunchMenus && lunchMenus.length > 0 ? (
-            <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 sm:px-5">
+            <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 sm:rounded-xl sm:px-5 sm:py-3">
               <p className="text-xs font-semibold text-zinc-600">昼食のご注文</p>
-              <ul className="mt-2 space-y-1.5 text-sm text-zinc-800">
+              <ul className="mt-1.5 space-y-1 text-sm leading-snug text-zinc-800 sm:mt-2 sm:space-y-1.5 sm:leading-normal">
                 {lunchMenus.map((m) => {
                   const p = parseLunchQuantityField(qtyByMenuId[m.id] ?? "");
                   const q = p.ok ? p.quantity : 0;
                   if (q <= 0) return null;
                   return (
-                    <li key={m.id} className="flex flex-wrap justify-between gap-2 border-b border-zinc-100 pb-1.5 last:border-0">
+                    <li key={m.id} className="flex flex-wrap justify-between gap-1.5 border-b border-zinc-100 pb-1 last:border-0 sm:gap-2 sm:pb-1.5">
                       <span className="min-w-0 wrap-break-word font-medium">{m.name}</span>
                       <span className="shrink-0 tabular-nums text-zinc-700">
                         {q}食 × {formatTaxIncludedYen(m.priceTaxIncluded)} ={" "}
@@ -1098,7 +1014,7 @@ export function ReserveDateClient({
                   );
                 })}
               </ul>
-              <p className="mt-3 border-t border-zinc-100 pt-2 text-right text-sm font-bold text-rp-brand">
+              <p className="mt-2 border-t border-zinc-100 pt-1.5 text-right text-sm font-bold text-rp-brand sm:mt-3 sm:pt-2">
                 税込合計{" "}
                 {formatTaxIncludedYen(
                   lunchMenus.reduce((sum, m) => {
@@ -1117,12 +1033,12 @@ export function ReserveDateClient({
             </p>
           ) : null}
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
             <button
               type="button"
               disabled={submitting || !data.acceptingReservations}
               onClick={() => void performSubmit()}
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-8 text-base font-semibold text-white shadow-md transition-colors hover:bg-rp-brand-hover disabled:cursor-wait disabled:bg-zinc-400 sm:min-w-56 sm:w-auto"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-base font-semibold text-white shadow-md transition-colors hover:bg-rp-brand-hover disabled:cursor-wait disabled:bg-zinc-400 sm:min-h-12 sm:min-w-56 sm:px-8 sm:w-auto"
             >
               {submitting ? <InlineSpinner variant="onDark" /> : null}
               {submitting ? "登録中…" : "この内容で登録する"}

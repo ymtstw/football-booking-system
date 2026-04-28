@@ -7,11 +7,11 @@ export function notificationTemplateLabelJa(templateKey: string | null): string 
   const k = (templateKey ?? "").trim();
   switch (k) {
     case "reservation_created":
-      return "予約直後の確認メール";
+      return "予約完了メール";
     case "day_before_final":
-      return "前日の最終メール";
+      return "前日最終案内";
     case "matching_proposal":
-      return "マッチング案内";
+      return "対戦案内";
     case "minimum_cancel_notice":
       return "最少催行中止のお知らせ";
     case "weather_cancel_immediate":
@@ -19,9 +19,23 @@ export function notificationTemplateLabelJa(templateKey: string | null): string 
     case "operational_cancel_immediate":
       return "運営中止（即時）";
     case "morning_slot_force_changed":
-      return "朝枠・時刻の変更案内";
+      return "朝枠・時刻変更のお知らせ";
     default:
-      return k ? k : "（種別なし）";
+      return k ? "その他のメール" : "（種別なし）";
+  }
+}
+
+/** notifications.status を運営画面向けに表示（DB の値は変えない） */
+export function notificationStatusLabelJa(status: string | null): string {
+  switch ((status ?? "").trim()) {
+    case "sent":
+      return "送信処理済み";
+    case "pending":
+      return "送信待ち";
+    case "failed":
+      return "送信できなかった";
+    default:
+      return (status ?? "").trim() || "—";
   }
 }
 
@@ -76,8 +90,7 @@ export function summarizeOutboundEmailError(raw: string | null): OutboundEmailEr
   }
 
   return {
-    summaryJa:
-      "メール送信サービスからエラーが返りました。下の「技術メッセージ」をコピーして開発・運用担当へ共有してください。",
+    summaryJa: "送信できませんでした。必要に応じて確認・再送してください。",
     rawDetail: t,
   };
 }

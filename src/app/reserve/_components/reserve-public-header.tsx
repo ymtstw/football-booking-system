@@ -27,7 +27,7 @@ const NAV = [
       /^\/reserve\/\d{4}-\d{2}-\d{2}/.test(p) ||
       p === "/reserve/complete",
   },
-  { href: "/reserve/manage", label: "予約の確認・キャンセル", match: (p: string) => p.startsWith("/reserve/manage") },
+  { href: "/reserve/manage", label: "予約の確認・変更", match: (p: string) => p.startsWith("/reserve/manage") },
   {
     href: "/reserve/schedule",
     label: "開催確認・試合予定",

@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { ensureAtLeastOneActiveLunchMenuItem } from "./helpers/ensure-active-lunch-menu-item";
 import { deleteEventDayById, insertEventDayWithSlots } from "./helpers/seed-event-day";
 import { getIntegrationSupabase, hasSupabaseEnv } from "./helpers/service-role-client";
 
@@ -27,30 +28,6 @@ let hasEventDayLunchMenuItemsTable = false;
 /** このファイルでだけ投入したグローバル昼食（後始末用） */
 let ensuredGlobalLunchId: string | null = null;
 
-async function ensureAtLeastOneActiveGlobalLunch(): Promise<void> {
-  const supa = getIntegrationSupabase();
-  const { count, error } = await supa
-    .from("lunch_menu_items")
-    .select("id", { count: "exact", head: true })
-    .eq("is_active", true);
-  if (error) throw error;
-  if ((count ?? 0) >= 1) return;
-
-  const { data, error: insErr } = await supa
-    .from("lunch_menu_items")
-    .insert({
-      name: "結合テスト用グローバル昼食（open ゲート用・自動投入）",
-      description: null,
-      price_tax_included: 600,
-      is_active: true,
-      sort_order: -100,
-    })
-    .select("id")
-    .single();
-  if (insErr) throw insErr;
-  ensuredGlobalLunchId = data.id as string;
-}
-
 function patchJsonReq(body: unknown) {
   return new Request("http://localhost/api/admin/event-days/x", {
     method: "PATCH",
@@ -64,7 +41,8 @@ describe.skipIf(!hasSupabaseEnv())(
   () => {
     beforeAll(async () => {
       const supa = getIntegrationSupabase();
-      await ensureAtLeastOneActiveGlobalLunch();
+      const lunchEnsure = await ensureAtLeastOneActiveLunchMenuItem();
+      ensuredGlobalLunchId = lunchEnsure.insertedId;
 
       const { error: junctionProbe } = await supa
         .from("event_day_lunch_menu_items")

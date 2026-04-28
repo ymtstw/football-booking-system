@@ -10,10 +10,7 @@ type Props = {
   replyClipboardText: string;
 };
 
-/**
- * お問い合わせ返信: Outlook（Web）/ mailto と、全文コピー。
- * mailto は OS の既定アプリ（Windows では Outlook になりがち）のため Web 経路を併設する。
- */
+/** お問い合わせ返信: Outlook（Web）/ mailto と返信用テキストのコピー */
 export function InquiryReplyComposeLinks({
   outlookWebHref,
   mailtoHref,
@@ -40,11 +37,6 @@ export function InquiryReplyComposeLinks({
 
   return (
     <>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-        <strong>Outlook（ブラウザ）</strong>
-        からそのまま返信を始められます。PC に Outlook が入っていて既定メールになっている場合のみ、
-        「PCのメールアプリ」はそちらが開きます。長文は「返信用テキストをコピー」が確実です。
-      </p>
       {urlTruncated ? (
         <p className="mt-2 text-xs text-amber-800">
           内容が長いため、Web／アプリに渡す本文の一部が省略されている場合があります。下の「返信用テキストをコピー」か「受付内容」欄で全文をご確認ください。

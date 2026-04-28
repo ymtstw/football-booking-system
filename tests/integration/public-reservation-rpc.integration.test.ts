@@ -8,6 +8,7 @@ import {
   deleteEventDayById,
   insertEventDayWithSlots,
 } from "./helpers/seed-event-day";
+import { ensureAtLeastOneActiveLunchMenuItem } from "./helpers/ensure-active-lunch-menu-item";
 import { getIntegrationSupabase, hasSupabaseEnv } from "./helpers/service-role-client";
 
 const futureDeadlineIso = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000).toISOString();
@@ -173,6 +174,7 @@ describe.skipIf(!hasSupabaseEnv())("integration: create_public_reservation / can
   });
 
   it("RSV-006: 昼食合計数量が participant_count を上回っても create は success", async () => {
+    const { insertedId: ensuredLunchId } = await ensureAtLeastOneActiveLunchMenuItem();
     const { eventDayId, morningSlotId } = await insertEventDayWithSlots({
       status: "open",
       reservationDeadlineAtIso: futureDeadlineIso,
@@ -220,6 +222,16 @@ describe.skipIf(!hasSupabaseEnv())("integration: create_public_reservation / can
       expect(totalQty).toBeGreaterThan(participantCount);
     } finally {
       await deleteEventDayById(eventDayId);
+      if (ensuredLunchId) {
+        const supabase = getIntegrationSupabase();
+        const { error: delMenuErr } = await supabase
+          .from("lunch_menu_items")
+          .delete()
+          .eq("id", ensuredLunchId);
+        if (delMenuErr) {
+          console.warn("RSV-006: 投入した昼食メニューの削除に失敗", delMenuErr.message);
+        }
+      }
     }
   });
 

@@ -44,6 +44,8 @@ type Props = {
   /** DB に保存されている登録メール（初期の送信先） */
   defaultToEmail: string;
   reservationActive: boolean;
+  /** true: 親カード側で枠・見出しがあるとき（アコーディオン内など） */
+  embedded?: boolean;
 };
 
 /** 管理: 予約完了メールを任意アドレスへ再送（宛先指定＋送信） */
@@ -51,6 +53,7 @@ export function ReservationCreatedMailResendClient({
   reservationId,
   defaultToEmail,
   reservationActive,
+  embedded = false,
 }: Props) {
   const router = useRouter();
   const [toEmail, setToEmail] = useState(defaultToEmail.trim());
@@ -58,14 +61,17 @@ export function ReservationCreatedMailResendClient({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
-  /** クールダウン中の残り表示用に 1 秒ごと更新 */
   const [, setTick] = useState(0);
-  /** 再描画前の連打でも二重 POST しない（pending 行の重複防止） */
   const sendInFlightRef = useRef(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   useEffect(() => {
     setCooldownUntil(readStoredUntil(reservationId));
   }, [reservationId]);
+
+  useEffect(() => {
+    setToEmail(defaultToEmail.trim());
+  }, [defaultToEmail]);
 
   useEffect(() => {
     if (cooldownUntil == null) return;
@@ -114,12 +120,13 @@ export function ReservationCreatedMailResendClient({
         setError(json.error ?? "送信に失敗しました");
         return;
       }
+      setConfirmOpen(false);
       const until = Date.now() + COOLDOWN_MS;
       writeStoredUntil(reservationId, until);
       setCooldownUntil(until);
       setMessage(
         json.message ??
-          "予約完了メールを送信しました。確認コードはメールに記載されています。"
+          "予約完了メールを送信しました。確認コードがメールに記載されています。"
       );
       router.refresh();
     } finally {
@@ -131,24 +138,47 @@ export function ReservationCreatedMailResendClient({
   const sendDisabled =
     sending || toEmail.trim() === "" || inCooldown;
 
-  return (
-    <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-      <h2 className="text-sm font-semibold text-zinc-900">予約完了メールの送信</h2>
-      <p className="text-xs leading-relaxed text-zinc-600">
-        指定したアドレス宛に、予約完了時と同じ内容のメール（確認コード同封）を送信します。通常の代表メール以外へ送る場合は、下の欄を書き換えてください。
-      </p>
-      <p className="text-xs font-medium leading-relaxed text-amber-900">
-        再送では確認コードを<strong className="font-semibold">新しく発行</strong>
-        します。以前の確認コードでの照会・変更はできなくなります（参加者にはメール記載の新コードを案内してください）。
-      </p>
+  useEffect(() => {
+    if (!confirmOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !sending) {
+        setConfirmOpen(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [confirmOpen, sending]);
+
+  function openConfirm() {
+    setError(null);
+    setConfirmOpen(true);
+  }
+
+  const body = (
+    <>
+      {!embedded ? (
+        <h2 className="text-sm font-semibold text-zinc-900">
+          予約完了メールを再送する
+        </h2>
+      ) : null}
+      <div
+        className={`space-y-2 text-xs leading-snug text-zinc-700 sm:text-sm ${embedded ? "" : "mt-2"}`}
+      >
+        <p>予約者から「メールが届いていない」と連絡があった場合に使用します。</p>
+        <p className="text-zinc-600">
+          送信先のメールアドレスを確認してから再送してください。
+        </p>
+      </div>
 
       {!reservationActive ? (
-        <p className="text-sm text-zinc-600">取消済みの予約には送信できません。</p>
+        <p className="mt-3 text-sm text-zinc-600">
+          キャンセル済みの予約には送信できません。
+        </p>
       ) : (
         <>
           {message && !error ? (
             <div
-              className="relative overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50/95 px-4 py-3 shadow-sm"
+              className="relative mt-3 overflow-hidden rounded-lg border border-emerald-200 bg-emerald-50/95 px-4 py-3 shadow-sm"
               role="status"
               aria-live="polite"
             >
@@ -169,19 +199,21 @@ export function ReservationCreatedMailResendClient({
 
           {inCooldown ? (
             <p
-              className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950"
+              className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950"
               role="status"
             >
-              誤って連続送信しないよう、しばらく再送ボタンは使えません（残り{" "}
+              しばらく再送できません（残り{" "}
               <span className="font-mono font-semibold tabular-nums">
                 {formatRemainingMs(remainingMs)}
               </span>
-              ）。必要なら時間が経ってから再度お試しください。
+              ）。
             </p>
           ) : null}
 
-          <label className="block text-sm">
-            <span className="font-medium text-zinc-800">送信先メールアドレス</span>
+          <label className="mt-4 block text-sm">
+            <span className="font-medium text-zinc-800">
+              送信先メールアドレス
+            </span>
             <input
               type="email"
               className="mt-1 min-h-10 w-full rounded border border-zinc-300 px-3 py-2 text-sm"
@@ -192,27 +224,91 @@ export function ReservationCreatedMailResendClient({
             />
           </label>
 
-          {error ? (
-            <p className="text-sm text-red-700" role="alert">
+          {!confirmOpen && error ? (
+            <p className="mt-2 text-sm text-red-700" role="alert">
               {error}
             </p>
           ) : null}
 
           <button
             type="button"
-            onClick={() => void send()}
+            onClick={() => openConfirm()}
             disabled={sendDisabled}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
+            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-400"
           >
-            {sending ? <InlineSpinner variant="onDark" /> : null}
-            {sending
-              ? "送信中…"
-              : inCooldown
-                ? `再送まであと ${formatRemainingMs(remainingMs)}`
-                : "予約完了メールを送信"}
+            {inCooldown
+              ? `再送まであと ${formatRemainingMs(remainingMs)}`
+              : "予約完了メールを再送する"}
           </button>
+
+          {confirmOpen ? (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/50 p-4 backdrop-blur-[1px]"
+              role="presentation"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !sending) {
+                  setConfirmOpen(false);
+                }
+              }}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="resend-mail-confirm-title"
+                className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl ring-1 ring-zinc-200/80"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h3
+                  id="resend-mail-confirm-title"
+                  className="text-base font-bold text-zinc-900"
+                >
+                  メールを送信しますか？
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-700">
+                  次の宛先に予約完了メールを送信します。よろしいですか？
+                </p>
+                <p className="mt-3 break-all rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2 font-mono text-sm text-zinc-900">
+                  {toEmail.trim() || "（未入力）"}
+                </p>
+                {error ? (
+                  <p className="mt-3 text-sm text-red-700" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => setConfirmOpen(false)}
+                    className="inline-flex min-h-11 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:w-auto"
+                  >
+                    戻る
+                  </button>
+                  <button
+                    type="button"
+                    disabled={sendDisabled}
+                    onClick={() => void send()}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 text-sm font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400 sm:w-auto"
+                  >
+                    {sending ? <InlineSpinner variant="onDark" /> : null}
+                    {sending ? "送信中…" : "再送する"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       )}
-    </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="min-w-0">{body}</div>;
+  }
+
+  return (
+    <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+      {body}
+    </section>
   );
 }

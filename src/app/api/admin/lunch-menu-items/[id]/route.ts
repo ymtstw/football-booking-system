@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 
 import {
+  ADMIN_API_DB_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
+import {
   assertCustomDayMenusStayValid,
   CUSTOM_DAY_LUNCH_NEEDS_ACTIVE,
   loadLunchMenuRowsForAdmin,
@@ -119,6 +123,12 @@ export async function PATCH(
         { status: 422 }
       );
     }
+    if (so < 0) {
+      return NextResponse.json(
+        { error: "表示順は 0 以上の整数で指定してください" },
+        { status: 422 }
+      );
+    }
     patch.sort_order = so;
   }
 
@@ -150,7 +160,8 @@ export async function PATCH(
 
     const { rows, error: rowErr } = await loadLunchMenuRowsForAdmin(supabase);
     if (rowErr) {
-      return NextResponse.json({ error: rowErr }, { status: 500 });
+      logAdminApiDbError("PATCH /api/admin/lunch-menu-items/[id] loadLunchMenuRowsForAdmin", rowErr);
+      return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
     }
     if (coActivateId && !rows.some((r) => r.id === coActivateId)) {
       return NextResponse.json(
@@ -199,10 +210,8 @@ export async function PATCH(
         .update({ is_active: true })
         .eq("id", coActivateId);
       if (coErr) {
-        return NextResponse.json(
-          { error: coErr.message, code: coErr.code },
-          { status: 500 }
-        );
+        logAdminApiDbError("PATCH /api/admin/lunch-menu-items/[id] coActivate", coErr);
+        return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
       }
     }
   }
@@ -217,10 +226,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH /api/admin/lunch-menu-items/[id] update", error);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
   if (!data) {
     return NextResponse.json({ error: "メニューが見つかりません" }, { status: 404 });
@@ -257,7 +264,8 @@ export async function DELETE(
 
   const { rows, error: rowErr } = await loadLunchMenuRowsForAdmin(supabase);
   if (rowErr) {
-    return NextResponse.json({ error: rowErr }, { status: 500 });
+    logAdminApiDbError("DELETE /api/admin/lunch-menu-items/[id] loadLunchMenuRowsForAdmin", rowErr);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 
   if (!rows.some((r) => r.id === id)) {
@@ -303,7 +311,7 @@ export async function DELETE(
     return NextResponse.json(
       {
         error:
-          "削除後に有効な昼食が0件になります。別メニューを先に公開するか、クエリ promote_active_first で公開するメニューを指定してください。",
+          "有効な昼食メニューは常に1件以上必要です。別のメニューを公開にするか、co_activate_menu_item_id で同時に公開するメニューを指定してください。",
         code: MIN_ACTIVE_LUNCH_MENUS,
         menuOptions: menuOptionsExcluding(rows, id),
       },
@@ -317,20 +325,16 @@ export async function DELETE(
       .update({ is_active: true })
       .eq("id", promoteId);
     if (prErr) {
-      return NextResponse.json(
-        { error: prErr.message, code: prErr.code },
-        { status: 500 }
-      );
+      logAdminApiDbError("DELETE /api/admin/lunch-menu-items/[id] promote", prErr);
+      return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
     }
   }
 
   const { error } = await supabase.from("lunch_menu_items").delete().eq("id", id);
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message, code: error.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("DELETE /api/admin/lunch-menu-items/[id] delete", error);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

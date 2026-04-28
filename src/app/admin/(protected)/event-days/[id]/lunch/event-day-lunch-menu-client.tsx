@@ -179,7 +179,7 @@ export function EventDayLunchMenuClient({ eventDayId }: { eventDayId: string }) 
           <span>
             <span className="font-medium text-zinc-800">既定メニューを使う</span>
             <span className="mt-0.5 block text-xs text-zinc-500">
-              ＝全体設定と同じです。設定の「昼食メニュー」で表示をオンにした品目が、そのままこの開催日の予約画面に出ます。
+              ＝全体設定と同じです。設定の「昼食メニュー設定」で表示をオンにした品目が、そのままこの開催日の予約画面に出ます。
             </span>
           </span>
         </label>

@@ -4,6 +4,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getSupabasePublishableKey, getSupabaseUrl } from "@/lib/supabase/supabase-env";
 
+/** ミドルウェアでの Supabase セッション更新は往復コストが大きい。認証が不要な経路では省略する。 */
+function shouldSkipSupabaseSessionRefresh(pathname: string): boolean {
+  if (pathname === "/") return true;
+  if (pathname.startsWith("/reserve")) return true;
+  if (pathname.startsWith("/api/cron")) return true;
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/admin")) return true;
+  return false;
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname.replace(/\/$/, "") || "/";
 
@@ -29,7 +38,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // --- 以降: すべてのリクエストで Supabase のセッション（クッキー）を読み、必要なら更新 ---
+  if (shouldSkipSupabaseSessionRefresh(pathname)) {
+    return NextResponse.next({ request });
+  }
+
+  // --- 以降: 管理・認証などで Supabase のセッション（クッキー）を読み、必要なら更新 ---
 
   const supabaseResponse = NextResponse.next({
     request,

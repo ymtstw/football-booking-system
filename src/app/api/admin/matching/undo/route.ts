@@ -7,6 +7,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  ADMIN_API_DB_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -72,7 +76,8 @@ export async function POST(request: NextRequest) {
 
   const { data: eventDay, error: dayErr } = await dayQuery;
   if (dayErr) {
-    return NextResponse.json({ error: dayErr.message, code: dayErr.code }, { status: 500 });
+    logAdminApiDbError("POST /api/admin/matching/undo event_days", dayErr);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
   if (!eventDay) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -85,7 +90,8 @@ export async function POST(request: NextRequest) {
   });
 
   if (rpcErr) {
-    return NextResponse.json({ error: rpcErr.message, code: rpcErr.code }, { status: 500 });
+    logAdminApiDbError("POST /api/admin/matching/undo admin_undo_afternoon_matching", rpcErr);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 
   const result = rpcData as RpcUndoResult;
@@ -112,7 +118,8 @@ export async function POST(request: NextRequest) {
     if (err === "event_not_found") {
       return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
     }
-    return NextResponse.json({ error: err }, { status: 500 });
+    logAdminApiDbError("POST /api/admin/matching/undo unexpected error key", err);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 
   return NextResponse.json({

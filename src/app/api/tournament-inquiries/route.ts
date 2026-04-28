@@ -140,10 +140,7 @@ export async function POST(request: Request) {
     if (error) {
       logPublicReserveApiSupabaseError("POST /api/tournament-inquiries insert", error);
     }
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error?.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
   }
 
   const inquiryId = row.id as string;
@@ -162,6 +159,6 @@ export async function POST(request: Request) {
     ok: true,
     inquiryId,
     message:
-      "お問い合わせを受け付けました。内容を確認のうえ、必要に応じてご連絡します。",
+      "お問い合わせありがとうございます。内容を確認のうえ、必要に応じて担当者よりご連絡します。お急ぎの場合は、ページ下部の電話番号までご連絡ください。",
   });
 }

@@ -14,6 +14,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  ADMIN_API_DB_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { authorizeAdminOrCron } from "@/lib/auth/admin-or-cron";
 import { applyMatchingForEventDayId } from "@/lib/matching/run-matching-for-event-day";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -75,7 +79,8 @@ export async function POST(request: NextRequest) {
 
   const { data: row, error: dayErr } = await dayQuery;
   if (dayErr) {
-    return NextResponse.json({ error: dayErr.message, code: dayErr.code }, { status: 500 });
+    logAdminApiDbError("POST /api/admin/matching/run event_days", dayErr);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
   if (!row?.id) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -96,7 +101,11 @@ export async function POST(request: NextRequest) {
       if (result.error === "event_not_found" || result.error === "not_found") {
         return NextResponse.json({ error: result.message }, { status: 404 });
       }
-      return NextResponse.json({ error: result.message }, { status: 500 });
+      logAdminApiDbError("POST /api/admin/matching/run applyMatchingForEventDayId !ok", {
+        error: result.error,
+        message: result.message,
+      });
+      return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -108,7 +117,7 @@ export async function POST(request: NextRequest) {
       meta: result.meta,
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "unknown error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logAdminApiDbError("POST /api/admin/matching/run applyMatchingForEventDayId", e);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 }

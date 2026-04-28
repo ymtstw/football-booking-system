@@ -10,6 +10,7 @@ import {
 } from "@/lib/email/mail-brand";
 import { resolveOpsNotifyEmail } from "@/lib/email/ops-batch-failure-notify";
 import { gradeYearLabelJa } from "@/lib/reservations/grade-year";
+import { formatReservationPublicRefForDisplay } from "@/lib/reservations/public-ref";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
 import {
   dispatchReservationCreatedMailDeliveryEvent,
@@ -77,8 +78,8 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
     ? `${base}/admin/reservations/${params.reservationId}`
     : `(管理) /admin/reservations/${params.reservationId}`;
   const failedListUrl = base
-    ? `${base}/admin/notifications/failed?status=failed`
-    : "/admin/notifications/failed?status=failed";
+    ? `${base}/admin/notifications/failed?dateBasis=processedDate&status=failed&limit=20&offset=0`
+    : "/admin/notifications/failed?dateBasis=processedDate&status=failed&limit=20&offset=0";
 
   const subject = `${MAIL_SUBJECT_OPS_SYSTEM}予約完了メール送信失敗`;
   const errShort = truncateErrorMessage(params.resendError);
@@ -94,7 +95,7 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
     "",
     "次の確認: 宛先の誤記、Resend のドメイン検証・テストモードの宛先制限など。",
     `予約の管理: ${adminResUrl}`,
-    `メール送信履歴（失敗タブ）: ${failedListUrl}`,
+    `メール送信履歴（送信できなかった）: ${failedListUrl}`,
     "",
     "（確認コードはこの通知には含めていません）",
   ].join("\n");
@@ -102,11 +103,13 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
   const adminHref = base
     ? `${base}/admin/reservations/${params.reservationId}`
     : "";
-  const failedHref = base ? `${base}/admin/notifications/failed?status=failed` : "";
+  const failedHref = base
+    ? `${base}/admin/notifications/failed?dateBasis=processedDate&status=failed&limit=20&offset=0`
+    : "";
   const adminFailedLinksHtml =
     adminHref && failedHref
-      ? `<p><a href="${escapeHtmlLite(adminHref)}">予約を管理画面で開く</a> · <a href="${escapeHtmlLite(failedHref)}">メール送信履歴（失敗タブ）</a></p>`
-      : `<p>管理画面パス: <code>${escapeHtmlLite(`/admin/reservations/${params.reservationId}`)}</code> / <code>/admin/notifications/failed?status=failed</code>（<code>NEXT_PUBLIC_SITE_URL</code> 未設定時はリンク省略）</p>`;
+      ? `<p><a href="${escapeHtmlLite(adminHref)}">予約を管理画面で開く</a> · <a href="${escapeHtmlLite(failedHref)}">メール送信履歴（送信できなかった）</a></p>`
+      : `<p>管理画面パス: <code>${escapeHtmlLite(`/admin/reservations/${params.reservationId}`)}</code> / <code>/admin/notifications/failed?dateBasis=processedDate&amp;status=failed</code>（<code>NEXT_PUBLIC_SITE_URL</code> 未設定時はリンク省略）</p>`;
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>参加者向け「予約完了メール」の送信が Resend で失敗し、<code>notifications</code> を <strong>failed</strong> に更新しました。</p>
@@ -142,7 +145,7 @@ ${adminFailedLinksHtml}
 }
 
 /**
- * 予約完了メール（確認コード同封）を Resend で送り、notifications を sent / failed に更新する。
+ * 予約完了メール（予約番号・確認コード同封）を Resend で送り、notifications を sent / failed に更新する。
  * RESEND_API_KEY または RESEND_FROM が無い場合は送信をスキップし、notifications は pending のままにする。
  */
 export async function sendReservationCreatedEmailAndUpdateNotification(params: {
@@ -182,6 +185,7 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     deliveryTrigger = "public_reservation_created",
   } = params;
   const notificationId = notificationIdRaw?.trim() || undefined;
+  const publicRefDisplay = formatReservationPublicRefForDisplay(publicRef);
 
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.RESEND_FROM?.trim();
@@ -206,10 +210,6 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
       : "開催日は予約画面の開催日一覧でご確認ください。";
   /** 本文ラベルは全角コロンで統一 */
   const colon = "\uFF1A";
-  const gradeLine = gradeBand?.trim()
-    ? `学年帯${colon}${gradeBand.trim()}`
-    : null;
-  const repYearLine = `代表学年${colon}${gradeYearLabelJa(representativeGradeYear)}`;
   const manageUrl = managePageUrl();
   const manageDirectUrl = manageViewUrlWithToken(reservationTokenPlain);
   const contactUrl = reserveContactPageUrl();
@@ -246,25 +246,21 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     };
     lunchTotal += Number(row.line_total) || 0;
     lunchLinesText.push(
-      `${row.item_name_snapshot}　${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 ＝ ${formatTaxIncludedYen(Number(row.line_total))}`
+      `${row.item_name_snapshot}　${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 = ${formatTaxIncludedYen(Number(row.line_total))}`
     );
   }
   const lunchBlockText =
     lunchLinesText.length > 0
       ? [
-          "",
           "【昼食のご注文】",
+          "",
           ...lunchLinesText,
           "",
           `昼食合計${colon}${formatTaxIncludedYen(lunchTotal)}`,
           "",
           "昼食代は、各チームの代表者様が当日まとめてお支払いください。",
         ]
-      : [
-          "",
-          "【昼食のご注文】",
-          "今回の予約では昼食の申込はありません。",
-        ];
+      : ["【昼食のご注文】", "", "今回の予約では昼食の申込はありません。"];
 
   const lunchLinesHtml =
     lunchLinesText.length > 0
@@ -276,7 +272,7 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
               quantity: number;
               line_total: number;
             };
-            const line = `${row.item_name_snapshot}　${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 ＝ ${formatTaxIncludedYen(Number(row.line_total))}`;
+            const line = `${row.item_name_snapshot}　${formatTaxIncludedYen(Number(row.unit_price_snapshot_tax_included))} × ${row.quantity}食 = ${formatTaxIncludedYen(Number(row.line_total))}`;
             return `<p style="margin:6px 0">${escaped(line)}</p>`;
           })
           .join("")
@@ -289,30 +285,10 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
 
   const subject = `${MAIL_SUBJECT_BRAND_USER}お申し込み完了のお知らせ`;
 
-  const guideLines = [
-    "【ご案内】",
-    "・予約内容の確認・変更・キャンセルには、確認コード が必要です。",
-    "・確認コードは第三者に教えず、大切に保管してください。",
-    "・予約内容の変更・キャンセルは、開催2日前の15:00まで可能です。",
-    "・リンクが開けない場合は、下記の確認コードを「予約の確認・キャンセル」ページに入力してください。",
-    "",
-    ...(manageDirectUrl
-      ? ["予約内容の確認・キャンセル（直接リンク）", manageDirectUrl, ""]
-      : []),
-    ...(manageUrl
-      ? ["予約の確認・キャンセル（入力ページ）", manageUrl, ""]
-      : ["サイトの「予約の確認・キャンセル」ページより操作できます。", ""]),
-  ];
-
-  const footerLines = [
-    "",
-    contactUrl
-      ? `ご不明な点がございましたら、サイトのお問い合わせページ（${contactUrl}）よりご連絡ください。`
-      : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。",
-    "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
-    "",
-    "よろしくお願いいたします。",
-  ];
+  const reservationViewUrl = manageDirectUrl ?? manageUrl ?? "";
+  const reservationViewUrlText =
+    reservationViewUrl ||
+    "サイトの「予約の確認・キャンセル」ページで確認コードを入力してご確認ください。";
 
   const text = [
     `${contactName} 様`,
@@ -320,48 +296,68 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
     `このたびは、${MAIL_BODY_SERVICE_NAME}にお申し込みいただきありがとうございます。`,
     "以下の内容でご予約を受け付けました。",
     "",
-    ...guideLines,
+    "【予約番号・確認コード】",
+    "",
+    "予約番号はお問い合わせ用です。",
+    "予約内容の確認・変更・キャンセルには確認コードが必要です。",
+    "",
+    "予約番号：",
+    publicRefDisplay,
+    "",
+    "確認コード：",
+    reservationTokenDisplay,
+    "",
+    "確認コードは第三者に共有せず、大切に保管してください。",
+    "",
+    "予約内容を確認する：",
+    reservationViewUrlText,
+    "",
     "【お申し込み内容】",
-    `予約番号${colon}${publicRef}`,
-    `チーム名${colon}${teamName}`,
-    `開催日${colon}${eventLine}`,
-    ...(gradeLine ? [gradeLine] : []),
-    repYearLine,
+    "",
+    `・チーム名${colon}${teamName}`,
+    `・開催日${colon}${eventLine}`,
+    ...(gradeBand?.trim() ? [`・学年帯${colon}${gradeBand.trim()}`] : []),
+    `・代表学年${colon}${gradeYearLabelJa(representativeGradeYear)}`,
+    "",
     ...lunchBlockText,
     "",
-    "【確認コード】",
-    reservationTokenDisplay,
-    ...footerLines,
+    contactUrl
+      ? [
+          "ご不明な点がございましたら、お問い合わせページよりご連絡ください。",
+          contactUrl,
+        ].join("\n")
+      : "ご不明な点がございましたら、お問い合わせページよりご連絡ください。",
+    "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
+    "",
+    "よろしくお願いいたします。",
   ].join("\n");
 
+  const refHtml = `<pre style="font-size:15px;letter-spacing:0.02em;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px;border:1px solid #e4e4e7">${escaped(publicRefDisplay)}</pre>`;
   const tokenHtml = `<pre style="font-size:15px;letter-spacing:0.02em;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px;border:1px solid #e4e4e7">${escaped(reservationTokenDisplay)}</pre>`;
-  const manageDirectHtml = manageDirectUrl
-    ? `<p style="margin-top:12px"><a href="${escaped(manageDirectUrl)}">予約内容の確認・キャンセル（リンク）</a></p>`
-    : "";
-  const manageHtml = manageUrl
-    ? `<p style="margin-top:8px"><a href="${escaped(manageUrl)}">予約の確認・キャンセル（確認コード入力）</a></p>`
-    : `<p style="margin-top:12px">サイトの「予約の確認・キャンセル」ページより操作できます。</p>`;
 
-  const guideHtml = `<p style="margin-top:20px;font-size:15px"><strong>【ご案内】</strong></p>
-<ul style="margin-top:8px;padding-left:1.25rem">
-<li>予約内容の確認・変更・キャンセルには、確認コード が必要です。</li>
-<li>確認コードは第三者に教えず、大切に保管してください。</li>
-<li>予約内容の変更・キャンセルは、開催2日前の15:00まで可能です。</li>
-<li>リンクが開けない場合は、下記の確認コードを入力してください。</li>
-</ul>
-${manageDirectHtml}
-${manageHtml}`;
+  const confirmLinkHtml = manageDirectUrl
+    ? `<p style="margin-top:16px"><strong>予約内容を確認する</strong><br/><a href="${escaped(manageDirectUrl)}">予約内容を確認する</a></p>`
+    : manageUrl
+      ? `<p style="margin-top:16px"><strong>予約内容を確認する</strong><br/><a href="${escaped(manageUrl)}">予約の確認・キャンセルページへ</a></p>`
+      : `<p style="margin-top:16px"><strong>予約内容を確認する</strong><br/>サイトの「予約の確認・キャンセル」ページで、確認コードを入力してご確認ください。</p>`;
+
+  const refAndCodeHtml = `<p style="margin-top:20px;font-size:15px"><strong>【予約番号・確認コード】</strong></p>
+<p style="margin-top:10px;font-size:14px;color:#52525b;line-height:1.6">予約番号はお問い合わせ用です。<br/>
+予約内容の確認・変更・キャンセルには確認コードが必要です。</p>
+<p style="margin-top:14px;margin-bottom:4px"><strong>予約番号</strong></p>
+${refHtml}
+<p style="margin-top:14px;margin-bottom:4px"><strong>確認コード</strong></p>
+${tokenHtml}
+<p style="margin-top:10px;font-size:14px;color:#52525b">確認コードは第三者に共有せず、大切に保管してください。</p>
+${confirmLinkHtml}`;
 
   const applicationHtml = `<p style="margin-top:20px;font-size:15px"><strong>【お申し込み内容】</strong></p>
-<ul style="margin-top:8px;padding-left:1.25rem">
-<li>予約番号${colon}${escaped(publicRef)}</li>
-<li>チーム名${colon}${escaped(teamName)}</li>
-<li>開催日${colon}${escaped(eventLine)}</li>
-${gradeBand?.trim() ? `<li>学年帯${colon}${escaped(gradeBand.trim())}</li>` : ""}
-<li>代表学年${colon}${escaped(gradeYearLabelJa(representativeGradeYear))}</li>
-</ul>`;
+<p style="margin-top:10px;margin-bottom:4px">・チーム名${colon}${escaped(teamName)}</p>
+<p style="margin-top:6px;margin-bottom:4px">・開催日${colon}${escaped(eventLine)}</p>
+${gradeBand?.trim() ? `<p style="margin-top:6px;margin-bottom:4px">・学年帯${colon}${escaped(gradeBand.trim())}</p>` : ""}
+<p style="margin-top:6px;margin-bottom:4px">・代表学年${colon}${escaped(gradeYearLabelJa(representativeGradeYear))}</p>`;
 
-  const footerHtml = `<p style="margin-top:20px">${contactUrl ? `ご不明な点がございましたら、<a href="${escaped(contactUrl)}">お問い合わせページ</a>よりご連絡ください。` : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。"}</p>
+  const footerHtml = `<p style="margin-top:20px">${contactUrl ? `ご不明な点がございましたら、<a href="${escaped(contactUrl)}">お問い合わせページ</a>よりご連絡ください。` : "ご不明な点がございましたら、お問い合わせページよりご連絡ください。"}</p>
 <p>なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>
 <p>よろしくお願いいたします。</p>`;
 
@@ -369,11 +365,9 @@ ${gradeBand?.trim() ? `<li>学年帯${colon}${escaped(gradeBand.trim())}</li>` :
 <p>${escaped(contactName)} 様</p>
 <p>このたびは、${escaped(MAIL_BODY_SERVICE_NAME)}にお申し込みいただきありがとうございます。<br/>
 以下の内容でご予約を受け付けました。</p>
-${guideHtml}
+${refAndCodeHtml}
 ${applicationHtml}
 ${lunchBlockHtml}
-<p style="margin-top:20px;font-size:15px"><strong>【確認コード】</strong></p>
-${tokenHtml}
 ${footerHtml}
 </body></html>`;
 

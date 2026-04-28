@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
 import {
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
+import {
   countGloballyActiveLunchMenus,
   CUSTOM_DAY_LUNCH_NEEDS_ACTIVE,
   MIN_ACTIVE_LUNCH_MENUS,
@@ -44,10 +49,8 @@ export async function GET(
     .maybeSingle();
 
   if (dErr) {
-    return NextResponse.json(
-      { error: dErr.message, code: dErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET lunch-menu event_days", dErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!day) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -61,10 +64,8 @@ export async function GET(
     .order("lunch_menu_item_id", { ascending: true });
 
   if (oErr) {
-    return NextResponse.json(
-      { error: oErr.message, code: oErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET lunch-menu event_day_lunch_menu_items", oErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const { data: masters, error: mErr } = await supabase
@@ -76,16 +77,15 @@ export async function GET(
     .order("created_at", { ascending: true });
 
   if (mErr) {
-    return NextResponse.json(
-      { error: mErr.message, code: mErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("GET lunch-menu lunch_menu_items", mErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const { items: effectivePreview, dbError } =
     await fetchEffectiveLunchMenuItemsForEventDay(supabase, eventDayId);
   if (dbError) {
-    return NextResponse.json({ error: dbError }, { status: 500 });
+    logAdminApiDbError("GET lunch-menu fetchEffectiveLunchMenuItemsForEventDay", dbError);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const customIds = (overrides ?? []).map(
@@ -140,10 +140,8 @@ export async function PUT(
     .maybeSingle();
 
   if (dErr) {
-    return NextResponse.json(
-      { error: dErr.message, code: dErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PUT lunch-menu event_days", dErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!day) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -156,15 +154,14 @@ export async function PUT(
       .eq("event_day_id", eventDayId);
 
     if (delErr) {
-      return NextResponse.json(
-        { error: delErr.message, code: delErr.code },
-        { status: 500 }
-      );
+      logAdminApiDbError("PUT lunch-menu global delete overrides", delErr);
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
     }
 
     const { count, error: cErr } = await countGloballyActiveLunchMenus(supabase);
     if (cErr) {
-      return NextResponse.json({ error: cErr }, { status: 500 });
+      logAdminApiDbError("PUT lunch-menu countGloballyActiveLunchMenus", cErr);
+      return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
     }
     if (count < 1) {
       return NextResponse.json(
@@ -222,10 +219,8 @@ export async function PUT(
     .in("id", unique);
 
   if (mErr) {
-    return NextResponse.json(
-      { error: mErr.message, code: mErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PUT lunch-menu lunch_menu_items by ids", mErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const found = new Map((menus ?? []).map((r) => [(r as { id: string }).id, r]));
@@ -255,10 +250,8 @@ export async function PUT(
     .eq("event_day_id", eventDayId);
 
   if (delErr) {
-    return NextResponse.json(
-      { error: delErr.message, code: delErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PUT lunch-menu custom delete overrides", delErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   const inserts = unique.map((lunch_menu_item_id, sort_order) => ({
@@ -272,16 +265,15 @@ export async function PUT(
     .insert(inserts);
 
   if (insErr) {
-    return NextResponse.json(
-      { error: insErr.message, code: insErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PUT lunch-menu insert event_day_lunch_menu_items", insErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   const { items: effectivePreview, dbError } =
     await fetchEffectiveLunchMenuItemsForEventDay(supabase, eventDayId);
   if (dbError) {
-    return NextResponse.json({ error: dbError }, { status: 500 });
+    logAdminApiDbError("PUT lunch-menu fetchEffectiveLunchMenuItemsForEventDay", dbError);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (effectivePreview.length === 0) {
     return NextResponse.json(

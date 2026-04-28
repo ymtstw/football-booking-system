@@ -50,7 +50,7 @@ export function EventDayRowActions({
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setError(json.error ?? `エラー（${res.status}）`);
+        setError(json.error ?? "処理に失敗しました。再試行するか、しばらくしてからお試しください。");
         return;
       }
       router.refresh();
@@ -77,7 +77,7 @@ export function EventDayRowActions({
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setError(json.error ?? `エラー（${res.status}）`);
+        setError(json.error ?? "処理に失敗しました。再試行するか、しばらくしてからお試しください。");
         return;
       }
       router.refresh();

@@ -237,9 +237,21 @@ export function getDefaultSlotDisplayIntervalsForPhase(
   }));
 }
 
+/** 開催日作成時の既定枠テンプレ（6枠運用スタート／8枠運用スタート）。 */
+export type DefaultSlotPreset = "six" | "eight";
+
+export function isDefaultSlotPreset(value: unknown): value is DefaultSlotPreset {
+  return value === "six" || value === "eight";
+}
+
+function slotDefinitionsForPreset(preset: DefaultSlotPreset): DefaultSlotDefinition[] {
+  return preset === "eight" ? [...EIGHT_SLOT_STANDARD_DEFINITIONS] : getDefaultEventDaySlotDefinitions();
+}
+
 /** Supabase insert 用の行オブジェクト（event_day_id のみ後付け） */
 export function toEventDaySlotRows(
-  eventDayId: string
+  eventDayId: string,
+  preset: DefaultSlotPreset = "six"
 ): Array<{
   event_day_id: string;
   slot_code: string;
@@ -249,7 +261,7 @@ export function toEventDaySlotRows(
   capacity: number;
   is_active: boolean;
 }> {
-  return getDefaultEventDaySlotDefinitions().map((s) => ({
+  return slotDefinitionsForPreset(preset).map((s) => ({
     event_day_id: eventDayId,
     slot_code: s.slotCode,
     phase: s.phase,

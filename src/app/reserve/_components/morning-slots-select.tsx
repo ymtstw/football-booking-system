@@ -17,7 +17,6 @@ export type MorningSlotSelectRow = {
   bookable: boolean;
   isLocked: boolean;
   bookedTeams?: Array<{
-    reservationId: string;
     teamName: string;
     strengthCategory: string;
     representativeGradeYear?: number | null;
@@ -48,6 +47,8 @@ export function MorningSlotsSelect({
   readOnly = false,
   /** 午前枠リストの直下に、午後の例示時刻のみ小さく表示（選択・予約不可・1日の目安） */
   showAfternoonScheduleHint = false,
+  /** 開催日スケジュール閲覧など：subheading・閲覧用の長文を出さずレイアウトを詰める */
+  minimalIntro = false,
 }: {
   morningSlots: MorningSlotSelectRow[];
   acceptingReservations: boolean;
@@ -57,12 +58,13 @@ export function MorningSlotsSelect({
   onSelectSlot: (id: string) => void;
   subheading?: string;
   sectionHeading?: string;
-  /** compact: モックの「1: 5年 ハイレベル」形式。full: チーム名付き */
+  /** compact: カード内を詰めた表示（チーム名・学年・カテゴリを表示）。full: 通常幅 */
   variant?: "compact" | "full";
   categoryLegendMode?: MorningSlotCategoryLegendMode;
   /** true のときラジオなし（開催確認・試合予定の閲覧専用） */
   readOnly?: boolean;
   showAfternoonScheduleHint?: boolean;
+  minimalIntro?: boolean;
 }) {
   const cancelled =
     eventDayStatus === "cancelled_weather" ||
@@ -79,7 +81,9 @@ export function MorningSlotsSelect({
       className={
         dense
           ? "min-w-0 rounded-2xl border border-green-200 bg-white p-3 shadow-sm sm:p-3.5"
-          : "min-w-0 rounded-[20px] border border-green-200 bg-white p-4 shadow-sm sm:p-5"
+          : minimalIntro
+            ? "min-w-0 rounded-[20px] border border-green-200 bg-white p-3 shadow-sm sm:p-4"
+            : "min-w-0 rounded-[20px] border border-green-200 bg-white p-4 shadow-sm sm:p-5"
       }
     >
       <h2
@@ -93,19 +97,21 @@ export function MorningSlotsSelect({
         {sectionHeading ??
           (readOnly ? "午前の対戦枠（状況）" : "午前の対戦枠（選択可）")}
       </h2>
-      <p
-        className={
-          dense
-            ? "mt-0.5 whitespace-pre-line text-xs leading-snug text-slate-600"
-            : "mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600"
-        }
-      >
-        {subheading}
-      </p>
+      {!minimalIntro ? (
+        <p
+          className={
+            dense
+              ? "mt-0.5 whitespace-pre-line text-xs leading-snug text-slate-600"
+              : "mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600"
+          }
+        >
+          {subheading}
+        </p>
+      ) : null}
       {categoryLegendMode === "full" ? (
         <ul className="mt-2 space-y-1 text-xs leading-snug text-slate-600 sm:text-sm">
           <li>
-            <span className="font-semibold text-green-700">ハイレベル</span>
+            <span className="font-semibold text-green-700">ストロング</span>
             ：経験が多く試合に慣れているチーム
           </li>
           <li>
@@ -122,7 +128,7 @@ export function MorningSlotsSelect({
           }
         >
           <p>
-            <span className="font-semibold text-green-800">ハイレベル</span>
+            <span className="font-semibold text-green-800">ストロング</span>
             ＝試合に慣れたチーム
           </p>
           <p>
@@ -131,38 +137,53 @@ export function MorningSlotsSelect({
           </p>
         </div>
       ) : null}
-      {readOnly && acceptingReservations ? (
+      {!minimalIntro && readOnly && acceptingReservations ? (
         <p className="mt-3 text-sm text-slate-600">
           閲覧のみです。枠の選択・予約は「予約する」からお進みください。
         </p>
       ) : null}
-      {!acceptingReservations && (
-        <p
-          className={`mt-3 text-sm ${
-            readOnly && !cancelled ? "text-slate-600" : "text-red-700"
-          }`}
-        >
-          {readOnly && !cancelled ? (
-            <>
-              閲覧のみです。新規予約・変更は「予約する」「予約の確認・キャンセル」からお手続きください。
-            </>
-          ) : eventDayStatus === "cancelled_weather" ? (
-            "雨天のため開催中止です。新規の予約はできません。"
-          ) : eventDayStatus === "cancelled_operational" ? (
-            "運営の都合により開催中止です。新規の予約はできません。"
-          ) : eventDayStatus === "cancelled_minimum" ? (
-            "最少催行に満たないため開催中止です。新規の予約はできません。"
-          ) : eventDayStatus === "confirmed" ? (
-            "編成が確定済みのため、新規の予約はできません。"
-          ) : eventDayStatus === "locked" ? (
-            "締切後のため、新規の予約はできません。"
-          ) : (
-            "予約締切を過ぎているため、新規の予約はできません。"
-          )}
-        </p>
-      )}
+      {(() => {
+        if (acceptingReservations) return null;
+        const muted = readOnly && !cancelled;
+        const body =
+          readOnly && !cancelled
+            ? minimalIntro
+              ? null
+              : (
+                  <>
+                    閲覧のみです。新規予約・変更は「予約する」「予約の確認・変更」からお手続きください。
+                  </>
+                )
+            : eventDayStatus === "cancelled_weather"
+              ? "雨天のため開催中止です。新規の予約はできません。"
+              : eventDayStatus === "cancelled_operational"
+                ? "運営の都合により開催中止です。新規の予約はできません。"
+                : eventDayStatus === "cancelled_minimum"
+                  ? "最少催行に満たないため開催中止です。新規の予約はできません。"
+                  : eventDayStatus === "confirmed"
+                    ? "編成が確定済みのため、新規の予約はできません。"
+                    : eventDayStatus === "locked"
+                      ? "締切後のため、新規の予約はできません。"
+                      : "予約締切を過ぎているため、新規の予約はできません。";
+        if (body === null) return null;
+        return (
+          <p
+            className={`mt-3 text-sm ${
+              muted ? "text-slate-600" : "text-red-700"
+            }`}
+          >
+            {body}
+          </p>
+        );
+      })()}
       <ul
-        className={dense ? "mt-2 space-y-2" : "mt-4 space-y-3"}
+        className={
+          dense
+            ? "mt-2 space-y-2"
+            : minimalIntro
+              ? "mt-3 space-y-3"
+              : "mt-4 space-y-3"
+        }
         role={readOnly ? undefined : "radiogroup"}
         aria-labelledby="morning-slots-heading"
       >
@@ -256,15 +277,20 @@ export function MorningSlotsSelect({
                   <ul className="mt-1 space-y-0.5 text-sm text-slate-800">
                     {teams.map((t, idx) => {
                       const gy = t.representativeGradeYear;
+                      const strength = strengthCategoryLabelJa(t.strengthCategory);
                       if (variant === "compact") {
-                        const gradePart =
+                        const gradeMid =
                           typeof gy === "number" && gy >= 1 && gy <= 6
-                            ? `${idx + 1}：${gradeYearLabelJa(gy)} `
-                            : `${idx + 1}：`;
+                            ? `${gradeYearLabelJa(gy)}・`
+                            : "";
                         return (
-                          <li key={t.reservationId}>
-                            {gradePart}
-                            {strengthCategoryLabelJa(t.strengthCategory)}
+                          <li key={`${s.id}-booked-${idx}`} className="min-w-0 wrap-break-word">
+                            <span className="tabular-nums text-slate-600">{idx + 1}：</span>
+                            <span className="font-medium text-slate-900">{t.teamName}</span>
+                            <span className="text-slate-700">
+                              （{gradeMid}
+                              {strength}）
+                            </span>
                           </li>
                         );
                       }
@@ -273,9 +299,9 @@ export function MorningSlotsSelect({
                           ? `${gradeYearLabelJa(gy)}・`
                           : "";
                       return (
-                        <li key={t.reservationId}>
+                        <li key={`${s.id}-booked-${idx}`} className="min-w-0 wrap-break-word">
                           {t.teamName}: {gradePart}
-                          {strengthCategoryLabelJa(t.strengthCategory)}
+                          {strength}
                         </li>
                       );
                     })}

@@ -98,7 +98,6 @@ export function formatCampInquiryMailDraft(
   meta: {
     inquiryId: string;
     createdAtIso: string;
-    schemaVersion: string;
   }
 ): string {
   const lines: string[] = [
@@ -106,7 +105,6 @@ export function formatCampInquiryMailDraft(
     "",
     `照会ID: ${meta.inquiryId}`,
     `受付日時: ${formatDateTimeTokyoWithWeekday(meta.createdAtIso)}`,
-    `スキーマ: ${meta.schemaVersion}`,
     "",
   ];
   for (const def of CAMP_INQUIRY_FIELD_DEFS) {
@@ -126,7 +124,6 @@ type TournamentRow = {
   contact_email: string;
   contact_phone: string | null;
   message: string;
-  source_path: string | null;
 };
 
 /** 大会お問い合わせの返信メール下書き用プレーンテキスト */
@@ -140,9 +137,6 @@ export function formatTournamentInquiryMailDraft(row: TournamentRow): string {
     `お名前: ${row.contact_name}`,
     `メールアドレス: ${row.contact_email}`,
     `電話番号: ${row.contact_phone?.trim() ? row.contact_phone.trim() : "（未入力）"}`,
-    ...(row.source_path?.trim()
-      ? [`送信元パス: ${row.source_path.trim()}`]
-      : []),
     "",
     "【お問い合わせ内容】",
     row.message,

@@ -5,6 +5,10 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_DB_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { applyReservationDeadlineCatchupForEventDayId } from "@/lib/event-days/process-reservation-deadline";
 import { applyMatchingForEventDayId } from "@/lib/matching/run-matching-for-event-day";
@@ -100,18 +104,22 @@ export async function POST(
         },
       });
     } catch (e) {
-      const message = e instanceof Error ? e.message : "unknown error";
+      logAdminApiDbError("POST apply-deadline-catchup applyMatchingForEventDayId", e);
       return NextResponse.json(
         {
           ok: true,
           outcome: result.outcome,
-          matching: { ok: false, error: "exception", message },
+          matching: {
+            ok: false,
+            error: "exception",
+            message: "自動編成の呼び出しに失敗しました。サーバーログを確認してください。",
+          },
         },
         { status: 200 }
       );
     }
   } catch (e) {
-    const message = e instanceof Error ? e.message : "unknown error";
-    return NextResponse.json({ ok: false, error: message, code: "db" }, { status: 500 });
+    logAdminApiDbError("POST apply-deadline-catchup", e);
+    return NextResponse.json({ ok: false, error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 }

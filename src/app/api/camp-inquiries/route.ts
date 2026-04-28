@@ -58,10 +58,7 @@ export async function POST(request: Request) {
     if (error) {
       logPublicReserveApiSupabaseError("POST /api/camp-inquiries insert", error);
     }
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error?.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
   }
 
   const inquiryId = row.id as string;
@@ -76,6 +73,6 @@ export async function POST(request: Request) {
     ok: true,
     inquiryId,
     message:
-      "ご相談を受け付けました。内容を確認のうえ、運営よりご連絡します。この時点では予約の確定ではありません。",
+      "内容を確認のうえ、担当者よりご連絡します。この時点では、合宿の予約はまだ確定していません。日程・人数・宿泊内容などの調整は、担当者からの返信で進めます。",
   });
 }

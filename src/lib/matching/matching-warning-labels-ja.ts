@@ -51,3 +51,47 @@ export function formatMatchingWarningsForDisplay(w: unknown): string {
   if (arr.length === 0) return "—";
   return arr.map((x) => matchingWarningTokenToJa(x)).join("、");
 }
+
+/** 一覧表の「注意」列用の短文（詳細は formatMatchingWarningsForDisplay を title 等で） */
+export function matchingWarningTokenToShortJa(code: string): string {
+  const c = code.trim();
+  if (!c) return "";
+
+  if (/^afternoon_pair_pick_tier_[A-D]$/i.test(c)) return "条件拡張";
+  if (/^morning_fallback_stage_\d+$/.test(c)) return "午前希望外";
+
+  switch (c) {
+    case "duplicate_opponent":
+      return "同一相手";
+    case "mandatory_morning_slot_fill":
+      return "午前希望外";
+    case "repeat_morning_play":
+      return "複数試合";
+    case "morning_fallback_fill":
+      return "補完";
+    case "morning_fallback_relaxed_prefs":
+      return "条件拡張";
+    case "afternoon_second_round_fill":
+      return "条件拡張";
+    case "cross_category_match":
+      return "条件拡張";
+    case "match_count_spread_violation":
+      return "条件拡張";
+    case "referee_unassigned":
+      return "審判なし";
+    default:
+      return "要確認";
+  }
+}
+
+/** 注意列：複数トークンは短く畳む */
+export function formatMatchingWarningsShortLabel(w: unknown): string {
+  if (w == null) return "—";
+  if (!Array.isArray(w)) return "—";
+  const arr = w.filter((x): x is string => typeof x === "string" && x.trim() !== "");
+  if (arr.length === 0) return "—";
+  const shorts = [...new Set(arr.map((x) => matchingWarningTokenToShortJa(x)))];
+  if (shorts.length === 1) return shorts[0]!;
+  if (shorts.length === 2) return `${shorts[0]}・${shorts[1]}`;
+  return `${shorts[0]}・${shorts[1]}ほか`;
+}

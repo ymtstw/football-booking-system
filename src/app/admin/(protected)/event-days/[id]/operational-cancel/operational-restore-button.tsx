@@ -24,7 +24,7 @@ export function OperationalRestoreButton({ eventDayId }: { eventDayId: string })
       });
       const json = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setMessage(json.error ?? `エラー（${res.status}）`);
+        setMessage(json.error ?? "取り消しに失敗しました。再試行するか、しばらくしてからお試しください。");
         return;
       }
       router.refresh();

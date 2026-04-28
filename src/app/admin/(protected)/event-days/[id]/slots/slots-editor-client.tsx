@@ -213,7 +213,7 @@ export function SlotsEditorClient({
         slots?: EventDaySlotEditorRow[];
       };
       if (!res.ok) {
-        setError(json.error ?? `保存エラー（${res.status}）`);
+        setError(json.error ?? "保存に失敗しました。再読み込みしてから再度お試しください。");
         return;
       }
       if (Array.isArray(json.slots)) {

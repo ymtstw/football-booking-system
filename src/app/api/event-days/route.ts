@@ -5,72 +5,15 @@
  */
 import { NextResponse } from "next/server";
 
-import { sumMorningRemainingVacanciesByEventDay } from "@/lib/event-days/morning-remaining-vacancies";
-import {
-  logPublicReserveApiSupabaseError,
-  PUBLIC_RESERVE_API_READ_ERROR_JA,
-} from "@/lib/http/public-reserve-api-error";
-import { createServiceRoleClient } from "@/lib/supabase/service";
+import { loadPublicEventDaysList } from "@/lib/event-days/load-public-event-days-list";
 
 /**
  * 公開用: 下書き以外の主要ステータスを返す。個人情報・notes は含めない。
  */
 export async function GET() {
-  const supabase = createServiceRoleClient();
-  const { data, error } = await supabase
-    .from("event_days")
-    .select("id, event_date, grade_band, status, reservation_deadline_at")
-    .in("status", [
-      "open",
-      "locked",
-      "confirmed",
-      "cancelled_weather",
-      "cancelled_operational",
-      "cancelled_minimum",
-    ])
-    .order("event_date", { ascending: true });
-
-  if (error) {
-    logPublicReserveApiSupabaseError("GET /api/event-days", error);
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: error.code },
-      { status: 500 }
-    );
+  const result = await loadPublicEventDaysList();
+  if (!result.ok) {
+    return NextResponse.json({ error: result.message }, { status: 500 });
   }
-
-  const now = Date.now();
-  const rows = data ?? [];
-  const eventDayIds = rows.map((r) => String(r.id));
-  const vacancyMap = await sumMorningRemainingVacanciesByEventDay(supabase, eventDayIds);
-
-  const activeCountByEventDayId = new Map<string, number>();
-  if (eventDayIds.length > 0) {
-    const { data: resCountRows, error: resCountErr } = await supabase
-      .from("reservations")
-      .select("event_day_id")
-      .in("event_day_id", eventDayIds)
-      .eq("status", "active");
-    if (!resCountErr && Array.isArray(resCountRows)) {
-      for (const r of resCountRows) {
-        const id = String((r as { event_day_id: string }).event_day_id);
-        activeCountByEventDayId.set(id, (activeCountByEventDayId.get(id) ?? 0) + 1);
-      }
-    }
-  }
-
-  const eventDays = rows.map((row) => {
-    const t = new Date(row.reservation_deadline_at).getTime();
-    const acceptingReservations =
-      row.status === "open" && Number.isFinite(t) && t > now;
-    return {
-      ...row,
-      acceptingReservations,
-      morningRemainingVacancies: acceptingReservations
-        ? (vacancyMap.get(String(row.id)) ?? 0)
-        : null,
-      activeReservationCount: activeCountByEventDayId.get(String(row.id)) ?? 0,
-    };
-  });
-
-  return NextResponse.json({ eventDays });
+  return NextResponse.json({ eventDays: result.eventDays });
 }

@@ -3,6 +3,10 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 
+import {
+  ADMIN_API_DB_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { isValidIsoDateParam } from "@/lib/admin/dashboard-event-day-summary";
 import { loadNextEventDayHubSummaryAfter } from "@/lib/admin/event-day-hub-payload";
 import { getAdminUser } from "@/lib/auth/require-admin";
@@ -26,7 +30,7 @@ export async function GET(request: NextRequest) {
     const day = await loadNextEventDayHubSummaryAfter(supabase, after);
     return NextResponse.json({ day });
   } catch (e) {
-    const message = e instanceof Error ? e.message : "不明なエラー";
-    return NextResponse.json({ error: message }, { status: 500 });
+    logAdminApiDbError("GET /api/admin/dashboard/next-event-day", e);
+    return NextResponse.json({ error: ADMIN_API_DB_ERROR_JA }, { status: 500 });
   }
 }

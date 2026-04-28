@@ -2,8 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CampInquiryDetailManageClient } from "../camp-inquiry-detail-manage-client";
+import { InquiryStatusBadge } from "@/components/admin/inquiry-status-badge";
 import { CAMP_INQUIRY_FIELD_DEFS } from "@/lib/camp-inquiry/camp-inquiry-field-registry";
-import { campInquiryStatusLabelJa } from "@/lib/camp-inquiry/camp-inquiry-status";
 import { getLodgingPlanLabelJa } from "@/lib/camp-inquiry/camp-lodging-plans";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import {
@@ -11,7 +11,6 @@ import {
   formatCampInquiryMailDraft,
   formatInquiryReplyClipboardBlock,
 } from "@/lib/admin/inquiry-mailto-draft";
-import { formatAdminIdTail } from "@/lib/admin/operator-display";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE =
@@ -39,9 +38,7 @@ type Row = {
   created_at: string;
   updated_at: string;
   status: string;
-  schema_version: string;
   answers: unknown;
-  source_path: string | null;
 };
 
 /** 管理: 合宿相談の詳細 */
@@ -59,7 +56,7 @@ export default async function AdminCampInquiryDetailPage({
   const { data, error } = await supabase
     .from("camp_inquiries")
     .select(
-      "id, created_at, updated_at, status, schema_version, answers, source_path"
+      "id, created_at, updated_at, status, answers"
     )
     .eq("id", id)
     .single();
@@ -75,7 +72,6 @@ export default async function AdminCampInquiryDetailPage({
   const mailDraft = formatCampInquiryMailDraft(answers, {
     inquiryId: row.id,
     createdAtIso: row.created_at,
-    schemaVersion: row.schema_version,
   });
   const replySubject = `【合宿相談】${teamName || "（チーム名なし）"}への返信`;
   const compose = buildInquiryComposeBundleLimited({
@@ -98,19 +94,12 @@ export default async function AdminCampInquiryDetailPage({
         >
           ← 一覧へ
         </Link>
-        <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800">
-          {campInquiryStatusLabelJa(row.status)}
-        </span>
+        <InquiryStatusBadge status={row.status} />
       </div>
 
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
-          合宿相談の詳細
-        </h1>
-        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
-          照会番号（末尾）:{" "}
-          <span className="font-mono text-zinc-700">{formatAdminIdTail(row.id)}</span>
-        </p>
+        <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
+        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">合宿相談 · 詳細</h1>
       </div>
 
       <CampInquiryDetailManageClient
@@ -128,6 +117,10 @@ export default async function AdminCampInquiryDetailPage({
         <h2 className="text-sm font-semibold text-zinc-900">受付内容</h2>
         <dl className="mt-4 divide-y divide-zinc-100">
           {CAMP_INQUIRY_FIELD_DEFS.flatMap((def) => {
+            /* 確認入力は運用上不要（本体メールのみ表示） */
+            if (def.id === "contact_email_confirm") {
+              return [];
+            }
             const raw = answers[def.id] ?? "";
             if (def.hiddenFromPublicForm && raw.trim() === "") {
               return [];
@@ -162,19 +155,6 @@ export default async function AdminCampInquiryDetailPage({
           <span className="font-medium text-zinc-800">最終更新: </span>
           {formatDateTimeTokyoWithWeekday(row.updated_at)}
         </p>
-        <p className="mt-1">
-          <span className="font-medium text-zinc-800">受付フォームの版: </span>
-          {row.schema_version}
-          <span className="ml-1 text-zinc-500">
-            （フォーム改修のたびに番号が上がります。日々の運用ではなく、問い合わせ対応の参考程度で構いません）
-          </span>
-        </p>
-        {row.source_path ? (
-          <p className="mt-1 break-all">
-            <span className="font-medium text-zinc-800">送信元: </span>
-            {row.source_path}
-          </p>
-        ) : null}
       </div>
     </div>
   );

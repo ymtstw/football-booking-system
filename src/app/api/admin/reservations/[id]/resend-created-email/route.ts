@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_GENERIC_ERROR_JA,
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { sendReservationCreatedEmailAndUpdateNotification } from "@/lib/email/reservation-created-mail";
 import {
@@ -100,11 +106,12 @@ export async function POST(
     .eq("id", id)
     .maybeSingle();
 
-  if (fetchErr || !row) {
-    return NextResponse.json(
-      { error: fetchErr?.message ?? "予約が見つかりません" },
-      { status: fetchErr ? 500 : 404 }
-    );
+  if (fetchErr) {
+    logAdminApiDbError("POST resend-created-email fetch reservation", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
+  }
+  if (!row) {
+    return NextResponse.json({ error: "予約が見つかりません" }, { status: 404 });
   }
 
   const status = String((row as { status: string }).status);
@@ -146,10 +153,11 @@ export async function POST(
     .maybeSingle();
 
   if (dayErr) {
-    return NextResponse.json(
-      { error: dayErr.message ?? "開催日の取得に失敗しました" },
-      { status: 500 }
+    logAdminApiDbError(
+      "POST resend-created-email event_days lookup",
+      dayErr
     );
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!dayRow) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -182,10 +190,11 @@ export async function POST(
       continue;
     }
     if (updErr) {
-      return NextResponse.json(
-        { error: updErr.message ?? "確認コードの更新に失敗しました" },
-        { status: 500 }
+      logAdminApiDbError(
+        "POST resend-created-email reservations token hash update",
+        updErr
       );
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
     }
 
     const { data: notif, error: insErr } = await supabase
@@ -202,12 +211,17 @@ export async function POST(
       .maybeSingle();
 
     if (insErr || !notif?.id) {
+      if (insErr) {
+        logAdminApiDbError("POST resend-created-email notifications insert", insErr);
+      } else {
+        console.error("[admin-api] POST resend-created-email notifications insert missing id");
+      }
       await supabase
         .from("reservations")
         .update({ reservation_token_hash: oldHash })
         .eq("id", id);
       return NextResponse.json(
-        { error: insErr?.message ?? "通知レコードの作成に失敗しました" },
+        { error: ADMIN_API_GENERIC_ERROR_JA },
         { status: 500 }
       );
     }
@@ -231,7 +245,7 @@ export async function POST(
     return NextResponse.json({
       ok: true,
       message:
-        "予約完了メールを送信しました。確認コードはメールに記載され、以前のコードは無効になりました。",
+        "予約完了メールを送信しました。予約番号は変わらず、新しい確認コードがメールに記載され、以前の確認コードは無効になりました。",
     });
   }
 

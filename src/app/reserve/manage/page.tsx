@@ -21,7 +21,7 @@ import {
 } from "@/lib/reserve/reserve-flow-user-message";
 
 type ReservationJson = {
-  reservation?: { id: string };
+  reservation?: Record<string, unknown>;
   error?: string;
 };
 
@@ -36,7 +36,7 @@ export default function ReserveManagePage() {
     const token = normalizeReservationTokenPlain(tokenInput);
     if (!isValidReservationTokenFormat(token)) {
       setLookupError(
-        "確認コードの形式が正しくありません。予約完了メールの内容をご確認ください。"
+        "確認コードが正しくありません。予約完了メールの内容をご確認ください。"
       );
       return;
     }
@@ -75,10 +75,11 @@ export default function ReserveManagePage() {
   return (
     <div className="mx-auto w-full max-w-[min(100%,820px)] space-y-6 sm:space-y-7">
       <header className="space-y-2 text-center sm:text-left">
-        <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">予約の確認・キャンセル</h1>
-        <p className="text-sm leading-relaxed text-zinc-600 sm:text-base">
-          予約完了メールに記載されている確認コードを入力すると、予約内容の確認やキャンセルができます。
-        </p>
+        <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">予約の確認・変更</h1>
+        <div className="space-y-2 text-sm leading-relaxed text-zinc-600 sm:text-base">
+          <p>予約完了メールに記載された確認コードを入力してください。</p>
+          <p>予約内容の確認・変更・キャンセルができます。</p>
+        </div>
       </header>
 
       <section
@@ -88,12 +89,11 @@ export default function ReserveManagePage() {
         <h2 id="manage-code-heading" className="text-base font-bold text-rp-navy sm:text-lg">
           確認コードを入力してください
         </h2>
-        <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-          予約完了メールに記載されている確認コードを入力してください。
-        </p>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
-          メールにハイフン付きで記載されている場合は、そのまま貼り付けて問題ありません。以前の予約で英数字が64文字のコードの方も、そのまま入力できます。
-        </p>
+        <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-700">
+          <p>予約完了メールの「確認コード」を入力してください。</p>
+          <p>ハイフンあり・なし、どちらでも入力できます。</p>
+          <p className="text-xs text-zinc-600 sm:text-sm">※予約番号では照会できません。</p>
+        </div>
         <div className="mt-4 overflow-x-auto rounded-xl border border-zinc-200 bg-zinc-50/80">
           <label htmlFor="manage-reservation-token" className="sr-only">
             確認コード（必須）
@@ -106,7 +106,7 @@ export default function ReserveManagePage() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="例：K3M9-P2QX-7VNA-8D4H"
+            placeholder="例：K3M9P2QX7VNA8D4H"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
             className="min-h-12 w-full min-w-[min(100%,18rem)] border-0 bg-transparent px-3 py-3 font-mono text-sm text-zinc-900 outline-none ring-0 focus:ring-0 sm:min-h-[3.25rem] sm:px-4 sm:text-base"
@@ -134,17 +134,10 @@ export default function ReserveManagePage() {
               aria-hidden
             />
           </summary>
-          <ul className="space-y-2 border-t border-zinc-200 px-4 pb-3 pt-3 text-sm leading-relaxed text-zinc-800 sm:px-5">
-            <li>・開催日の2日前15:00まで、この画面から手続きできます。</li>
-            <li>・締切後の変更・キャンセルはできません。</li>
-            <li>
-              ・ご不明な点は
-              <Link href="/reserve/contact" className="font-semibold text-rp-brand underline underline-offset-2">
-                お問い合わせ
-              </Link>
-              ください。
-            </li>
-          </ul>
+          <div className="space-y-2 border-t border-zinc-200 px-4 pb-3 pt-3 text-sm leading-relaxed text-zinc-800 sm:px-5">
+            <p>予約内容の確認後、締切前であればキャンセルできます。</p>
+            <p>キャンセル可能期限は、開催日の2日前15:00までです。</p>
+          </div>
         </details>
         <details className="group overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50/70 shadow-sm">
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-4 py-3 marker:content-none hover:bg-zinc-100/70 sm:px-5 sm:py-3.5 [&::-webkit-details-marker]:hidden">
@@ -155,33 +148,42 @@ export default function ReserveManagePage() {
               aria-hidden
             />
           </summary>
-          <ul className="space-y-2 border-t border-zinc-200 px-4 pb-3 pt-3 text-sm leading-relaxed text-zinc-800 sm:px-5">
-            <li>・前後に空白や改行が入っていないかご確認ください。</li>
-            <li>・メールに記載の確認コードをそのままコピーして貼り付けてください。</li>
-          </ul>
+          <div className="space-y-2 border-t border-zinc-200 px-4 pb-3 pt-3 text-sm leading-relaxed text-zinc-800 sm:px-5">
+            <p>入力するのは予約番号ではなく、確認コードです。</p>
+            <p>予約完了メールの「確認コード」欄をご確認ください。</p>
+            <p className="pt-1">確認できない場合は、前後に空白が入っていないかご確認ください。</p>
+            <p>
+              それでも確認できない場合は、予約番号を添えて
+              <Link href="/reserve/contact" className="font-semibold text-rp-brand underline underline-offset-2">
+                お問い合わせ
+              </Link>
+              ください。
+            </p>
+          </div>
         </details>
       </div>
       <div className="hidden space-y-3 lg:block">
         <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-5 py-4 shadow-sm">
           <h3 className="text-sm font-bold text-rp-navy">キャンセルについて</h3>
-          <ul className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-800">
-            <li>・開催日の2日前15:00まで、この画面から手続きできます。</li>
-            <li>・締切後の変更・キャンセルはできません。</li>
-            <li>
-              ・ご不明な点は
+          <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-800">
+            <p>予約内容の確認後、締切前であればキャンセルできます。</p>
+            <p>キャンセル可能期限は、開催日の2日前15:00までです。</p>
+          </div>
+        </section>
+        <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-5 py-4 shadow-sm">
+          <h3 className="text-sm font-bold text-rp-navy">確認コードで確認できないとき</h3>
+          <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-800">
+            <p>入力するのは予約番号ではなく、確認コードです。</p>
+            <p>予約完了メールの「確認コード」欄をご確認ください。</p>
+            <p className="pt-1">確認できない場合は、前後に空白が入っていないかご確認ください。</p>
+            <p>
+              それでも確認できない場合は、予約番号を添えて
               <Link href="/reserve/contact" className="font-semibold text-rp-brand underline underline-offset-2">
                 お問い合わせ
               </Link>
               ください。
-            </li>
-          </ul>
-        </section>
-        <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 px-5 py-4 shadow-sm">
-          <h3 className="text-sm font-bold text-rp-navy">確認コードで確認できないとき</h3>
-          <ul className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-800">
-            <li>・前後に空白や改行が入っていないかご確認ください。</li>
-            <li>・メールに記載の確認コードをそのままコピーして貼り付けてください。</li>
-          </ul>
+            </p>
+          </div>
         </section>
       </div>
 

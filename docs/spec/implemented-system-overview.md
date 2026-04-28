@@ -68,4 +68,5 @@
 - `docs/ops/mvp-day-before-runbook.md` — 前日オペ手順
 - `docs/ops/vercel-production-checklist.md` — 本番確認
 - `docs/ops/admin-match-batch-patch-policy.md` — **手動調整の batch-patch 方針・セキュティ・eventDaySlotId の扱い**
+- `docs/ops/release-gap-checklist-next-day.md` — **翌日実行向け・リリース漏れチェック手順（Git / DB / デプロイ / テスト）**
 - `docs/setup-staging-supabase.md` — ステージング Supabase

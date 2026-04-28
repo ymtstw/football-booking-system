@@ -90,7 +90,7 @@ export default async function AdminEventDayHubPage({
           aria-hidden
         />
         <div className="relative space-y-3 pl-4 sm:pl-5">
-          <p className="text-xs font-semibold tracking-wide text-emerald-800">開催運営 · この開催のまとめ</p>
+          <p className="text-xs font-semibold tracking-wide text-emerald-800">開催運営 · この日の運営画面</p>
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
@@ -120,9 +120,7 @@ export default async function AdminEventDayHubPage({
             </Link>
           </div>
           <p className="max-w-3xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
-            予約・昼食・通知の状況などを<strong className="font-medium text-zinc-800">このページでひと通り把握</strong>
-            し、公開・締切・雨天・試合の手直しなどの<strong className="font-medium text-zinc-800">操作は下のリンク先</strong>
-            で行います。
+            この開催日の予約・昼食・試合表・天候・メール送信の要点をここで確認し、詳細は下のボタンから開きます。
           </p>
         </div>
       </header>
@@ -179,7 +177,7 @@ export default async function AdminEventDayHubPage({
             </div>
             <div className="grid grid-cols-1 gap-x-5 gap-y-1 border-b border-zinc-100 px-4 py-3 sm:grid-cols-[minmax(0,11rem)_1fr] sm:items-start">
               <dt>
-                <span className={`block ${sumLabel}`}>試合編成（確定）</span>
+                <span className={`block ${sumLabel}`}>試合表（確定）</span>
               </dt>
               <dd className="min-w-0 sm:text-right">
                 <span className={sumValueNum}>{preDayConfirmedJa(summary.status)}</span>
@@ -254,12 +252,12 @@ export default async function AdminEventDayHubPage({
         <h2 id="hub-actions" className="text-base font-semibold text-zinc-900">
           次のアクション
         </h2>
-        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 lg:gap-3">
           <Link
             href={reservationsHref}
             className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg bg-gradient-to-r from-sky-700 to-sky-800 px-3 text-center text-sm font-semibold text-white shadow-md ring-1 ring-sky-900/20 hover:from-sky-800 hover:to-sky-900"
           >
-            この日の予約一覧
+            予約を確認する
           </Link>
           <Link
             href={preDayAdjustHref}
@@ -269,24 +267,32 @@ export default async function AdminEventDayHubPage({
                 : "inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg border-2 border-emerald-400/80 bg-emerald-50/90 px-3 py-1.5 text-center text-sm font-semibold text-emerald-950 hover:border-emerald-500 hover:bg-emerald-100/90"
             }
           >
-            <span>試合の手直し</span>
+            <span>試合表を確認・編集</span>
             <span className="mt-0.5 block text-[11px] font-normal leading-tight text-emerald-900/85">
-              前日確定・自動編成の調整
+              割当の調整
             </span>
           </Link>
           <Link
             href={`/admin/event-days/${day.id}/weather`}
             className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg border-2 border-sky-400 bg-sky-50 px-3 py-1.5 text-center text-sm font-semibold text-sky-950 shadow-sm hover:border-sky-500 hover:bg-sky-100/90"
           >
-            <span>天候対応</span>
+            <span>天候対応を登録する</span>
             <span className="mt-0.5 block text-[11px] font-normal leading-tight text-sky-900/85">
-              次の画面で登録・確定
+              次の画面で確定
+            </span>
+          </Link>
+          <Link
+            href={notificationsHref}
+            className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg border-2 border-violet-300 bg-violet-50 px-3 py-1.5 text-center text-sm font-semibold text-violet-950 shadow-sm hover:border-violet-400 hover:bg-violet-100/90"
+          >
+            <span>メール送信履歴を見る</span>
+            <span className="mt-0.5 block text-[11px] font-normal leading-tight text-violet-900/85">
+              処理ログ・再送
             </span>
           </Link>
         </div>
-        <p className="mx-auto max-w-4xl text-xs leading-relaxed text-zinc-600">
-          「試合の手直し」は<strong className="font-medium text-zinc-800">対戦の割当</strong>です。「
-          <strong className="font-medium text-zinc-800">枠・時刻設定</strong>」は試合枠の時刻と有効／無効です（下の確認・設定から）。
+        <p className="mx-auto max-w-5xl text-xs leading-relaxed text-zinc-600">
+          試合の<strong className="font-medium text-zinc-800">割当</strong>は「試合表を確認・編集」。枠の<strong className="font-medium text-zinc-800">時刻・有効／無効</strong>は下の「枠・時刻設定」です。
         </p>
       </section>
 
@@ -340,7 +346,7 @@ export default async function AdminEventDayHubPage({
                   : "mt-2 inline-flex w-fit items-center text-sm font-semibold text-violet-800 underline decoration-violet-500/50 underline-offset-2 hover:text-violet-950"
               }
             >
-              送信結果を開く →
+              メール送信履歴を見る →
             </Link>
           </div>
         </div>
@@ -383,7 +389,7 @@ export default async function AdminEventDayHubPage({
         <p className="border-t border-zinc-100 pt-4 text-xs leading-relaxed text-zinc-500">
           合宿・大会の問い合わせは、届いた通知メールを起点に別アドレスでやり取りする運用です（一覧ページは直 URL のみ）。昼食の数は上のサマリで確認し、メニュー編集は{" "}
           <Link href="/admin/lunch-menu" className="font-medium text-zinc-700 underline underline-offset-2">
-            設定の昼食メニュー
+            昼食メニュー設定
           </Link>
           から行ってください。
         </p>

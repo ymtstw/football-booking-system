@@ -4,6 +4,11 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { sendOperationalCancelImmediateEmailAndUpdateNotification } from "@/lib/email/day-before-final-mail";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -64,10 +69,8 @@ export async function POST(
     .maybeSingle();
 
   if (fetchErr) {
-    return NextResponse.json(
-      { error: fetchErr.message, code: fetchErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST operational-cancel fetch event_days", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!ed) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -116,10 +119,8 @@ export async function POST(
     .eq("id", eventDayId);
 
   if (upErr) {
-    return NextResponse.json(
-      { error: upErr.message, code: upErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST operational-cancel update event_days", upErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   let immediateSent = 0;
@@ -149,11 +150,15 @@ export async function POST(
     const activeReservationCount = reservations?.length ?? 0;
 
     if (resErr) {
+      logAdminApiDbError(
+        "POST operational-cancel reservations list for immediate mail",
+        resErr
+      );
       immediateNoticeDetail = {
         sent: 0,
         skipped: 0,
         activeReservationCount: 0,
-        reservationLoadError: resErr.message,
+        reservationLoadError: "予約一覧の取得に失敗しました",
         hint: "予約一覧の取得に失敗したため、即時メールは送っていません（緊急中止の保存は完了しています）。",
       };
     } else if (activeReservationCount === 0) {

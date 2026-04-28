@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 import { ReserveHeadingWithIcon } from "./reserve-heading-with-icon";
 
 /** 画面のメイン白パネル（トップ等） */
+/** className に p-/px-/py- 等があるときは既定パディングを付けない（上書きできるようにする） */
+function hasPaddingUtility(className: string): boolean {
+  return /\b(p|px|py|pt|pb|pl|pr)-/.test(className);
+}
+
 export function ReserveMainShell({
   children,
   className = "",
@@ -10,9 +15,12 @@ export function ReserveMainShell({
   children: ReactNode;
   className?: string;
 }) {
+  const pad = hasPaddingUtility(className)
+    ? ""
+    : "p-6 shadow-sm sm:p-8 md:p-10";
   return (
     <section
-      className={`rounded-[24px] border border-slate-200/80 bg-white p-6 shadow-sm sm:p-8 md:p-10 ${className}`}
+      className={`rounded-[24px] border border-slate-200/80 bg-white shadow-sm ${pad} ${className}`.trim()}
     >
       {children}
     </section>

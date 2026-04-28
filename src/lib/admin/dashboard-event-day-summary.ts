@@ -30,16 +30,10 @@ export async function buildDashboardEventDaySummaryPayload(
 ): Promise<DashboardEventDaySummaryPayload> {
   const dayId = day.id;
 
-  const [
-    activeRes,
-    partRes,
-    runRes,
-    failedRes,
-  ] = await Promise.all([
-    supabase.from("reservations").select("id").eq("event_day_id", dayId).eq("status", "active"),
+  const [activeRes, runRes, failedRes] = await Promise.all([
     supabase
       .from("reservations")
-      .select("participant_count")
+      .select("id, participant_count")
       .eq("event_day_id", dayId)
       .eq("status", "active"),
     supabase
@@ -57,8 +51,9 @@ export async function buildDashboardEventDaySummaryPayload(
 
   const activeRows = activeRes.data ?? [];
   const activeTeamCount = activeRows.length;
-  const totalParticipants = (partRes.data ?? []).reduce(
-    (s, r) => s + (Number((r as { participant_count: number }).participant_count) || 0),
+  const totalParticipants = activeRows.reduce(
+    (s, r) =>
+      s + (Number((r as { participant_count: number }).participant_count) || 0),
     0
   );
 

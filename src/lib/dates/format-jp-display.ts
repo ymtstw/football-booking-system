@@ -15,6 +15,25 @@ export function formatIsoDateWithWeekdayJa(yyyyMmDd: string): string {
   return `${s}（${wd}）`;
 }
 
+/**
+ * ISO 日時を東京の暦日時に変換（一覧・テーブル用。秒まで）。
+ * DB の `timestamptz` が UTC で返る前提で、画面は日本時間として読める。
+ */
+export function formatDateTimeTokyo(iso: string): string {
+  const dt = new Date(iso);
+  if (Number.isNaN(dt.getTime())) return iso.trim();
+  return new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(dt);
+}
+
 /** ISO 日時を東京の日付＋時分（秒なし）表記の末尾に曜日（短）を付与 */
 export function formatDateTimeTokyoWithWeekday(iso: string): string {
   const dt = new Date(iso);

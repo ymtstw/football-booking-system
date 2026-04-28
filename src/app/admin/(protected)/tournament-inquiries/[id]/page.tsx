@@ -8,8 +8,7 @@ import {
   formatTournamentInquiryMailDraft,
 } from "@/lib/admin/inquiry-mailto-draft";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
-import { campInquiryStatusLabelJa } from "@/lib/camp-inquiry/camp-inquiry-status";
-import { formatAdminIdTail } from "@/lib/admin/operator-display";
+import { InquiryStatusBadge } from "@/components/admin/inquiry-status-badge";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID_RE =
@@ -24,7 +23,6 @@ type Row = {
   contact_email: string;
   contact_phone: string | null;
   message: string;
-  source_path: string | null;
 };
 
 /** 管理: 大会お問い合わせの詳細 */
@@ -42,7 +40,7 @@ export default async function AdminTournamentInquiryDetailPage({
   const { data, error } = await supabase
     .from("tournament_inquiries")
     .select(
-      "id, created_at, updated_at, status, contact_name, contact_email, contact_phone, message, source_path"
+      "id, created_at, updated_at, status, contact_name, contact_email, contact_phone, message"
     )
     .eq("id", id)
     .single();
@@ -74,25 +72,19 @@ export default async function AdminTournamentInquiryDetailPage({
         >
           ← 一覧へ
         </Link>
-        <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-800">
-          {campInquiryStatusLabelJa(row.status)}
-        </span>
+        <InquiryStatusBadge status={row.status} />
       </div>
 
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
-          お問い合わせの詳細
-        </h1>
-        <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
-          照会番号（末尾）:{" "}
-          <span className="font-mono text-zinc-700">{formatAdminIdTail(row.id)}</span>
-        </p>
+        <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
+        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">お問い合わせ · 詳細</h1>
       </div>
 
       <TournamentInquiryDetailManageClient
         inquiryId={row.id}
         initialStatus={row.status}
         contactEmail={row.contact_email}
+        contactPhone={row.contact_phone}
         outlookWebHref={compose.outlookWebHref}
         mailtoHref={compose.mailtoHref}
         mailtoTruncated={compose.truncated}
@@ -112,9 +104,7 @@ export default async function AdminTournamentInquiryDetailPage({
             <dt className="text-xs font-medium text-zinc-500 sm:text-sm">
               メールアドレス
             </dt>
-            <dd className="wrap-break-word text-sm text-zinc-900">
-              {row.contact_email}
-            </dd>
+            <dd className="wrap-break-word text-sm text-zinc-900">{row.contact_email}</dd>
           </div>
           <div className="grid gap-1 sm:grid-cols-[minmax(0,10rem)_1fr] sm:gap-4">
             <dt className="text-xs font-medium text-zinc-500 sm:text-sm">
@@ -144,12 +134,6 @@ export default async function AdminTournamentInquiryDetailPage({
           <span className="font-medium text-zinc-800">最終更新: </span>
           {formatDateTimeTokyoWithWeekday(row.updated_at)}
         </p>
-        {row.source_path ? (
-          <p className="mt-1 break-all">
-            <span className="font-medium text-zinc-800">送信元: </span>
-            {row.source_path}
-          </p>
-        ) : null}
       </div>
     </div>
   );

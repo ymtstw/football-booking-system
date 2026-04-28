@@ -4,6 +4,11 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -30,10 +35,8 @@ export async function POST(
     .maybeSingle();
 
   if (fetchErr) {
-    return NextResponse.json(
-      { error: fetchErr.message, code: fetchErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST operational-restore fetch event_days", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!ed) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -81,10 +84,8 @@ export async function POST(
     .eq("status", "cancelled_operational");
 
   if (upErr) {
-    return NextResponse.json(
-      { error: upErr.message, code: upErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("POST operational-restore update event_days", upErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true, eventDayId, restoredStatus: nextStatus });

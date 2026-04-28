@@ -4,12 +4,12 @@
  * 予約詳細（確認コードは sessionStorage）。編集・キャンセルはこの画面のみ。
  */
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { LunchOrderSummary } from "../../_components/lunch-order-summary";
 import { InlineSpinner } from "@/components/ui/inline-spinner";
 import {
-  RESERVE_LUNCH_ORDER_HELP_JA,
+  RESERVE_LUNCH_ORDER_HELP_LINES_JA,
   RESERVE_PARTICIPANT_COUNT_HINT_JA,
 } from "@/lib/copy/reserve-participant-lunch-hints";
 import { RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA } from "@/lib/copy/reserve-public-mail-schedule";
@@ -31,7 +31,7 @@ import {
   RESERVE_FLOW_NETWORK_ERROR_JA,
 } from "@/lib/reserve/reserve-flow-user-message";
 import {
-  isAtLeastFourDigitCount,
+  exceedsReserveCountMaxAllowed,
   RESERVE_COUNT_MAX_ALLOWED,
   RESERVE_COUNT_REJECT_FROM,
 } from "@/lib/reservations/reserve-numeric-sanity";
@@ -50,14 +50,13 @@ import {
 } from "@/lib/validators/reserve-contact-name";
 
 type ReservationJson = {
+  lunchMenuItems?: LunchMenuItemPublic[];
   reservation?: {
-    id: string;
     publicRef?: string;
     status: string;
     participantCount: number;
     lunchItems: ReservationLunchLinePublic[];
     lunchTotalTaxIncluded: number;
-    createdAt: string;
     eventDay: {
       id: string;
       eventDate: string;
@@ -66,11 +65,8 @@ type ReservationJson = {
       reservationDeadlineAt: string;
     };
     morningSlot: {
-      id: string;
-      slotCode: string;
       startTime: string;
       endTime: string;
-      phase: string;
     } | null;
     team: {
       teamName: string;
@@ -99,6 +95,13 @@ function gradeBandLabelJa(band: string): string {
 function isBeforeDeadline(deadlineIso: string): boolean {
   const t = new Date(deadlineIso).getTime();
   return Number.isFinite(t) && Date.now() < t;
+}
+
+/** DB の締切 ISO を画面用に整形。不正時は共通ルール文言にフォールバック */
+function changeCancelDeadlineDisplayForUi(deadlineIso: string): string {
+  const t = new Date(deadlineIso).getTime();
+  if (!Number.isFinite(t)) return RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA;
+  return formatDateTimeTokyoWithWeekday(deadlineIso);
 }
 
 function statusLabelJa(status: string): string {
@@ -131,9 +134,8 @@ export default function ReserveManageViewPage() {
   const [editContactName, setEditContactName] = useState("");
   const [editContactPhone, setEditContactPhone] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveOk, setSaveOk] = useState<string | null>(null);
+  const [saveSuccessModalOpen, setSaveSuccessModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const saveNoticeRef = useRef<HTMLDivElement>(null);
 
   /** 編集フォームの昼食税込合計（いずれかの数量が不正なら表示用は未確定） */
   const editLunchTotalTaxIncluded = useMemo(() => {
@@ -148,7 +150,9 @@ export default function ReserveManageViewPage() {
   }, [lunchMenus, editLunchQtyByMenuId]);
 
   const [cancelMessage, setCancelMessage] = useState<string | null>(null);
-  const [cancelMessageOk, setCancelMessageOk] = useState(false);
+  const [cancelSuccessModalOpen, setCancelSuccessModalOpen] = useState(false);
+  const [cancelSuccessMessage, setCancelSuccessMessage] = useState("");
+  const [cancelSuccessWasAlready, setCancelSuccessWasAlready] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelArmed, setCancelArmed] = useState(false);
 
@@ -203,6 +207,7 @@ export default function ReserveManageViewPage() {
       const json = (await res.json().catch(() => ({}))) as ReservationJson;
       if (!res.ok || !json.reservation) {
         setReservation(null);
+        setLunchMenus(null);
         setLoadErr(
           reserveFlowApiErrorDisplay(
             res.status,
@@ -213,6 +218,11 @@ export default function ReserveManageViewPage() {
         return;
       }
       setReservation(json.reservation);
+      if (Array.isArray(json.lunchMenuItems)) {
+        setLunchMenus(json.lunchMenuItems);
+      } else {
+        setLunchMenus(null);
+      }
       setLoadErr(null);
     } catch (e) {
       setReservation(null);
@@ -244,6 +254,9 @@ export default function ReserveManageViewPage() {
       setLunchMenus(null);
       return;
     }
+    if (lunchMenus !== null) {
+      return;
+    }
     let cancelled = false;
     fetch(`/api/lunch-menu?eventDayId=${encodeURIComponent(eventDayId)}`)
       .then(async (res) => {
@@ -257,7 +270,7 @@ export default function ReserveManageViewPage() {
     return () => {
       cancelled = true;
     };
-  }, [reservation?.eventDay?.id]);
+  }, [reservation?.eventDay?.id, lunchMenus]);
 
   useEffect(() => {
     if (!reservation || lunchMenus === null) return;
@@ -279,15 +292,24 @@ export default function ReserveManageViewPage() {
     });
   }, [reservation, lunchMenus]);
 
+  useEffect(() => {
+    if (!saveSuccessModalOpen && !cancelSuccessModalOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [saveSuccessModalOpen, cancelSuccessModalOpen]);
+
   function dismissSaveFeedback() {
-    setSaveOk(null);
+    setSaveSuccessModalOpen(false);
     setSaveError(null);
   }
 
   async function saveEdits() {
     if (!token) return;
     setSaveError(null);
-    setSaveOk(null);
+    setSaveSuccessModalOpen(false);
     if (!reservation || reservation.status !== "active") {
       setSaveError("変更できる予約がありません");
       return;
@@ -298,7 +320,7 @@ export default function ReserveManageViewPage() {
     }
     if (!isBeforeDeadline(reservation.eventDay.reservationDeadlineAt)) {
       setSaveError(
-        `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎているため、ここからは変更できません`
+        `${changeCancelDeadlineDisplayForUi(reservation.eventDay.reservationDeadlineAt)}を過ぎているため、ここからは変更できません`
       );
       return;
     }
@@ -308,7 +330,7 @@ export default function ReserveManageViewPage() {
       setSaveError("参加選手数は 1 以上の整数にしてください");
       return;
     }
-    if (isAtLeastFourDigitCount(pc)) {
+        if (exceedsReserveCountMaxAllowed(pc)) {
       window.alert(
         `参加選手数が ${RESERVE_COUNT_REJECT_FROM} 以上です。\n誤入力でないかご確認ください。`
       );
@@ -334,7 +356,7 @@ export default function ReserveManageViewPage() {
       setSaveError("昼食は、必ずご予約が必要です。");
       return;
     }
-    if (isAtLeastFourDigitCount(lunchTotalUnits)) {
+        if (exceedsReserveCountMaxAllowed(lunchTotalUnits)) {
       window.alert(
         `昼食の食数の合計が ${RESERVE_COUNT_REJECT_FROM} 以上です。\n誤入力でないかご確認ください。`
       );
@@ -392,11 +414,8 @@ export default function ReserveManageViewPage() {
       } else {
         await fetchReservation({ silent: true });
       }
-      setSaveOk("変更を保存しました。");
       setEditFormOpen(false);
-      requestAnimationFrame(() => {
-        saveNoticeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      });
+      setSaveSuccessModalOpen(true);
     } catch (e) {
       setSaveError(
         reserveFlowUserVisibleMessage(
@@ -412,7 +431,6 @@ export default function ReserveManageViewPage() {
   async function executeCancel() {
     if (!token) return;
     setCancelMessage(null);
-    setCancelMessageOk(false);
     if (!reservation || reservation.status !== "active") {
       setCancelMessage("キャンセルできる予約がありません");
       return;
@@ -424,7 +442,7 @@ export default function ReserveManageViewPage() {
     const deadline = new Date(reservation.eventDay.reservationDeadlineAt).getTime();
     if (!Number.isFinite(deadline) || Date.now() >= deadline) {
       setCancelMessage(
-        `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎているため、ここからはキャンセルできません`
+        `${changeCancelDeadlineDisplayForUi(reservation.eventDay.reservationDeadlineAt)}を過ぎているため、ここからはキャンセルできません`
       );
       return;
     }
@@ -445,12 +463,13 @@ export default function ReserveManageViewPage() {
             `キャンセルに失敗しました（${res.status}）`
           )
         );
-        setCancelMessageOk(false);
         return;
       }
       const okMsg = json.alreadyCancelled ? "すでにキャンセル済みです" : "キャンセルしました";
-      setCancelMessage(okMsg);
-      setCancelMessageOk(true);
+      setCancelMessage(null);
+      setCancelSuccessWasAlready(Boolean(json.alreadyCancelled));
+      setCancelSuccessMessage(okMsg);
+      setCancelSuccessModalOpen(true);
       setCancelArmed(false);
       await fetchReservation({ silent: true });
     } catch (e) {
@@ -460,7 +479,6 @@ export default function ReserveManageViewPage() {
           RESERVE_FLOW_NETWORK_ERROR_JA
         )
       );
-      setCancelMessageOk(false);
     } finally {
       setCancelling(false);
     }
@@ -530,11 +548,6 @@ export default function ReserveManageViewPage() {
 
       <header className="space-y-1">
         <h1 className="text-xl font-bold text-rp-navy sm:text-2xl">予約内容</h1>
-        {reservation.publicRef ? (
-          <p className="text-sm font-semibold text-zinc-800">
-            予約番号：<span className="font-mono tracking-wide">{reservation.publicRef}</span>
-          </p>
-        ) : null}
         <p className="text-sm text-zinc-600">ご登録内容の確認・変更・キャンセルはこの画面で行えます。</p>
       </header>
 
@@ -545,22 +558,12 @@ export default function ReserveManageViewPage() {
         <h2 id="view-deadline-heading" className="font-bold text-amber-900">
           変更・キャンセルの締切
         </h2>
-        <p className="mt-2 font-semibold leading-snug">開催日の2日前 15:00（日本時間）まで</p>
-        <p className="mt-1.5 leading-relaxed">
-          この日時を過ぎると、Webからの変更・キャンセルはできません。
+        <p className="mt-2 font-semibold leading-snug wrap-break-word">
+          {changeCancelDeadlineDisplayForUi(reservation.eventDay.reservationDeadlineAt)}まで
         </p>
       </section>
 
-      <div ref={saveNoticeRef} className="space-y-2">
-        {saveOk ? (
-          <div
-            role="status"
-            aria-live="polite"
-            className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-2.5 text-sm font-medium text-emerald-950"
-          >
-            {saveOk}
-          </div>
-        ) : null}
+      <div className="space-y-2">
         {saveError ? (
           <div role="alert" className="rounded-md border border-red-300 bg-red-50 px-3 py-2.5 text-sm font-medium text-red-950">
             {saveError}
@@ -613,10 +616,6 @@ export default function ReserveManageViewPage() {
               />
             </div>
           </div>
-          <p className="mt-3 text-xs leading-relaxed text-zinc-600">
-            変更・キャンセル締切:{" "}
-            {formatDateTimeTokyoWithWeekday(reservation.eventDay.reservationDeadlineAt)}
-          </p>
         </div>
       </section>
 
@@ -652,7 +651,7 @@ export default function ReserveManageViewPage() {
                 </button>
               </div>
               <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                {RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}
+                {changeCancelDeadlineDisplayForUi(reservation.eventDay.reservationDeadlineAt)}
                 まで、代表者名・電話番号・参加選手数・昼食数を更新できます。
               </p>
               <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -689,11 +688,13 @@ export default function ReserveManageViewPage() {
                     className="mt-1 min-h-11 w-full rounded border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 sm:text-sm"
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    maxLength={3}
+                    maxLength={4}
                     value={editParticipant}
                     onChange={(e) => {
                       dismissSaveFeedback();
-                      setEditParticipant(inputAsciiDigitsOnly(e.target.value));
+                      setEditParticipant(
+                        inputAsciiDigitsOnly(e.target.value).slice(0, 4)
+                      );
                     }}
                   />
                   <span className="mt-1 block text-xs leading-relaxed text-zinc-500">
@@ -704,9 +705,13 @@ export default function ReserveManageViewPage() {
                   <div className="min-w-0 sm:col-span-2 space-y-2">
                     <div>
                       <span className="block text-sm font-medium text-zinc-700">昼食数</span>
-                      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                        {RESERVE_LUNCH_ORDER_HELP_JA}
-                      </p>
+                      <div className="mt-1 space-y-2.5 text-xs leading-relaxed text-zinc-500 sm:space-y-3">
+                        {RESERVE_LUNCH_ORDER_HELP_LINES_JA.map((line) => (
+                          <p key={line} className="leading-relaxed">
+                            {line}
+                          </p>
+                        ))}
+                      </div>
                     </div>
                     {/* スマホ: 1メニュー1カード（横スクロールなし） */}
                     <div className="space-y-3 sm:hidden">
@@ -864,7 +869,7 @@ export default function ReserveManageViewPage() {
         <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
           {reservation.eventDay.status !== "open"
             ? "受付を終了したため、Web からは内容を変更できません。"
-            : `${RESERVATION_CHANGE_CANCEL_DEADLINE_RULE_JA}を過ぎたため、Web からは内容を変更できません。`}
+            : `${changeCancelDeadlineDisplayForUi(reservation.eventDay.reservationDeadlineAt)}を過ぎたため、Web からは内容を変更できません。`}
         </p>
       ) : null}
 
@@ -887,9 +892,10 @@ export default function ReserveManageViewPage() {
               </button>
             ) : (
               <div className="space-y-3 rounded-xl border border-red-200 bg-red-50/80 px-3 py-3 sm:px-4">
-                <p className="text-sm font-medium leading-relaxed text-red-950">
-                  この予約をキャンセルしますか？取り消したあとも確認コードで内容の参照はできますが、参加枠は解放されます。
-                </p>
+                <div className="space-y-2 text-sm font-medium leading-relaxed text-red-950">
+                  <p>この予約をキャンセルしてもよろしいですか？</p>
+                  <p>キャンセルすると、この日のご予約は取り消されます。</p>
+                </div>
                 <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                   <button
                     type="button"
@@ -921,16 +927,81 @@ export default function ReserveManageViewPage() {
           </p>
         )}
         {cancelMessage ? (
-          <p
-            className={`mt-3 text-sm font-medium ${
-              cancelMessageOk ? "text-emerald-900" : "text-red-900"
-            }`}
-            role={cancelMessageOk ? "status" : "alert"}
-          >
+          <p className="mt-3 text-sm font-medium text-red-900" role="alert">
             {cancelMessage}
           </p>
         ) : null}
       </section>
+
+      {/* 保存成功：長いフォームの下でも必ず気づけるようモーダル */}
+      {saveSuccessModalOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          role="presentation"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="manage-save-success-title"
+            aria-describedby="manage-save-success-desc"
+            className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h2 id="manage-save-success-title" className="text-lg font-bold text-rp-navy">
+              保存しました
+            </h2>
+            <p id="manage-save-success-desc" className="mt-2 text-sm leading-relaxed text-zinc-700">
+              変更を保存しました。
+            </p>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => dismissSaveFeedback()}
+              className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-sm hover:bg-rp-brand-hover"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {cancelSuccessModalOpen ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          role="presentation"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="manage-cancel-success-title"
+            aria-describedby="manage-cancel-success-desc"
+            className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-5 shadow-xl sm:p-6"
+          >
+            <h2 id="manage-cancel-success-title" className="text-lg font-bold text-rp-navy">
+              {cancelSuccessWasAlready ? "お知らせ" : "キャンセル完了"}
+            </h2>
+            <div id="manage-cancel-success-desc" className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-700">
+              <p>{cancelSuccessMessage}</p>
+              {!cancelSuccessWasAlready ? (
+                <p className="text-zinc-600">
+                  この画面の「予約の内容」で、ステータスがキャンセル済みに変わっていることをご確認ください。
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => {
+                setCancelSuccessModalOpen(false);
+                setCancelSuccessMessage("");
+                setCancelSuccessWasAlready(false);
+              }}
+              className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-rp-brand px-6 text-sm font-semibold text-white shadow-sm hover:bg-rp-brand-hover"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

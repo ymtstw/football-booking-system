@@ -1,10 +1,12 @@
 /** サーバー用 Supabase（Cookie 連携）。Server Component / Route Handler から。クライアントでは client.ts。 */
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 import { getSupabasePublishableKey, getSupabaseUrl } from "./supabase-env";
 
-export async function createClient() {
+/** 同一リクエスト内で複数回 createClient してもクライアント生成を共有する */
+export const createClient = cache(async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -27,4 +29,4 @@ export async function createClient() {
       },
     }
   );
-}
+});

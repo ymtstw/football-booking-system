@@ -79,10 +79,6 @@ export function CampInquiryDetailManageClient({
     <div className="space-y-6 rounded-lg border border-zinc-200 bg-zinc-50/80 p-4 sm:p-5">
       <div>
         <h2 className="text-sm font-semibold text-zinc-900">対応ステータス</h2>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-          メール返信を始めたら「対応中」、完了したら「対応済み」に更新してください。
-          追加のやりとりで再度対応が必要なときは「要再対応」に変更してください。ステータスはすべて手動です（自動判定はしません）。
-        </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             value={status}
@@ -113,16 +109,22 @@ export function CampInquiryDetailManageClient({
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-zinc-900">連絡用</h2>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-          本サイトからメールを送信する機能はありません。下のボタンでブラウザのメールや下書きをご利用ください。
-        </p>
-        <InquiryReplyComposeLinks
-          outlookWebHref={outlookWebHref}
-          mailtoHref={mailtoHref}
-          urlTruncated={mailtoTruncated}
-          replyClipboardText={replyClipboardText}
-        />
+        <h2 className="text-sm font-semibold text-zinc-900">連絡する</h2>
+        <div className="mt-2 space-y-1 text-xs leading-relaxed text-zinc-600">
+          <p>この画面からメールは自動送信されません。</p>
+          <p>普段お使いのメールソフトまたは電話でご連絡ください。</p>
+          <p>
+            メールソフトがうまく開かない場合は、メールアドレスや返信文をコピーしてご利用ください。
+          </p>
+        </div>
+        <div className="mt-3">
+          <InquiryReplyComposeLinks
+            outlookWebHref={outlookWebHref}
+            mailtoHref={mailtoHref}
+            urlTruncated={mailtoTruncated}
+            replyClipboardText={replyClipboardText}
+          />
+        </div>
         <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <button
             type="button"
@@ -132,7 +134,7 @@ export function CampInquiryDetailManageClient({
             disabled={!contactEmail.trim()}
             className="inline-flex min-h-10 items-center justify-center rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-50 disabled:opacity-50"
           >
-            メールアドレスのみコピー
+            メールをコピー
           </button>
           <button
             type="button"

@@ -31,6 +31,95 @@ function escaped(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** 本文ラベルは全角コロンで統一（ユーザー向け文言と揃える） */
+const BODY_COLON = "\uFF1A";
+
+/** 雨天中止メール共通の件名 */
+const SUBJECT_WEATHER_CANCEL = `${MAIL_SUBJECT_BRAND_USER}雨天中止のお知らせ`;
+
+function gradeBandDisplayOrDash(gradeBand: string | null): string {
+  const t = gradeBand?.trim();
+  return t ? t : "—";
+}
+
+/**
+ * 送信専用・お問い合わせ・結び（雨天中止／開催確定など参加者向け通知で統一）
+ */
+function standardTransactionalFooterTextLines(contactUrl: string | null): string[] {
+  const inquiry = contactUrl
+    ? [
+        "ご不明な点がございましたら、お問い合わせフォームよりご連絡ください。",
+        contactUrl,
+      ].join("\n")
+    : "ご不明な点がございましたら、お問い合わせフォームよりご連絡ください。";
+  return [
+    "こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
+    inquiry,
+    "",
+    "よろしくお願いいたします。",
+  ];
+}
+
+function standardTransactionalFooterHtml(contactUrl: string | null): string {
+  const inquiry = contactUrl
+    ? `<p>ご不明な点がございましたら、<a href="${escaped(contactUrl)}">お問い合わせフォーム</a>よりご連絡ください。</p>`
+    : `<p>ご不明な点がございましたら、お問い合わせフォームよりご連絡ください。</p>`;
+  return `<p style="margin-top:20px">こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>
+${inquiry}
+<p>よろしくお願いいたします。</p>`;
+}
+
+/** 雨天中止（即時・前日バッチ共通）の本文・件名 */
+function buildRainWeatherCancelEmail(params: {
+  teamName: string;
+  eventLine: string;
+  gradeBandDisplay: string;
+  contactUrl: string | null;
+  /** 管理画面メモ（任意）。「ご了承ください」の直後〜フッター直前に差し込む */
+  participantMemo?: string | null;
+}): { subject: string; text: string; html: string } {
+  const { teamName, eventLine, gradeBandDisplay, contactUrl, participantMemo } = params;
+  const memoTrim = participantMemo?.trim() ?? "";
+
+  const midBodyText = memoTrim
+    ? ["ご予定いただいていたところ恐れ入りますが、ご了承ください。", "", memoTrim]
+    : ["ご予定いただいていたところ恐れ入りますが、ご了承ください。"];
+
+  const text = [
+    `${teamName} 様`,
+    "",
+    "このたびはお申し込みいただきありがとうございます。",
+    "",
+    "雨天のため、下記の開催日は中止となります。",
+    "",
+    `・チーム名${BODY_COLON}${teamName}`,
+    `・開催日${BODY_COLON}${eventLine}`,
+    `・学年帯${BODY_COLON}${gradeBandDisplay}`,
+    "",
+    ...midBodyText,
+    "",
+    ...standardTransactionalFooterTextLines(contactUrl),
+  ].join("\n");
+
+  const memoHtml = memoTrim
+    ? `<p style="margin-top:14px;white-space:pre-wrap">${escaped(memoTrim)}</p>`
+    : "";
+
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
+<p>${escaped(teamName)} 様</p>
+<p>このたびはお申し込みいただきありがとうございます。</p>
+<p>雨天のため、下記の開催日は<strong>中止</strong>となります。</p>
+<p style="margin-top:14px;line-height:1.75">・チーム名${BODY_COLON}${escaped(teamName)}<br/>
+・開催日${BODY_COLON}${escaped(eventLine)}<br/>
+・学年帯${BODY_COLON}${escaped(gradeBandDisplay)}</p>
+<p>ご予定いただいていたところ恐れ入りますが、ご了承ください。</p>
+${memoHtml}
+${standardTransactionalFooterHtml(contactUrl)}
+</body></html>`;
+
+  return { subject: SUBJECT_WEATHER_CANCEL, text, html };
+}
+
 export type DayBeforeFinalVariant =
   | "held"
   | "weather_cancel"
@@ -38,7 +127,7 @@ export type DayBeforeFinalVariant =
   | "pending_matching";
 
 function subjectForDayBeforeFinal(variant: DayBeforeFinalVariant): string {
-  if (variant === "weather_cancel" || variant === "operational_cancel") {
+  if (variant === "operational_cancel") {
     return `${MAIL_SUBJECT_BRAND_USER}明日の開催について（中止）`;
   }
   if (variant === "pending_matching") {
@@ -48,7 +137,7 @@ function subjectForDayBeforeFinal(variant: DayBeforeFinalVariant): string {
 }
 
 function headlineForVariant(variant: DayBeforeFinalVariant): string {
-  if (variant === "weather_cancel" || variant === "operational_cancel") {
+  if (variant === "operational_cancel") {
     return "明日の開催は中止といたします。";
   }
   if (variant === "pending_matching") {
@@ -101,116 +190,133 @@ export async function sendDayBeforeFinalEmailAndUpdateNotification(params: {
     eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
+  const gradeBandDisplay = gradeBandDisplayOrDash(gradeBand);
   const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
   const contactUrl = reserveContactPageUrl();
 
-  const subject = subjectForDayBeforeFinal(variant);
-  const headline = headlineForVariant(variant);
-  const introLine = `${MAIL_BODY_SERVICE_NAME}について、明日のご案内です。`;
+  let subject: string;
+  let text: string;
+  let html: string;
 
-  const reservationSummaryLines = [
-    `チーム名: ${teamName}`,
-    `開催日: ${eventLine}`,
-    ...(gradeLine ? [gradeLine] : []),
-  ];
-
-  const showSchedule = variant === "held";
-  const scheduleBodyText =
-    scheduleLines.length > 0
-      ? scheduleLines.join("\n")
-      : "（対戦スケジュールの行はまだありません。）";
-  const scheduleBodyHtml =
-    scheduleLines.length > 0
-      ? scheduleLines.map((l) => `<p style="margin:6px 0">${escaped(l)}</p>`).join("")
-      : `<p>（対戦スケジュールの行はまだありません。）</p>`;
-
-  const cancelReasonHeading = "【中止理由・ご連絡事項】";
-  const operationalNotice = operationalCancellationNotice?.trim() ?? "";
-  const weatherNotesTrimmed = weatherNotes?.trim() ?? "";
-
-  let noticeExtraText = "";
-  let noticeHtmlBlock = "";
-  if (variant === "operational_cancel" && operationalNotice) {
-    noticeExtraText = `\n${cancelReasonHeading}\n${operationalNotice}`;
-    noticeHtmlBlock = `<p style="margin-top:16px;font-size:15px"><strong>${escaped(cancelReasonHeading)}</strong></p><p style="white-space:pre-wrap">${escaped(operationalNotice)}</p>`;
-  } else if (variant === "weather_cancel" && weatherNotesTrimmed) {
-    noticeExtraText = `\n${cancelReasonHeading}\n${weatherNotesTrimmed}`;
-    noticeHtmlBlock = `<p style="margin-top:16px;font-size:15px"><strong>${escaped(cancelReasonHeading)}</strong></p><p style="white-space:pre-wrap">${escaped(weatherNotesTrimmed)}</p>`;
-  }
-
-  const supplementHeld =
-    "当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて構いません。";
-
-  const footerHeldCancel = [
-    contactUrl
-      ? `ご不明な点がございましたら、サイトのお問い合わせページ（${contactUrl}）よりご連絡ください。`
-      : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。",
-    "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
-  ];
-
-  const footerPending = [
-    "お急ぎの場合は、サイトのお問い合わせページよりご連絡ください。",
-    "",
-    "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
-  ];
-
-  const textParts: string[] = [`${contactName} 様`, "", introLine, "", headline, ""];
-
-  if (variant === "held") {
-    textParts.push(...reservationSummaryLines, "", "【対戦スケジュール】", scheduleBodyText, "", supplementHeld, "", ...footerHeldCancel);
-  } else if (variant === "weather_cancel" || variant === "operational_cancel") {
-    textParts.push(...reservationSummaryLines);
-    if (noticeExtraText) textParts.push(noticeExtraText);
-    textParts.push("", ...footerHeldCancel);
+  if (variant === "weather_cancel") {
+    const built = buildRainWeatherCancelEmail({
+      teamName,
+      eventLine,
+      gradeBandDisplay,
+      contactUrl,
+      participantMemo: weatherNotes,
+    });
+    subject = built.subject;
+    text = built.text;
+    html = built.html;
   } else {
-    // pending_matching
-    textParts.push(...reservationSummaryLines, "", ...footerPending);
-  }
+    subject = subjectForDayBeforeFinal(variant);
+    const headline = headlineForVariant(variant);
+    const introLine = `${MAIL_BODY_SERVICE_NAME}について、明日のご案内です。`;
 
-  const text = textParts.join("\n");
+    const reservationSummaryLines = [
+      `チーム名: ${teamName}`,
+      `開催日: ${eventLine}`,
+      ...(gradeLine ? [gradeLine] : []),
+    ];
 
-  const reservationListHtml = `<ul style="margin-top:8px;padding-left:1.25rem">
+    const showSchedule = variant === "held";
+    const scheduleBodyText =
+      scheduleLines.length > 0
+        ? scheduleLines.join("\n")
+        : "（対戦スケジュールの行はまだありません。）";
+    const scheduleBodyHtml =
+      scheduleLines.length > 0
+        ? scheduleLines.map((l) => `<p style="margin:6px 0">${escaped(l)}</p>`).join("")
+        : `<p>（対戦スケジュールの行はまだありません。）</p>`;
+
+    const cancelReasonHeading = "【中止理由・ご連絡事項】";
+    const operationalNotice = operationalCancellationNotice?.trim() ?? "";
+
+    let noticeExtraText = "";
+    let noticeHtmlBlock = "";
+    if (variant === "operational_cancel" && operationalNotice) {
+      noticeExtraText = `\n${cancelReasonHeading}\n${operationalNotice}`;
+      noticeHtmlBlock = `<p style="margin-top:16px;font-size:15px"><strong>${escaped(cancelReasonHeading)}</strong></p><p style="white-space:pre-wrap">${escaped(operationalNotice)}</p>`;
+    }
+
+    const supplementHeld =
+      "当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて構いません。";
+
+    const footerStandardLines = standardTransactionalFooterTextLines(contactUrl);
+
+    const footerPendingLines = [
+      ...(contactUrl
+        ? ["お急ぎの場合は、お問い合わせフォームよりご連絡ください。", contactUrl, ""]
+        : ["お急ぎの場合は、お問い合わせフォームよりご連絡ください。", ""]),
+      ...footerStandardLines,
+    ];
+
+    const textParts: string[] = [`${contactName} 様`, "", introLine, "", headline, ""];
+
+    if (variant === "held") {
+      textParts.push(
+        ...reservationSummaryLines,
+        "",
+        "【対戦スケジュール】",
+        scheduleBodyText,
+        "",
+        supplementHeld,
+        "",
+        ...footerStandardLines
+      );
+    } else if (variant === "operational_cancel") {
+      textParts.push(...reservationSummaryLines);
+      if (noticeExtraText) textParts.push(noticeExtraText);
+      textParts.push("", ...footerStandardLines);
+    } else {
+      textParts.push(...reservationSummaryLines, "", ...footerPendingLines);
+    }
+
+    text = textParts.join("\n");
+
+    const reservationListHtml = `<ul style="margin-top:8px;padding-left:1.25rem">
 <li>チーム名: ${escaped(teamName)}</li>
 <li>開催日: ${escaped(eventLine)}</li>
 ${gradeLine ? `<li>${escaped(gradeLine)}</li>` : ""}
 </ul>`;
 
-  const scheduleSectionHtml = showSchedule
-    ? `<p style="margin-top:16px;font-size:15px"><strong>【対戦スケジュール】</strong></p>${scheduleBodyHtml}<p style="margin-top:12px">${escaped(supplementHeld)}</p>`
-    : "";
+    const scheduleSectionHtml = showSchedule
+      ? `<p style="margin-top:16px;font-size:15px"><strong>【対戦スケジュール】</strong></p>${scheduleBodyHtml}<p style="margin-top:12px">${escaped(supplementHeld)}</p>`
+      : "";
 
-  const footerHeldCancelHtml = `<p style="margin-top:20px">${contactUrl ? `ご不明な点がございましたら、<a href="${escaped(contactUrl)}">お問い合わせページ</a>よりご連絡ください。` : "ご不明な点がございましたら、サイトのお問い合わせページよりご連絡ください。"}</p>
-<p>なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>`;
+    const footerStandardHtml = standardTransactionalFooterHtml(contactUrl);
 
-  const footerPendingHtml = `<p style="margin-top:16px">${contactUrl ? `お急ぎの場合は、<a href="${escaped(contactUrl)}">お問い合わせページ</a>よりご連絡ください。` : "お急ぎの場合は、サイトのお問い合わせページよりご連絡ください。"}</p>
-<p>なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>`;
+    const footerPendingHtml = `<p style="margin-top:16px">${contactUrl ? `お急ぎの場合は、<a href="${escaped(contactUrl)}">お問い合わせフォーム</a>よりご連絡ください。` : "お急ぎの場合は、お問い合わせフォームよりご連絡ください。"}</p>
+${footerStandardHtml}`;
 
-  const html =
-    variant === "held"
-      ? `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
+    html =
+      variant === "held"
+        ? `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
 <p>${escaped(contactName)} 様</p>
 <p>${escaped(introLine)}</p>
 <p><strong>${escaped(headline)}</strong></p>
 ${reservationListHtml}
 ${scheduleSectionHtml}
-${footerHeldCancelHtml}
+${footerStandardHtml}
 </body></html>`
-      : variant === "pending_matching"
-        ? `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
+        : variant === "pending_matching"
+          ? `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
 <p>${escaped(contactName)} 様</p>
 <p>${escaped(introLine)}</p>
 <p><strong>${escaped(headline)}</strong></p>
 ${reservationListHtml}
 ${footerPendingHtml}
 </body></html>`
-        : `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
+          : `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
 <p>${escaped(contactName)} 様</p>
 <p>${escaped(introLine)}</p>
 <p><strong>${escaped(headline)}</strong></p>
 ${reservationListHtml}
 ${noticeHtmlBlock}
-${footerHeldCancelHtml}
+${footerStandardHtml}
 </body></html>`;
+  }
 
   const resend = new Resend(apiKey);
 
@@ -272,7 +378,6 @@ export async function sendWeatherCancelImmediateEmailAndUpdateNotification(param
     supabase,
     reservationId,
     to,
-    contactName,
     teamName,
     eventDateIso,
     gradeBand,
@@ -292,36 +397,16 @@ export async function sendWeatherCancelImmediateEmailAndUpdateNotification(param
     eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
-  const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
-  const subject = `${MAIL_SUBJECT_BRAND_USER}雨天のため開催中止のお知らせ`;
+  const contactUrl = reserveContactPageUrl();
+  const gradeBandDisplay = gradeBandDisplayOrDash(gradeBand);
 
-  const text = [
-    `${contactName} 様`,
-    "",
-    `「${MAIL_BODY_SERVICE_NAME}」のご予約について、緊急のご連絡です。`,
-    "",
-    "雨天（天候）のため、当該開催日は中止とします。至急のご連絡となり失礼します。",
-    "",
-    `チーム名: ${teamName}`,
-    `開催日: ${eventLine}`,
-    ...(gradeLine ? [gradeLine] : []),
-    ...(weatherNotes?.trim() ? ["", `連絡事項: ${weatherNotes.trim()}`] : []),
-    "",
-    "本メールに心当たりがない場合は破棄してください。",
-  ].join("\n");
-
-  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
-<p>${escaped(contactName)} 様</p>
-<p style="color:#52525b">「${escaped(MAIL_BODY_SERVICE_NAME)}」のご予約について、緊急のご連絡です。</p>
-<p>雨天（天候）のため、当該開催日は<strong>中止</strong>とします。至急のご連絡となり失礼します。</p>
-<ul>
-<li>チーム名: ${escaped(teamName)}</li>
-<li>開催日: ${escaped(eventLine)}</li>
-${gradeLine ? `<li>${escaped(gradeLine)}</li>` : ""}
-</ul>
-${weatherNotes?.trim() ? `<p style="font-size:14px">${escaped(weatherNotes.trim())}</p>` : ""}
-<p style="font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
-</body></html>`;
+  const { subject, text, html } = buildRainWeatherCancelEmail({
+    teamName,
+    eventLine,
+    gradeBandDisplay,
+    contactUrl,
+    participantMemo: weatherNotes,
+  });
 
   const resend = new Resend(apiKey);
 
@@ -403,38 +488,49 @@ export async function sendOperationalCancelImmediateEmailAndUpdateNotification(p
     eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
-  const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
+  const gradeBandDisplay = gradeBandDisplayOrDash(gradeBand);
+  const contactUrl = reserveContactPageUrl();
   const subject = `${MAIL_SUBJECT_BRAND_USER}運営都合により開催中止のお知らせ`;
-  const body = operationalNotice.trim();
+  const noticeBlock = operationalNotice.trim();
+  const noticeHeading = "【お知らせ】";
+  const cancelReasonHeading = "【中止理由・ご連絡事項】";
 
   const text = [
     `${contactName} 様`,
     "",
-    `「${MAIL_BODY_SERVICE_NAME}」のご予約について、緊急のご連絡です。`,
+    "運営上の都合により、下記の開催日は中止となります。",
     "",
-    "運営の都合により、当該開催日は中止とします。至急のご連絡となり失礼します。",
+    `・チーム名${BODY_COLON}${teamName}`,
+    `・開催日${BODY_COLON}${eventLine}`,
+    `・学年帯${BODY_COLON}${gradeBandDisplay}`,
     "",
-    "▼ お知らせ（運営から）",
-    body,
+    noticeHeading,
+    noticeBlock,
     "",
-    `チーム名: ${teamName}`,
-    `開催日: ${eventLine}`,
-    ...(gradeLine ? [gradeLine] : []),
+    cancelReasonHeading,
+    noticeBlock,
+    "",
+    ...standardTransactionalFooterTextLines(contactUrl),
     "",
     "本メールに心当たりがない場合は破棄してください。",
   ].join("\n");
 
-  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
+  const footerHtml = standardTransactionalFooterHtml(contactUrl);
+
+  const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.65;color:#18181b;font-size:15px">
 <p>${escaped(contactName)} 様</p>
-<p style="color:#52525b">「${escaped(MAIL_BODY_SERVICE_NAME)}」のご予約について、緊急のご連絡です。</p>
-<p>運営の都合により、当該開催日は<strong>中止</strong>とします。至急のご連絡となり失礼します。</p>
-<p style="margin-top:12px;font-size:14px"><strong>お知らせ（運営から）</strong><br/>${escaped(body)}</p>
-<ul>
-<li>チーム名: ${escaped(teamName)}</li>
-<li>開催日: ${escaped(eventLine)}</li>
-${gradeLine ? `<li>${escaped(gradeLine)}</li>` : ""}
+<p>運営上の都合により、下記の開催日は<strong>中止</strong>となります。</p>
+<ul style="margin-top:12px;padding-left:1.25rem;line-height:1.75">
+<li>チーム名${BODY_COLON}${escaped(teamName)}</li>
+<li>開催日${BODY_COLON}${escaped(eventLine)}</li>
+<li>学年帯${BODY_COLON}${escaped(gradeBandDisplay)}</li>
 </ul>
-<p style="font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
+<p style="margin-top:16px;font-size:15px"><strong>${escaped(noticeHeading)}</strong></p>
+<p style="white-space:pre-wrap">${escaped(noticeBlock)}</p>
+<p style="margin-top:16px;font-size:15px"><strong>${escaped(cancelReasonHeading)}</strong></p>
+<p style="white-space:pre-wrap">${escaped(noticeBlock)}</p>
+${footerHtml}
+<p style="margin-top:16px;font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
 </body></html>`;
 
   const resend = new Resend(apiKey);

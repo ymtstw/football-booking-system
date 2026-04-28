@@ -172,7 +172,7 @@
               </div>
               <h2 class="h2">チーム・連絡先</h2>
               <div class="field"><label>チーム名</label><input readonly value="和歌山FC U-10" /></div>
-              <div class="field"><label>チームカテゴリ</label><input readonly value="ハイレベル（strong）" /></div>
+              <div class="field"><label>チームカテゴリ</label><input readonly value="ストロング（strong）" /></div>
               <div class="field"><label>代表学年</label><select><option>小学3年</option></select></div>
               <div class="field"><label>代表者名 / メール / 電話（数字のみ）</label><input readonly value="…" /></div>
               <div class="field"><label>参加人数 / 昼食数</label><input readonly value="18 / 16" /></div>
@@ -193,10 +193,11 @@
             </div>
             <div class="pub-main">
               <h1 class="h1">予約完了</h1>
-              <p class="lead">確認コードは sessionStorage のみ（URL に載せない）。コピー・確認ページへ。</p>
+              <p class="lead">予約番号（お問い合わせ用）と確認コード（照会用）。確認コードは sessionStorage のみ（URL に載せない）。</p>
               <div class="callout-mint">
-                <strong>確認コード（例）</strong><br />
-                <code style="word-break: break-all; font-size: 0.65rem">a1b2…64 hex…</code>
+                <strong>予約番号（例）</strong> RSV-ABC123<br />
+                <strong>確認コード（例・ハイフンなし）</strong><br />
+                <code style="word-break: break-all; font-size: 0.65rem">K3M9P2QX7VNA8D4H</code>
               </div>
               <div class="stack">
                 <button type="button" class="btn btn-secondary">確認コードをコピー</button>
@@ -218,10 +219,10 @@
             </div>
             <div class="pub-main">
               <h1 class="h1">予約の確認・キャンセル</h1>
-              <p class="lead">64 文字の確認コードを貼り付け。締切前・open のみ変更・取消可。</p>
+              <p class="lead">メールの確認コードを貼り付け（予約番号のみでは照会不可）。締切前・open のみ変更・取消可。</p>
               <div class="field">
                 <label>予約確認コード</label>
-                <textarea rows="3" class="field" placeholder="64 文字の英数字"></textarea>
+                <textarea rows="3" class="field" placeholder="例：K3M9P2QX7VNA8D4H（メールの確認コード欄）"></textarea>
               </div>
               <button type="button" class="btn btn-primary">確認</button>
               <div class="callout-mint" style="margin-top: 1rem">

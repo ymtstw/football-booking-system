@@ -19,15 +19,15 @@ type Row = {
   updated_at: string;
 };
 
-/** 予約画面のメニュー並び＝数字が小さいほど上（同値は登録が早い順） */
+/** 表示順の補足（0 始まり・小さいほど上） */
 const SORT_HINT =
-  "数字が小さいほど、予約フォームのメニュー一覧の上に表示されます。同じ数字のときは、先に登録したメニューが上になります。";
+  "表示順は 0 からの番号です（先頭が 0）。数字が小さいメニューほど上に表示されます。\n空欄の場合は、自動で次の順番になります。";
 
 function SortOrderHint({ id }: { id?: string }) {
   return (
     <p
       id={id}
-      className="mt-1.5 text-xs leading-relaxed text-zinc-500"
+      className="mt-1.5 whitespace-pre-line text-xs leading-relaxed text-zinc-500"
     >
       {SORT_HINT}
     </p>
@@ -47,7 +47,7 @@ function ReservationVisibilityToggle({
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium text-zinc-800">新規予約での公開</p>
+        <p className="text-sm font-medium text-zinc-800">予約画面への表示</p>
         <span
           className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
             isActive
@@ -65,7 +65,7 @@ function ReservationVisibilityToggle({
             : "border-red-200/90 bg-red-50/40"
         }`}
         role="group"
-        aria-label="新規予約でこのメニューを選べるか"
+        aria-label="予約画面でこのメニューを選べるか"
       >
         <button
           type="button"
@@ -97,7 +97,8 @@ function ReservationVisibilityToggle({
         </button>
       </div>
       <p className="max-w-lg text-xs leading-relaxed text-zinc-500">
-        「非公開」にすると、これからの新規予約では選べなくなります。すでに予約に記録されているメニュー名・金額は変わりません。
+        非公開にすると、これからの予約画面では選べなくなります。
+        すでに予約済みの昼食内容・金額は変更されません。
       </p>
     </div>
   );
@@ -106,7 +107,8 @@ function ReservationVisibilityToggle({
 export function LunchMenuAdminClient() {
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** API／入力エラーはモーダルで表示（閉じるまで画面上部には出さない） */
+  const [errorModal, setErrorModal] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   /** 有効メニュー1件制約: 別メニューを同時に公開してから非公開／削除する */
@@ -119,7 +121,7 @@ export function LunchMenuAdminClient() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setErrorModal(null);
     try {
       const res = await fetch("/api/admin/lunch-menu-items");
       const j = (await res.json().catch(() => ({}))) as {
@@ -127,13 +129,13 @@ export function LunchMenuAdminClient() {
         error?: string;
       };
       if (!res.ok) {
-        setError(j.error ?? "読み込みに失敗しました");
+        setErrorModal(j.error ?? "読み込みに失敗しました");
         setItems([]);
         return;
       }
       setItems(Array.isArray(j.items) ? j.items : []);
     } catch {
-      setError("読み込みに失敗しました");
+      setErrorModal("読み込みに失敗しました");
       setItems([]);
     } finally {
       setLoading(false);
@@ -159,7 +161,11 @@ export function LunchMenuAdminClient() {
     const description = String(fd.get("description") ?? "").trim();
     const price = Math.round(Number(fd.get("price") ?? NaN));
     const sort_order = Math.round(Number(fd.get("sort_order") ?? 0));
-    setError(null);
+    if (!Number.isFinite(sort_order) || sort_order < 0) {
+      setErrorModal("表示順は 0 以上の整数で指定してください");
+      return;
+    }
+    setErrorModal(null);
     setCreating(true);
     try {
       const res = await fetch("/api/admin/lunch-menu-items", {
@@ -170,12 +176,12 @@ export function LunchMenuAdminClient() {
           description: description || null,
           price_tax_included: price,
           is_active: true,
-          sort_order: Number.isFinite(sort_order) ? sort_order : 0,
+          sort_order,
         }),
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
-        setError(j.error ?? "追加に失敗しました");
+        setErrorModal(j.error ?? "追加に失敗しました");
         return;
       }
       form.reset();
@@ -187,7 +193,7 @@ export function LunchMenuAdminClient() {
 
   async function patchRow(id: string, patch: Record<string, unknown>) {
     setBusyId(id);
-    setError(null);
+    setErrorModal(null);
     const res = await fetch(`/api/admin/lunch-menu-items/${encodeURIComponent(id)}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -212,7 +218,7 @@ export function LunchMenuAdminClient() {
           return;
         }
       }
-      setError(j.error ?? "更新に失敗しました");
+      setErrorModal(j.error ?? "更新に失敗しました");
       return;
     }
     await load();
@@ -230,7 +236,7 @@ export function LunchMenuAdminClient() {
     if (!minActiveModal || !selectedCoId) return;
     const { kind, targetId } = minActiveModal;
     setMinActiveModal(null);
-    setError(null);
+    setErrorModal(null);
     if (kind === "deactivate") {
       setBusyId(targetId);
       const res = await fetch(
@@ -247,7 +253,7 @@ export function LunchMenuAdminClient() {
       const j = (await res.json().catch(() => ({}))) as { error?: string };
       setBusyId(null);
       if (!res.ok) {
-        setError(j.error ?? "更新に失敗しました");
+        setErrorModal(j.error ?? "更新に失敗しました");
         return;
       }
       await load();
@@ -262,7 +268,7 @@ export function LunchMenuAdminClient() {
     const j = (await res.json().catch(() => ({}))) as { error?: string };
     setBusyId(null);
     if (!res.ok) {
-      setError(j.error ?? "削除に失敗しました");
+      setErrorModal(j.error ?? "削除に失敗しました");
       return;
     }
     await load();
@@ -279,7 +285,7 @@ export function LunchMenuAdminClient() {
       return;
     }
     setBusyId(id);
-    setError(null);
+    setErrorModal(null);
     const res = await fetch(`/api/admin/lunch-menu-items/${encodeURIComponent(id)}`, {
       method: "DELETE",
     });
@@ -301,7 +307,7 @@ export function LunchMenuAdminClient() {
         setMinActiveModal({ kind: "delete", targetId: id, options: j.menuOptions });
         return;
       }
-      setError(j.error ?? "削除に失敗しました");
+      setErrorModal(j.error ?? "削除に失敗しました");
       return;
     }
     await load();
@@ -313,10 +319,40 @@ export function LunchMenuAdminClient() {
 
   return (
     <div className="space-y-8">
-      {error ? (
-        <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900">
-          {error}
-        </p>
+      {errorModal ? (
+        <div
+          className="fixed inset-0 z-60 flex items-end justify-center p-4 sm:items-center"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="lunch-menu-error-title"
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-zinc-900/40"
+            aria-label="閉じる"
+            onClick={() => setErrorModal(null)}
+          />
+          <div className="relative z-10 w-full max-w-md rounded-xl border border-zinc-200 bg-white p-5 shadow-xl">
+            <h2
+              id="lunch-menu-error-title"
+              className="text-sm font-semibold text-zinc-900"
+            >
+              お知らせ
+            </h2>
+            <p className="mt-3 whitespace-pre-wrap wrap-break-word text-sm leading-relaxed text-zinc-800">
+              {errorModal}
+            </p>
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                className="inline-flex min-h-10 items-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white hover:bg-zinc-800"
+                onClick={() => setErrorModal(null)}
+              >
+                閉じる
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {minActiveModal ? (
@@ -387,12 +423,13 @@ export function LunchMenuAdminClient() {
       ) : null}
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">メニュー追加</h2>
-        <p className="mt-1 text-xs text-zinc-500">
-          追加したメニューは「公開する」状態で登録されます（下の一覧からいつでも非公開にできます）。
-          表示順は、いまある番号の<strong className="font-medium text-zinc-600">次の数字</strong>
-          が自動入力されます（メニューがまだ無いときは 0 から）。
-        </p>
+        <h2 className="text-sm font-semibold text-zinc-900">新しいメニューを追加</h2>
+        <div className="mt-1 space-y-1.5 text-xs leading-relaxed text-zinc-500">
+          <p>新しい昼食メニューを追加します。</p>
+          <p>
+            追加後は予約画面に表示されます。表示しない場合は、下の一覧から非公開に変更できます。
+          </p>
+        </div>
         <form
           className="mt-4 grid max-w-2xl gap-3 sm:grid-cols-2"
           onSubmit={(e) => void handleCreate(e)}
@@ -407,7 +444,7 @@ export function LunchMenuAdminClient() {
             />
           </label>
           <label className="block text-sm sm:col-span-2">
-            <span className="text-zinc-600">説明（任意）</span>
+            <span className="text-zinc-600">説明・補足（任意）</span>
             <textarea
               name="description"
               rows={2}
@@ -428,7 +465,7 @@ export function LunchMenuAdminClient() {
           </label>
           <div className="block text-sm sm:col-span-1">
             <label htmlFor="create-sort-order" className="text-zinc-600">
-              予約画面での表示順（番号）
+              表示順
             </label>
             <input
               id="create-sort-order"
@@ -458,11 +495,11 @@ export function LunchMenuAdminClient() {
       </section>
 
       <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
-        <h2 className="text-sm font-semibold text-zinc-900">メニュー一覧・変更</h2>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          下の並びは<strong className="font-medium text-zinc-700">表示順</strong>
-          の小さい順（同じなら登録が早い順）です。予約フォームでも同じ順で表示されます。
-        </p>
+        <h2 className="text-sm font-semibold text-zinc-900">登録済みメニュー</h2>
+        <div className="mt-1 space-y-1 text-xs leading-relaxed text-zinc-500">
+          <p>予約画面では、下の順番でメニューが表示されます。</p>
+          <p>内容を変更したら、必ず保存してください。</p>
+        </div>
         <div className="mt-4 space-y-6">
           {items.map((it) => (
             <div
@@ -480,7 +517,7 @@ export function LunchMenuAdminClient() {
                   const sort_order = Math.round(Number(fd.get("sort_order") ?? NaN));
                   if (!name) return;
                   if (!Number.isInteger(price) || price < 1) return;
-                  if (!Number.isInteger(sort_order)) return;
+                  if (!Number.isInteger(sort_order) || sort_order < 0) return;
                   void patchRow(it.id, {
                     name,
                     description: description || null,
@@ -500,7 +537,7 @@ export function LunchMenuAdminClient() {
                   />
                 </label>
                 <label className="block text-sm sm:col-span-2">
-                  <span className="text-zinc-600">説明</span>
+                  <span className="text-zinc-600">説明・補足（任意）</span>
                   <textarea
                     name="description"
                     rows={2}
@@ -526,13 +563,14 @@ export function LunchMenuAdminClient() {
                     htmlFor={`sort-order-${it.id}`}
                     className="text-zinc-600"
                   >
-                    予約画面での表示順（番号）
+                    表示順
                   </label>
                   <input
                     id={`sort-order-${it.id}`}
                     name="sort_order"
                     type="number"
                     step={1}
+                    min={0}
                     defaultValue={it.sort_order}
                     aria-describedby={`sort-hint-${it.id}`}
                     className="mt-1 w-full max-w-48 rounded border border-zinc-300 bg-white px-3 py-2 text-sm tabular-nums"
@@ -556,7 +594,7 @@ export function LunchMenuAdminClient() {
                     className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {busyId === it.id ? <InlineSpinner variant="onDark" /> : null}
-                    名前・価格・表示順を保存
+                    変更を保存
                   </button>
                   <button
                     type="button"

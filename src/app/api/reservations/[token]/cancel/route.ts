@@ -54,10 +54,7 @@ export async function POST(
       "POST /api/reservations/[token]/cancel cancel_public_reservation",
       error
     );
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_WRITE_ERROR_JA, code: error.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
   }
 
   const result = data as RpcResult | null;
@@ -103,7 +100,6 @@ export async function POST(
     }
 
     return NextResponse.json({
-      reservationId: result.reservationId,
       cancelled: true,
       alreadyCancelled: result.alreadyCancelled === true,
     });

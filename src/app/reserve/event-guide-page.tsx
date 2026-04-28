@@ -29,6 +29,7 @@ import {
   ReserveInfoGrid,
   ReserveMainShell,
 } from "./_components/ui";
+import { RESERVE_PARKING_INFO_LINES_JA } from "@/lib/copy/reserve-parking-info";
 
 export default function ReserveEventGuidePage() {
   return (
@@ -50,7 +51,7 @@ export default function ReserveEventGuidePage() {
             人工芝グラウンドを無料で、午前から午後までご利用いただけます。
           </p>
           <p className="mt-2 text-[15px] font-medium leading-relaxed text-slate-700 sm:text-base">
-            ご予約前に、参加条件・昼食の利用方法・ご案内の流れをご確認ください。
+          ご予約前に、参加条件・昼食・当日までの流れをご確認ください。
           </p>
         </section>
 
@@ -172,6 +173,18 @@ export default function ReserveEventGuidePage() {
               <p>メールの到着時刻は前後する場合があります。</p>
               <p>また、悪天候が見込まれる場合は早めに中止をご案内することがあります。</p>
             </div>
+          </div>
+
+          <div className="mt-4 sm:mt-5">
+            <DetailsBlock icon={<IconPitch className="h-4 w-4" />} title="駐車場のご案内">
+              <ul className="list-disc space-y-1.5 pl-4 text-[15px] leading-relaxed text-slate-700">
+                {RESERVE_PARKING_INFO_LINES_JA.map((line) => (
+                  <li key={line} className="wrap-break-word">
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </DetailsBlock>
           </div>
         </section>
 

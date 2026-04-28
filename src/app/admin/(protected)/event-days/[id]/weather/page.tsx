@@ -26,19 +26,12 @@ export default async function AdminEventDayWeatherPage({
 
   return (
     <div className="mx-auto max-w-lg px-4 py-8">
-      <EventDayOpsBreadcrumb
-        eventDayId={id}
-        items={[
-          { href: `/admin/event-days/${id}/slots`, label: "枠・時刻設定" },
-          { label: "天候対応" },
-        ]}
-      />
+      <EventDayOpsBreadcrumb eventDayId={id} items={[{ label: "天候対応" }]} />
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">天候対応</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
-        開催可否（実施／中止）を事前に登録できます。原則、参加者向けの最終文面は{" "}
-        <strong>前日の一括メール（16:30頃開始・参加者向け目安は17:30まで）</strong>
-        に反映されます。荒天など例外的に早く伝える必要があるときは、中止で「即時確定＋即時メール」または「前日一括で雨天中止の文面を送る予約」
-        を選べます。
+        実施／中止を登録します。雨天で中止にするときの連絡は次の2通りです。{" "}
+        <strong>① 開催前日に自動で一斉送信</strong>（届くのは目安17:30頃まで）／{" "}
+        <strong>② 登録と同時にメール送信</strong>（緊急時）。
         <span className="mt-2 block text-xs text-zinc-500">
           天候以外の中止は{" "}
           <Link

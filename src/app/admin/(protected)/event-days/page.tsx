@@ -112,7 +112,7 @@ export default async function AdminEventDaysPage({
     return (
       <div className="min-w-0">
         <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">
-          開催日管理
+          開催日の登録・管理
         </h1>
         <p className="mt-2 wrap-break-word text-sm text-red-600">
           開催日一覧を表示できませんでした。時間をおいて再度お試しください。
@@ -124,7 +124,7 @@ export default async function AdminEventDaysPage({
   return (
     <div className="min-w-0">
       <header className="mb-5 space-y-2 sm:mb-6">
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">開催日管理</h1>
+        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">開催日の登録・管理</h1>
         <p className="rounded-lg border border-emerald-200/90 bg-emerald-50/70 px-3 py-2 text-sm font-medium leading-snug text-emerald-950 sm:px-3.5 sm:py-2.5">
           この画面では、開催日の作成と管理ができます。まず開催日を作成し、その後カレンダーや一覧から公開設定・天候対応へ進んでください。
         </p>

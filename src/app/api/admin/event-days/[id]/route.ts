@@ -4,6 +4,11 @@
  */
 import { NextResponse } from "next/server";
 
+import {
+  ADMIN_API_READ_ERROR_JA,
+  ADMIN_API_SAVE_ERROR_JA,
+  logAdminApiDbError,
+} from "@/lib/admin/admin-api-db-error";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -52,10 +57,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (fetchErr) {
-    return NextResponse.json(
-      { error: fetchErr.message, code: fetchErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH event-days/[id] fetch", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!row) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -79,10 +82,8 @@ export async function PATCH(
       .maybeSingle();
 
     if (updateErr) {
-      return NextResponse.json(
-        { error: updateErr.message, code: updateErr.code },
-        { status: 500 }
-      );
+      logAdminApiDbError("PATCH event-days/[id] lock update", updateErr);
+      return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
     }
     if (!updated) {
       return NextResponse.json(
@@ -129,10 +130,8 @@ export async function PATCH(
     .maybeSingle();
 
   if (updateErr) {
-    return NextResponse.json(
-      { error: updateErr.message, code: updateErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("PATCH event-days/[id] status update", updateErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
   if (!updated) {
     return NextResponse.json(
@@ -167,10 +166,8 @@ export async function DELETE(
     .maybeSingle();
 
   if (fetchErr) {
-    return NextResponse.json(
-      { error: fetchErr.message, code: fetchErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("DELETE event-days/[id] fetch", fetchErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (!row) {
     return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -189,10 +186,8 @@ export async function DELETE(
     .eq("event_day_id", id);
 
   if (countErr) {
-    return NextResponse.json(
-      { error: countErr.message, code: countErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("DELETE event-days/[id] reservations count", countErr);
+    return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
   if (resCount !== null && resCount > 0) {
     return NextResponse.json(
@@ -204,10 +199,8 @@ export async function DELETE(
   const { error: delErr } = await supabase.from("event_days").delete().eq("id", id);
 
   if (delErr) {
-    return NextResponse.json(
-      { error: delErr.message, code: delErr.code },
-      { status: 500 }
-    );
+    logAdminApiDbError("DELETE event-days/[id] delete", delErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

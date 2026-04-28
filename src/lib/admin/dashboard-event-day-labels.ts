@@ -11,6 +11,6 @@ export function weatherSummaryJa(status: string, weatherStatus: string | null): 
 
 export function preDayConfirmedJa(dayStatus: string): string {
   if (dayStatus === "confirmed") return "済";
-  if (dayStatus === "locked") return "未（締切後・編成まち）";
+  if (dayStatus === "locked") return "未（編成待ち）";
   return "未";
 }

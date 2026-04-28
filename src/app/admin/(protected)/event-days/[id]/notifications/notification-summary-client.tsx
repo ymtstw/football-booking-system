@@ -38,7 +38,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
     });
     const json = (await res.json().catch(() => ({}))) as SummaryJson & { error?: string };
     if (!res.ok) {
-      setError(json.error ?? `エラー（${res.status}）`);
+      setError(json.error ?? "通知の状況を読み込めませんでした。再読み込みするか、しばらくしてから試してください。");
       setData(null);
       return;
     }
@@ -107,7 +107,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dd>{data.weatherDayBeforeRainScheduled ? "あり" : "なし"}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">マッチング案内メール（16:00頃・目安17:00まで）</dt>
+            <dt className="text-zinc-500">対戦案内メール（16:00頃・目安17:00まで）</dt>
             <dd>{data.matchingProposalNoticeSentAt ? "送信処理済み" : "未"}</dd>
           </div>
           <div className="sm:col-span-2">
@@ -122,7 +122,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
                 {data.notifications.minimumCancelNotice.pendingOrFailed} 件
               </p>
               <p>
-                マッチング案内: 送信処理済み {data.notifications.matchingProposal.sent} 件 / 未送信・送信エラー{" "}
+                対戦案内: 送信処理済み {data.notifications.matchingProposal.sent} 件 / 未送信・送信エラー{" "}
                 {data.notifications.matchingProposal.pendingOrFailed} 件
               </p>
               <p>
@@ -149,7 +149,7 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
         <section className="rounded-lg border border-red-200/80 bg-red-50/30 px-4 py-4">
           <h2 className="text-sm font-semibold text-red-950">送信エラーの確認</h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/85">
-            送信を試みたときに「送れない」と返ってきたものだけが並びます。お客様の端末に届いたかどうかは分かりません。届いていないのにここが空なこともあります。宛先と「内容」を確認し、「予約直後の確認メール」以外で原因を直せた行だけ「再送」が使えます。
+            送信を試みたときに「送れない」と返ってきたものだけが並びます。お客様の端末に届いたかどうかは分かりません。届いていないのにここが空なこともあります。宛先と内容を確認し、「予約完了メール」以外の行では「このメールを再送する」が使えます。
           </p>
           <div className="mt-3">
             <NotificationFailedRetryTable eventDayId={eventDayId} />

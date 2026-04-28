@@ -5,6 +5,11 @@
 import { NextResponse } from "next/server";
 
 import {
+  buildPublicAvailabilityPayloadForDay,
+  type PublicAvailabilityDayRow,
+} from "@/lib/event-days/public-availability-for-day";
+import { publicEventDayStatuses } from "@/lib/event-days/public-schedule-for-day";
+import {
   logPublicReserveApiSupabaseError,
   PUBLIC_RESERVE_API_READ_ERROR_JA,
 } from "@/lib/http/public-reserve-api-error";
@@ -13,15 +18,6 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 function isIsoDateOnly(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }
-
-type StrengthCategory = "strong" | "potential";
-
-type SlotAgg = {
-  strong: number;
-  potential: number;
-  unknown: number;
-  total: number;
-};
 
 export async function GET(
   _request: Request,
@@ -43,14 +39,7 @@ export async function GET(
     .from("event_days")
     .select("id, event_date, grade_band, status, reservation_deadline_at")
     .eq("event_date", eventDate)
-    .in("status", [
-      "open",
-      "locked",
-      "confirmed",
-      "cancelled_weather",
-      "cancelled_operational",
-      "cancelled_minimum",
-    ])
+    .in("status", [...publicEventDayStatuses()])
     .maybeSingle();
 
   if (dayErr) {
@@ -58,10 +47,7 @@ export async function GET(
       `GET /api/event-days/${eventDate}/availability event_days`,
       dayErr
     );
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: dayErr.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_READ_ERROR_JA }, { status: 500 });
   }
 
   if (!day) {
@@ -71,169 +57,13 @@ export async function GET(
     );
   }
 
-  const { data: slots, error: slotsErr } = await supabase
-    .from("event_day_slots")
-    .select("id, slot_code, phase, start_time, end_time, capacity, is_locked")
-    .eq("event_day_id", day.id)
-    .eq("phase", "morning")
-    .eq("is_active", true)
-    .order("slot_code", { ascending: true });
-
-  if (slotsErr) {
-    logPublicReserveApiSupabaseError(
-      `GET /api/event-days/${eventDate}/availability slots`,
-      slotsErr
-    );
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: slotsErr.code },
-      { status: 500 }
-    );
-  }
-
-  const { count: activeReservationTotal, error: activeCountErr } = await supabase
-    .from("reservations")
-    .select("id", { count: "exact", head: true })
-    .eq("event_day_id", day.id)
-    .eq("status", "active");
-
-  const { data: resRows, error: resErr } = await supabase
-    .from("reservations")
-    .select(
-      "id, selected_morning_slot_id, created_at, teams ( team_name, strength_category, representative_grade_year )"
-    )
-    .eq("event_day_id", day.id)
-    .eq("status", "active")
-    .not("selected_morning_slot_id", "is", null);
-
-  if (resErr) {
-    logPublicReserveApiSupabaseError(
-      `GET /api/event-days/${eventDate}/availability reservations`,
-      resErr
-    );
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: resErr.code },
-      { status: 500 }
-    );
-  }
-
-  const aggBySlot = new Map<string, SlotAgg>();
-  const bookedBySlot = new Map<
-    string,
-    Array<{
-      reservationId: string;
-      teamName: string;
-      strengthCategory: string;
-      representativeGradeYear: number | null;
-    }>
-  >();
-  for (const s of slots ?? []) {
-    aggBySlot.set(s.id, { strong: 0, potential: 0, unknown: 0, total: 0 });
-    bookedBySlot.set(s.id, []);
-  }
-
-  const sortedRows = [...(resRows ?? [])].sort(
-    (a, b) =>
-      new Date(String(a.created_at)).getTime() -
-      new Date(String(b.created_at)).getTime()
+  const built = await buildPublicAvailabilityPayloadForDay(
+    supabase,
+    day as PublicAvailabilityDayRow
   );
-
-  for (const row of sortedRows) {
-    const sid = row.selected_morning_slot_id as string | null;
-    if (!sid) continue;
-    const bucket = aggBySlot.get(sid);
-    if (!bucket) continue;
-
-    const rawTeams = row.teams as
-      | {
-          team_name: string;
-          strength_category: StrengthCategory;
-          representative_grade_year?: number | null;
-        }
-      | {
-          team_name: string;
-          strength_category: StrengthCategory;
-          representative_grade_year?: number | null;
-        }[]
-      | null;
-    const team = Array.isArray(rawTeams) ? rawTeams[0] : rawTeams;
-    const cat = team?.strength_category;
-    const gyRaw = team?.representative_grade_year;
-    const gradeYear =
-      typeof gyRaw === "number" &&
-      Number.isInteger(gyRaw) &&
-      gyRaw >= 1 &&
-      gyRaw <= 6
-        ? gyRaw
-        : null;
-    bucket.total += 1;
-    if (cat === "strong") bucket.strong += 1;
-    else if (cat === "potential") bucket.potential += 1;
-    else bucket.unknown += 1;
-
-    const name = team?.team_name?.trim();
-    const resId = row.id as string;
-    if (name && resId) {
-      const list = bookedBySlot.get(sid);
-      if (list) {
-        list.push({
-          reservationId: resId,
-          teamName: name,
-          strengthCategory:
-            cat === "strong" || cat === "potential" ? cat : "unknown",
-          representativeGradeYear: gradeYear,
-        });
-      }
-    }
+  if (!built.ok) {
+    return NextResponse.json({ error: built.message }, { status: 500 });
   }
 
-  const deadline = new Date(day.reservation_deadline_at).getTime();
-  const status = String(day.status ?? "");
-  const acceptingReservations =
-    status === "open" && Number.isFinite(deadline) && Date.now() < deadline;
-
-  const morningSlots = (slots ?? []).map((s) => {
-    const cap = s.capacity ?? 2;
-    const a = aggBySlot.get(s.id) ?? {
-      strong: 0,
-      potential: 0,
-      unknown: 0,
-      total: 0,
-    };
-    const activeCount = a.total;
-    const full = activeCount >= cap;
-    const bookable =
-      status === "open" && acceptingReservations && !s.is_locked && !full;
-
-    return {
-      id: s.id,
-      slotCode: s.slot_code,
-      startTime: s.start_time,
-      endTime: s.end_time,
-      capacity: cap,
-      isLocked: s.is_locked,
-      activeCount,
-      full,
-      bookable,
-      byCategory: {
-        strong: a.strong,
-        potential: a.potential,
-        unknown: a.unknown,
-      },
-      bookedTeams: bookedBySlot.get(s.id) ?? [],
-    };
-  });
-
-  return NextResponse.json({
-    eventDate: day.event_date,
-    eventDayId: day.id,
-    gradeBand: day.grade_band,
-    eventDayStatus: status,
-    reservationDeadlineAt: day.reservation_deadline_at,
-    acceptingReservations,
-    activeReservationCount:
-      !activeCountErr && typeof activeReservationTotal === "number"
-        ? activeReservationTotal
-        : 0,
-    morningSlots,
-  });
+  return NextResponse.json(built.payload);
 }

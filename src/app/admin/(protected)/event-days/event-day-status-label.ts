@@ -6,7 +6,7 @@ export function eventDayStatusLabelJa(status: string): string {
     case "open":
       return "公開中";
     case "locked":
-      return "締切済み";
+      return "受付終了";
     case "confirmed":
       return "開催確定";
     case "cancelled_weather":
@@ -16,6 +16,6 @@ export function eventDayStatusLabelJa(status: string): string {
     case "cancelled_operational":
       return "運営都合で中止";
     default:
-      return status;
+      return "要確認";
   }
 }

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { DashboardAroundBar } from "./dashboard-around-bar";
 import { DashboardUpcomingChain } from "./dashboard-upcoming-chain";
 import type { DashboardEventDaySummaryPayload } from "@/lib/admin/dashboard-event-day-summary.types";
-import { loadEventDayHubPayload } from "@/lib/admin/event-day-hub-payload";
+import { buildDashboardEventDaySummaryPayload } from "@/lib/admin/dashboard-event-day-summary";
 import { parseAroundParam } from "@/lib/admin/parse-around-param";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { addDaysIsoDate, tokyoIsoDateToday } from "@/lib/dates/tokyo-calendar-grid";
@@ -30,10 +30,10 @@ export default async function AdminDashboardPage({
   const tomorrowTokyo = addDaysIsoDate(todayTokyo, 1);
   const supabase = await createClient();
 
-  /** 基準日（東京）以降で最も早い開催日の id → 運営まとめと同じ loadEventDayHubPayload でサマリ取得 */
-  const { data: idRow, error: dayErr } = await supabase
+  /** 基準日以降で最も早い開催日を1クエリで取得し、運営まとめと同じ集計でサマリを構築（event_days の二重取得を避ける） */
+  const { data: dayRow, error: dayErr } = await supabase
     .from("event_days")
-    .select("id")
+    .select("id, event_date, grade_band, status, weather_status")
     .gte("event_date", anchorEventDate)
     .order("event_date", { ascending: true })
     .limit(1)
@@ -42,7 +42,7 @@ export default async function AdminDashboardPage({
   if (dayErr) {
     return (
       <div className="min-w-0 space-y-4">
-        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催状況</h1>
+        <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催日</h1>
         <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
           開催日の情報を表示できませんでした。時間をおいて再度お試しください。
         </p>
@@ -51,21 +51,18 @@ export default async function AdminDashboardPage({
   }
 
   let initialSummary: DashboardEventDaySummaryPayload | null = null;
-  if (idRow?.id) {
-    const loaded = await loadEventDayHubPayload(supabase, idRow.id);
-    if (!loaded.ok) {
-      if (loaded.kind === "db_error") {
-        return (
-          <div className="min-w-0 space-y-4">
-            <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催状況</h1>
-            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
-              開催日のサマリを表示できませんでした。時間をおいて再度お試しください。
-            </p>
-          </div>
-        );
-      }
-    } else {
-      initialSummary = loaded.data.summary;
+  if (dayRow?.id) {
+    try {
+      initialSummary = await buildDashboardEventDaySummaryPayload(supabase, dayRow);
+    } catch {
+      return (
+        <div className="min-w-0 space-y-4">
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">直近の開催日</h1>
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800" role="alert">
+            開催日のサマリを表示できませんでした。時間をおいて再度お試しください。
+          </p>
+        </div>
+      );
     }
   }
 
@@ -79,10 +76,10 @@ export default async function AdminDashboardPage({
         <div className="relative pl-4 sm:pl-5">
           <p className="text-xs font-semibold tracking-wide text-emerald-800">運営</p>
           <h1 className="mt-1 text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
-            直近の開催状況
+            直近の開催日
           </h1>
           <p className="mt-2 max-w-2xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
-            基準日以降で最も近い開催日の状況をまとめて表示します。下の行で基準日を変えられます。「次の開催日を読み込む」で続きを同じ形式で追加できます。
+            予約数・昼食・試合表の状態・天候・メール送信エラーなど、この日の運営に必要な情報を一覧します。基準日は下のバーで変更できます。
           </p>
         </div>
       </header>

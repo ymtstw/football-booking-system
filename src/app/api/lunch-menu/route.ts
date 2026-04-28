@@ -34,10 +34,7 @@ export async function GET(request: Request) {
 
     if (dErr) {
       logPublicReserveApiSupabaseError("GET /api/lunch-menu event_days", dErr);
-      return NextResponse.json(
-        { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: dErr.code },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: PUBLIC_RESERVE_API_READ_ERROR_JA }, { status: 500 });
     }
     if (!day) {
       return NextResponse.json({ error: "開催日が見つかりません" }, { status: 404 });
@@ -52,10 +49,7 @@ export async function GET(request: Request) {
         message: dbError,
         code: "db_error",
       });
-      return NextResponse.json(
-        { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: "db_error" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: PUBLIC_RESERVE_API_READ_ERROR_JA }, { status: 500 });
     }
 
     return NextResponse.json({ items, eventDayId });
@@ -70,10 +64,7 @@ export async function GET(request: Request) {
 
   if (error) {
     logPublicReserveApiSupabaseError("GET /api/lunch-menu lunch_menu_items", error);
-    return NextResponse.json(
-      { error: PUBLIC_RESERVE_API_READ_ERROR_JA, code: error.code },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: PUBLIC_RESERVE_API_READ_ERROR_JA }, { status: 500 });
   }
 
   const items: LunchMenuItemPublic[] = (data ?? []).map((r) => {

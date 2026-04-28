@@ -17,6 +17,8 @@ import {
   reserveFlowUserVisibleMessage,
   RESERVE_FLOW_NETWORK_ERROR_JA,
 } from "@/lib/reserve/reserve-flow-user-message";
+import { formatReservationConfirmationDisplay } from "@/lib/reservations/confirmation-code";
+import { formatReservationPublicRefForDisplay } from "@/lib/reservations/public-ref";
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 
 const SESSION_COMPLETE_KEY = "football_reservation_complete_v1";
@@ -25,12 +27,12 @@ type Stored = {
   reservationToken: string;
   reservationTokenDisplay?: string;
   publicRef?: string;
-  reservationId: string;
+  /** 旧セッション互換（参照しない） */
+  reservationId?: string;
   eventDate?: string;
 };
 
 type ReservationDetail = {
-  id: string;
   publicRef?: string;
   status: string;
   participantCount: number;
@@ -52,6 +54,13 @@ type ReservationDetail = {
     contactEmail: string;
   };
 };
+
+/** 完了画面の表示・コピー用（メールと同じくハイフン付き。API から display が無いときは正規形から生成） */
+function reservationConfirmationDisplayForComplete(stored: Stored): string {
+  const d = stored.reservationTokenDisplay?.trim();
+  if (d) return d;
+  return formatReservationConfirmationDisplay(stored.reservationToken);
+}
 
 function formatHm(t: string): string {
   if (!t) return "";
@@ -100,7 +109,8 @@ export default function ReserveCompletePage() {
   const [stored, setStored] = useState<Stored | null>(null);
   const [detail, setDetail] = useState<ReservationDetail | null>(null);
   const [hydrated, setHydrated] = useState(false);
-  const [copied, setCopied] = useState(false);
+  /** 直近にコピーした種別（枠内ミニボタン用） */
+  const [copiedKind, setCopiedKind] = useState<null | "publicRef" | "confirmation">(null);
   const [copying, setCopying] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
 
@@ -113,7 +123,12 @@ export default function ReserveCompletePage() {
           return;
         }
         const parsed = JSON.parse(raw) as Stored;
-        if (!parsed.reservationToken || !parsed.reservationId) {
+        if (!parsed.reservationToken) {
+          setStored(null);
+          return;
+        }
+        /** 新版は publicRef 必須。旧データは reservationId があれば許容（表示はトークン GET で取得） */
+        if (!parsed.publicRef?.trim() && !parsed.reservationId) {
           setStored(null);
           return;
         }
@@ -168,17 +183,18 @@ export default function ReserveCompletePage() {
     };
   }, [stored?.reservationToken]);
 
-  async function copyConfirmationCode() {
-    if (!stored) return;
+  async function copyReservationSnippet(
+    text: string,
+    kind: "publicRef" | "confirmation"
+  ): Promise<void> {
+    if (!text.trim()) return;
     setCopying(true);
     try {
-      await navigator.clipboard.writeText(
-        stored.reservationTokenDisplay ?? stored.reservationToken
-      );
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopiedKind(kind);
+      setTimeout(() => setCopiedKind(null), 2000);
     } catch {
-      setCopied(false);
+      setCopiedKind(null);
     } finally {
       setCopying(false);
     }
@@ -243,40 +259,81 @@ export default function ReserveCompletePage() {
         </p>
       </header>
 
-      {/* 2. 予約番号・確認コード */}
+      {/* 2. 予約の確認に必要な情報 */}
       <section
         className="rounded-2xl border-2 border-rp-brand/50 bg-rp-mint/50 p-4 shadow-sm sm:p-5"
         aria-labelledby="complete-confirmation-heading"
       >
-        <h2 id="complete-confirmation-heading" className="text-base font-bold text-rp-navy">
-          予約番号・確認コード
+        <h2
+          id="complete-confirmation-heading"
+          className="text-lg font-extrabold tracking-tight text-rp-navy sm:text-xl"
+        >
+          予約の確認に必要な情報
         </h2>
-        {stored.publicRef ? (
-          <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 sm:px-4">
-            <p className="text-xs font-medium text-zinc-500">予約番号</p>
-            <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-zinc-900 sm:text-base">
-              {stored.publicRef}
-            </p>
+        <p className="mt-2 text-xs leading-relaxed text-zinc-700 sm:text-sm">
+          お問い合わせには予約番号、予約の確認・変更・キャンセルには確認コードを使用します。
+        </p>
+
+        <div className="mt-4 space-y-5">
+          {stored.publicRef ? (
+            <div className="space-y-2">
+              <h3 className="text-base font-extrabold tracking-tight text-zinc-900 sm:text-lg">
+                予約番号
+              </h3>
+              <p className="text-xs font-medium text-zinc-600 sm:text-sm">お問い合わせ用</p>
+              <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-2 shadow-sm sm:px-3 sm:py-2.5">
+                <p className="min-w-0 flex-1 break-all font-mono text-base font-bold tracking-wide text-zinc-900 sm:text-lg">
+                  {formatReservationPublicRefForDisplay(stored.publicRef)}
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void copyReservationSnippet(
+                      formatReservationPublicRefForDisplay(stored.publicRef),
+                      "publicRef"
+                    )
+                  }
+                  disabled={copying}
+                  className="shrink-0 rounded-md px-1.5 py-1 text-[11px] font-semibold leading-none text-rp-brand underline decoration-rp-brand/40 underline-offset-2 hover:bg-rp-mint/50 disabled:cursor-wait disabled:opacity-50 sm:text-xs"
+                >
+                  {copiedKind === "publicRef" ? "コピー済" : "コピー"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="space-y-2">
+            <h3 className="text-base font-extrabold tracking-tight text-rp-navy sm:text-lg">
+              確認コード
+            </h3>
+            <p className="text-xs font-medium text-zinc-600 sm:text-sm">予約確認・変更・キャンセル用</p>
+            <div className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 shadow-sm sm:px-3 sm:py-2.5">
+              <p className="break-all font-mono text-base font-bold tracking-wide text-zinc-900 sm:text-lg">
+                {reservationConfirmationDisplayForComplete(stored)}
+              </p>
+            </div>
           </div>
-        ) : null}
-        <p className="mt-3 text-sm leading-relaxed text-zinc-700">
-          確認コードは予約内容の確認・キャンセルに使用します。同じ内容を予約完了メールにもお送りしています。
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-700">
-          第三者には共有せず、大切に保管してください。
-        </p>
-        <p className="mt-3 break-all rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-left font-mono text-xs font-semibold leading-relaxed text-zinc-900 sm:text-sm">
-          {stored.reservationTokenDisplay ?? stored.reservationToken}
-        </p>
+        </div>
+
+        <div className="mt-3 space-y-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+          <p>確認コードはメールにも記載しています。</p>
+          <p>第三者に共有せず、大切に保管してください。</p>
+        </div>
+
         <button
           type="button"
-          onClick={() => void copyConfirmationCode()}
+          onClick={() =>
+            void copyReservationSnippet(
+              reservationConfirmationDisplayForComplete(stored),
+              "confirmation"
+            )
+          }
           disabled={copying}
           aria-busy={copying || undefined}
           className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-rp-brand px-6 text-sm font-semibold text-white hover:bg-rp-brand-hover disabled:cursor-wait disabled:opacity-80"
         >
           {copying ? <InlineSpinner variant="onDark" /> : null}
-          {copied ? "コピーしました" : "確認コードをコピー"}
+          {copiedKind === "confirmation" ? "コピーしました" : "確認コードをコピー"}
         </button>
       </section>
 

@@ -522,7 +522,7 @@
                   <span>10:00〜11:00</span>
                   <span class="badge">残り1枠</span>
                 </div>
-                <p style="margin: 8px 0 0; font-size: 0.88rem; color: var(--muted);">すでに予約しているチーム：紀南SC（ハイレベル）</p>
+                <p style="margin: 8px 0 0; font-size: 0.88rem; color: var(--muted);">すでに予約しているチーム：紀南SC（ストロング）</p>
               </div>
               <div class="slot-card full">
                 <div class="slot-title">
@@ -541,7 +541,7 @@
                 <div class="field">
                   <label>チームのレベル</label>
                   <select>
-                    <option>ハイレベル</option>
+                    <option>ストロング</option>
                     <option>ポテンシャル</option>
                   </select>
                   <span class="hint">できるだけ近い相手と対戦できるようにするための目安です。</span>
@@ -603,14 +603,17 @@
             </div>
             <div class="main">
               <h1 class="title">予約が完了しました</h1>
-              <p class="lead">ご予約ありがとうございます。下の確認コードは、あとから予約内容を見るときに必要です。</p>
+              <p class="lead">ご予約ありがとうございます。予約番号（お問い合わせ用）と、照会に必要な確認コードをお控えください。</p>
 
               <div class="notice">
-                <strong>確認コードは必ず保存してください。</strong><br />
+                <strong>確認コードは必ず保存してください。</strong> 予約番号だけでは照会できません。<br />
                 スクリーンショットを撮るか、コピーして安全な場所に保管してください。
               </div>
 
-              <div class="code-box">a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12</div>
+              <p class="foot" style="margin: 0 0 8px; font-weight: 600">予約番号（例）</p>
+              <div class="code-box" style="margin-bottom: 12px">RSV-ABC123</div>
+              <p class="foot" style="margin: 0 0 8px; font-weight: 600">確認コード（例・ハイフンなし）</p>
+              <div class="code-box">K3M9P2QX7VNA8D4H</div>
               <div class="stack" style="margin-top: 14px;">
                 <button class="btn btn-secondary" type="button">確認コードをコピー</button>
                 <button class="btn btn-primary" type="button">予約内容を確認する</button>
@@ -633,11 +636,11 @@
             </div>
             <div class="main">
               <h1 class="title">予約内容の確認・キャンセル</h1>
-              <p class="lead">予約完了時に表示された確認コードを入力してください。締切前であれば、予約内容の確認とキャンセルができます。</p>
+              <p class="lead">メールに記載の確認コードを入力してください（予約番号ではありません）。締切前であれば、予約内容の確認とキャンセルができます。</p>
 
               <div class="field">
                 <label>確認コード</label>
-                <textarea rows="3" placeholder="確認コードを貼り付けてください"></textarea>
+                <textarea rows="3" placeholder="例：K3M9P2QX7VNA8D4H"></textarea>
               </div>
               <button class="btn btn-primary" type="button">確認する</button>
 

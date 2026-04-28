@@ -538,7 +538,7 @@
                   <strong>雨天・中止:</strong> 開催や中止のお知らせは、前日のメールなどでお送りします。天候が急変した場合は、その時点での運営の判断でお知らせすることがあります。
                 </li>
                 <li>
-                  <strong>確認コード:</strong> お申し込みが終わると<strong>確認用のコード</strong>が表示されます。後から予約内容を見るとき・キャンセルするときに必要です。メールが届かない・コードを失くしたときは、<strong>配布資料の連絡先</strong>へお問い合わせください。
+                  <strong>予約番号・確認コード:</strong> お申し込みが終わると<strong>予約番号（お問い合わせ用）</strong>と<strong>確認コード（照会・キャンセル用）</strong>が表示されます。照会には確認コードが必要で、予約番号だけでは開けません。メールが届かない・コードを失くしたときは、<strong>配布資料の連絡先</strong>へお問い合わせください。
                 </li>
                 <li>
                   <strong>合宿・お泊まり:</strong> 日帰りのお申し込みとは別に、「合宿のご案内」からご相談を受け付けています。
@@ -634,7 +634,7 @@
 
               <h2 class="sec">午前の枠を選択してください</h2>
               <ul class="bullets">
-                <li><strong>ハイレベル</strong>：経験が多く試合に慣れているチーム</li>
+                <li><strong>ストロング</strong>：経験が多く試合に慣れているチーム</li>
                 <li><strong>ポテンシャル</strong>：これから成長していくチーム</li>
               </ul>
 
@@ -642,7 +642,7 @@
                 <strong>10:00–11:00（残り1枠）</strong>
                 <p style="margin: 0.35rem 0 0; font-size: 0.72rem; color: var(--muted)">この枠の予約済みチーム</p>
                 <ul class="bullets" style="margin-top: 0.25rem">
-                  <li>紀南SC: ハイレベル</li>
+                  <li>紀南SC: ストロング</li>
                 </ul>
               </div>
               <div class="slot-card disabled">
@@ -659,13 +659,13 @@
                 <div class="callout callout-sky" style="margin: 0.5rem 0">
                   <p style="margin: 0 0 0.35rem; font-weight: 700">カテゴリ</p>
                   <ul class="bullets" style="font-size: 0.72rem">
-                    <li><strong>ハイレベル</strong>：経験が多く試合に慣れているチーム</li>
+                    <li><strong>ストロング</strong>：経験が多く試合に慣れているチーム</li>
                     <li><strong>ポテンシャル</strong>：これから成長していくチーム</li>
                   </ul>
                 </div>
                 <div class="field">
                   <label>カテゴリを選択</label>
-                  <select><option>ハイレベル</option><option>ポテンシャル</option></select>
+                  <select><option>ストロング</option><option>ポテンシャル</option></select>
                 </div>
                 <div class="callout" style="background: #fafafa; border: 1px solid var(--line); color: #3f3f46; font-size: 0.72rem">
                   <p style="margin: 0 0 0.35rem; font-weight: 700">代表学年</p>
@@ -720,20 +720,20 @@
               <h1 class="title">予約が完了しました</h1>
               <div class="callout callout-amber">
                 <p style="margin: 0 0 0.5rem">
-                  予約時に表示される確認コードは<strong>必ず保存</strong>してください。<br />
+                  予約番号（お問い合わせ用）と確認コード（照会用）を<strong>必ず保存</strong>してください。<br />
                   （スクリーンショットやコピーがおすすめです）
                 </p>
-                <p style="margin: 0 0 0.5rem">この確認コードで、予約の確認やキャンセルができます。</p>
+                <p style="margin: 0 0 0.5rem">照会・キャンセルには確認コードが必要です。予約番号だけでは開けません。</p>
                 <p style="margin: 0">
                   第三者に見せたり共有すると、予約の操作ができてしまうため、<strong>厳重に保管</strong>してください。
                 </p>
               </div>
               <p class="lead">開催日: <strong>2026年5月10日（日）</strong></p>
               <div style="background: var(--white); border: 1px solid var(--line); border-radius: 10px; padding: 0.75rem">
-                <p style="margin: 0; font-size: 0.65rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em">確認コード</p>
-                <p class="mono" style="margin: 0.5rem 0 0">
-                  （例）a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef12
-                </p>
+                <p style="margin: 0; font-size: 0.65rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em">予約番号（例）</p>
+                <p class="mono" style="margin: 0.5rem 0 0">RSV-ABC123</p>
+                <p style="margin: 0.75rem 0 0; font-size: 0.65rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em">確認コード（例・ハイフンなし）</p>
+                <p class="mono" style="margin: 0.5rem 0 0">K3M9P2QX7VNA8D4H</p>
                 <button type="button" class="btn btn-secondary" style="margin-top: 0.65rem; max-width: 14rem">確認コードをコピー</button>
               </div>
               <div class="stack" style="margin-top: 1rem">
@@ -766,7 +766,7 @@
                 <p style="margin: 0 0 0.35rem; font-weight: 700">確認コードで確認できないとき</p>
                 <ul class="bullets">
                   <li>前後の空白や改行が入っていないか確認し、もう一度貼り付けてください。</li>
-                  <li>64 文字の英数字（0–9 と a–f）だけか確認してください（コピー漏れ・1 文字多い等がよくあります）。</li>
+                  <li>メールの「確認コード」欄をコピーできているか確認してください（予約番号ではありません）。ハイフン付きでもそのままで問題ありません。</li>
                   <li>開催日から <strong>30 日</strong>を過ぎると確認できません（確認コードは無効になります）。</li>
                   <li>
                     それでも解決しない場合は、<strong>配布資料や案内に書いてある大会運営の連絡先</strong>へお問い合わせください。このサイトから確認コードを再送することはできません。
@@ -775,7 +775,7 @@
               </div>
               <div class="field">
                 <label>予約確認コード</label>
-                <textarea rows="3" class="mono" placeholder="64 文字の英数字"></textarea>
+                <textarea rows="3" class="mono" placeholder="例：K3M9P2QX7VNA8D4H"></textarea>
               </div>
               <button type="button" class="btn btn-primary">確認</button>
               <div class="foot-note">

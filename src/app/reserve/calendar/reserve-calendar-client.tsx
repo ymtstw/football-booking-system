@@ -26,15 +26,8 @@ import {
   ReservePrimaryCtaButton,
   ReserveSubPanel,
 } from "../_components/ui";
-import { InlineSpinner } from "@/components/ui/inline-spinner";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { initialYearMonthFromEvents } from "@/lib/dates/tokyo-calendar-grid";
-import {
-  reserveFlowApiErrorDisplay,
-  reserveFlowUserVisibleMessage,
-  RESERVE_FLOW_NETWORK_ERROR_JA,
-} from "@/lib/reserve/reserve-flow-user-message";
-
 import {
   ReserveEventDaysCalendar,
   type EventDayPublic,
@@ -66,12 +59,19 @@ function useIsBelowMd() {
 
 const SLOT_SUBHEADING = "午後は、参加チームごとに最低1試合を確保します。";
 
-export function ReserveCalendarClient() {
+export function ReserveCalendarClient({
+  initialEventDays,
+  initialListError,
+}: {
+  /** サーバーで取得済みの開催日一覧（同一形） */
+  initialEventDays: EventDayPublic[];
+  initialListError: string | null;
+}) {
   const router = useRouter();
   const [navPending, startNavTransition] = useTransition();
   const [checked, setChecked] = useState<boolean>(false);
-  const [days, setDays] = useState<EventDayPublic[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [days] = useState<EventDayPublic[]>(initialEventDays);
+  const [error] = useState<string | null>(initialListError);
   const [selectedIsoDate, setSelectedIsoDate] = useState<string | null>(null);
   const [availability, setAvailability] = useState<AvailabilityJson | null>(null);
   const [availLoading, setAvailLoading] = useState(false);
@@ -84,40 +84,6 @@ export function ReserveCalendarClient() {
   const toggleCheck = useCallback((value: boolean) => {
     setChecked(value);
     if (value) setAgreementHint(null);
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/event-days");
-        const json = (await res.json().catch(() => ({}))) as {
-          eventDays?: EventDayPublic[];
-          error?: string;
-        };
-        if (cancelled) return;
-        if (!res.ok) {
-          setError(
-            reserveFlowApiErrorDisplay(res.status, json.error, "一覧の取得に失敗しました")
-          );
-          setDays([]);
-          return;
-        }
-        setDays(json.eventDays ?? []);
-      } catch (e) {
-        if (cancelled) return;
-        setError(
-          reserveFlowUserVisibleMessage(
-            e instanceof Error ? e.message : String(e),
-            RESERVE_FLOW_NETWORK_ERROR_JA
-          )
-        );
-        setDays([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
   const calendarInitialMonth = useMemo(() => {
@@ -317,20 +283,13 @@ export function ReserveCalendarClient() {
             </ReserveCallout>
           ) : null}
 
-          {days === null && !error && (
-            <div className="flex flex-col items-center gap-3 py-12 text-slate-600" role="status">
-              <InlineSpinner size="md" variant="onLight" />
-              <p>開催日を読み込み中…</p>
-            </div>
-          )}
-
-          {days && days.length === 0 && !error && (
+          {days.length === 0 && !error && (
             <ReserveCallout tone="slate" className="p-6 text-center text-sm">
               現在、公開中の開催日はありません。
             </ReserveCallout>
           )}
 
-          {days && days.length > 0 && calendarInitialMonth && (
+          {days.length > 0 && calendarInitialMonth && (
             <ReserveSubPanel>
               <ReserveEventDaysCalendar
                 key={`${calendarInitialMonth.year}-${calendarInitialMonth.month}-${selectedIsoDate ?? ""}`}

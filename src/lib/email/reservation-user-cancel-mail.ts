@@ -4,6 +4,7 @@ import { Resend } from "resend";
 
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
+import { formatReservationPublicRefForDisplay } from "@/lib/reservations/public-ref";
 
 const SIMPLE_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -35,8 +36,8 @@ export async function sendReservationUserCancelledEmail(params: {
     params.eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(params.eventDateIso)
       ? formatIsoDateWithWeekdayJa(params.eventDateIso)
       : "開催日は予約画面でご確認ください。";
-  const refLine =
-    params.publicRef?.trim() ? `予約番号${colon}${params.publicRef.trim()}` : null;
+  const refDisplay = formatReservationPublicRefForDisplay(params.publicRef);
+  const refLine = refDisplay ? `予約番号${colon}${refDisplay}` : null;
 
   const subject = `${MAIL_SUBJECT_BRAND_USER}ご予約のキャンセルが完了しました`;
   const text = [
@@ -46,7 +47,7 @@ export async function sendReservationUserCancelledEmail(params: {
     "",
     `チーム名${colon}${params.teamName.trim()}`,
     `開催日${colon}${eventLine}`,
-    ...(refLine ? [refLine, ""] : [""]),
+    ...(refLine ? [refLine, "お問い合わせの際は、上記の予約番号をお伝えください。", ""] : [""]),
     "内容に心当たりがない場合は、サイトのお問い合わせよりご連絡ください。",
     "",
     "よろしくお願いいたします。",
@@ -58,7 +59,7 @@ export async function sendReservationUserCancelledEmail(params: {
 <ul style="padding-left:1.25rem">
 <li>チーム名${colon}${escaped(params.teamName.trim())}</li>
 <li>開催日${colon}${escaped(eventLine)}</li>
-${refLine ? `<li>${escaped(refLine)}</li>` : ""}
+${refLine ? `<li>${escaped(refLine)}</li><li>お問い合わせの際は、上記の予約番号をお伝えください。</li>` : ""}
 </ul>
 <p>内容に心当たりがない場合は、サイトのお問い合わせよりご連絡ください。</p>
 <p>よろしくお願いいたします。</p>
