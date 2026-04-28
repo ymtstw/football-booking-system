@@ -8,10 +8,17 @@ type Props = {
    * inline: 一覧・表の中に埋め込む（枠なし・行のタイポと揃える）
    */
   variant?: "panel" | "inline";
+  /** 運営ハブ等: モバイルで縦長を抑える（文字サイズは変えない） */
+  dense?: boolean;
 };
 
 /** 開催サマリ用: 昼食の合計とメニュー別内訳（予約時のメニュー名スナップショットで集計） */
-export function LunchMealBreakdown({ totalMeals, lunchByMenu, variant = "panel" }: Props) {
+export function LunchMealBreakdown({
+  totalMeals,
+  lunchByMenu,
+  variant = "panel",
+  dense = false,
+}: Props) {
   if (variant === "inline") {
     return (
       <div className="min-w-0 space-y-2">
@@ -37,14 +44,20 @@ export function LunchMealBreakdown({ totalMeals, lunchByMenu, variant = "panel" 
     );
   }
 
+  const pad = dense ? "px-2 py-2 sm:px-3 sm:py-2.5" : "px-3 py-2.5";
+  const listGap = dense ? "mt-1.5 space-y-1 sm:mt-2 sm:space-y-1.5" : "mt-2 space-y-1.5";
+  const headPb = dense ? "pb-1.5 sm:pb-2" : "pb-2";
+
   return (
-    <div className="min-w-0 w-full rounded-lg border border-zinc-200/90 bg-zinc-50/50 px-3 py-2.5">
-      <div className="flex items-baseline justify-between gap-3 border-b border-zinc-200/80 pb-2">
+    <div className={`min-w-0 w-full rounded-lg border border-zinc-200/90 bg-zinc-50/50 ${pad}`}>
+      <div
+        className={`flex items-baseline justify-between gap-3 border-b border-zinc-200/80 ${headPb}`}
+      >
         <span className="text-sm font-medium text-zinc-600">食数合計</span>
         <span className="text-sm font-semibold tabular-nums text-zinc-900">{totalMeals}</span>
       </div>
       {lunchByMenu.length > 0 ? (
-        <ul className="mt-2 space-y-1.5" aria-label="メニュー別">
+        <ul className={`${listGap}`} aria-label="メニュー別">
           {lunchByMenu.map((l) => (
             <li key={l.itemName} className="flex items-baseline justify-between gap-3 text-sm">
               <span className="min-w-0 font-medium text-zinc-600 wrap-break-word">{l.itemName}</span>

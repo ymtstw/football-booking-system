@@ -7,6 +7,10 @@ import {
   MIN_ACTIVE_LUNCH_MENUS,
   type LunchMenuOption,
 } from "@/lib/lunch/admin-lunch-constraints-shared";
+import {
+  parseSortOrderInput,
+  preventInvalidSortOrderKeyDown,
+} from "@/lib/lunch/sort-order-input";
 
 type Row = {
   id: string;
@@ -21,7 +25,15 @@ type Row = {
 
 /** 表示順の補足（0 始まり・小さいほど上） */
 const SORT_HINT =
-  "表示順は 0 からの番号です（先頭が 0）。数字が小さいメニューほど上に表示されます。\n空欄の場合は、自動で次の順番になります。";
+  "表示順は 0 以上の半角数字のみです（マイナスや小数は使えません）。先頭が 0。数字が小さいほど上に表示されます。\n空欄は 0 として扱います。";
+
+const SORT_ORDER_FIELD_ATTRS = {
+  min: 0,
+  step: 1,
+  inputMode: "numeric" as const,
+  autoComplete: "off" as const,
+  onKeyDown: preventInvalidSortOrderKeyDown,
+};
 
 function SortOrderHint({ id }: { id?: string }) {
   return (
@@ -160,9 +172,9 @@ export function LunchMenuAdminClient() {
     const name = String(fd.get("name") ?? "").trim();
     const description = String(fd.get("description") ?? "").trim();
     const price = Math.round(Number(fd.get("price") ?? NaN));
-    const sort_order = Math.round(Number(fd.get("sort_order") ?? 0));
-    if (!Number.isFinite(sort_order) || sort_order < 0) {
-      setErrorModal("表示順は 0 以上の整数で指定してください");
+    const sortParsed = parseSortOrderInput(fd.get("sort_order"));
+    if (sortParsed === null) {
+      setErrorModal("表示順は 0 以上の半角数字のみ入力できます");
       return;
     }
     setErrorModal(null);
@@ -176,7 +188,7 @@ export function LunchMenuAdminClient() {
           description: description || null,
           price_tax_included: price,
           is_active: true,
-          sort_order,
+          sort_order: sortParsed,
         }),
       });
       const j = (await res.json().catch(() => ({}))) as { error?: string };
@@ -473,10 +485,9 @@ export function LunchMenuAdminClient() {
               name="sort_order"
               type="number"
               defaultValue={nextSortOrderForNew}
-              step={1}
-              min={0}
               aria-describedby="create-sort-hint"
               className="mt-1 w-full max-w-48 rounded border border-zinc-300 px-3 py-2 text-sm tabular-nums"
+              {...SORT_ORDER_FIELD_ATTRS}
             />
             <SortOrderHint id="create-sort-hint" />
           </div>
@@ -514,15 +525,18 @@ export function LunchMenuAdminClient() {
                   const name = String(fd.get("name") ?? "").trim();
                   const description = String(fd.get("description") ?? "").trim();
                   const price = Math.round(Number(fd.get("price") ?? NaN));
-                  const sort_order = Math.round(Number(fd.get("sort_order") ?? NaN));
+                  const sortParsed = parseSortOrderInput(fd.get("sort_order"));
                   if (!name) return;
                   if (!Number.isInteger(price) || price < 1) return;
-                  if (!Number.isInteger(sort_order) || sort_order < 0) return;
+                  if (sortParsed === null) {
+                    setErrorModal("表示順は 0 以上の半角数字のみ入力できます");
+                    return;
+                  }
                   void patchRow(it.id, {
                     name,
                     description: description || null,
                     price_tax_included: price,
-                    sort_order,
+                    sort_order: sortParsed,
                   });
                 }}
               >
@@ -569,11 +583,10 @@ export function LunchMenuAdminClient() {
                     id={`sort-order-${it.id}`}
                     name="sort_order"
                     type="number"
-                    step={1}
-                    min={0}
                     defaultValue={it.sort_order}
                     aria-describedby={`sort-hint-${it.id}`}
                     className="mt-1 w-full max-w-48 rounded border border-zinc-300 bg-white px-3 py-2 text-sm tabular-nums"
+                    {...SORT_ORDER_FIELD_ATTRS}
                   />
                   <SortOrderHint id={`sort-hint-${it.id}`} />
                 </div>

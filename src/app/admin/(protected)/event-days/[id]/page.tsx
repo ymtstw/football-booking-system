@@ -7,6 +7,7 @@ import { LunchMealBreakdown } from "@/components/admin/lunch-meal-breakdown";
 import { DeadlineCatchupEmergencyClient } from "./deadline-catchup-emergency-client";
 import { EventDayHubNotesClient } from "./event-day-hub-notes-client";
 import { eventDayStatusLabelJa } from "../event-day-status-label";
+import { mergeEffectiveLunchMenuRowsForHub } from "@/lib/admin/merge-effective-lunch-menu-for-hub";
 import { loadEventDayHubPayload } from "@/lib/admin/event-day-hub-payload";
 import { preDayConfirmedJa, weatherSummaryJa } from "@/lib/admin/dashboard-event-day-labels";
 import {
@@ -14,6 +15,7 @@ import {
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
 import { getAdminUser } from "@/lib/auth/require-admin";
+import { fetchEffectiveLunchMenuItemsForEventDay } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { createClient } from "@/lib/supabase/server";
 
 function ChevronRightIcon({ className }: { className?: string }) {
@@ -42,21 +44,31 @@ function ChevronRightIcon({ className }: { className?: string }) {
 function HubInfoCard({
   title,
   hint,
+  hintMobile,
   children,
   className,
 }: {
   title: string;
   hint?: string;
+  /** 狭い幅用の短い補足（省略時は hint のみ） */
+  hintMobile?: string;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <div
-      className={`min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/90 p-4 shadow-sm ${className ?? ""}`}
+      className={`min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/90 p-3 shadow-sm sm:p-4 ${className ?? ""}`}
     >
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{title}</p>
-      {hint ? <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{hint}</p> : null}
-      <div className="mt-2 min-w-0">{children}</div>
+      {hintMobile && hint ? (
+        <>
+          <p className="mt-0.5 text-[11px] leading-snug text-zinc-500 sm:hidden">{hintMobile}</p>
+          <p className="mt-0.5 hidden text-[11px] leading-snug text-zinc-500 sm:block">{hint}</p>
+        </>
+      ) : hint ? (
+        <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">{hint}</p>
+      ) : null}
+      <div className="mt-1.5 min-w-0 sm:mt-2">{children}</div>
     </div>
   );
 }
@@ -84,7 +96,7 @@ function SettingNavCard({
   return (
     <Link
       href={href}
-      className="group flex min-h-21 items-stretch gap-3 rounded-xl border border-emerald-200/90 bg-white p-4 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50/60 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+      className="group flex min-h-21 items-stretch gap-2 rounded-xl border border-emerald-200/90 bg-white p-3 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50/60 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600 sm:gap-3 sm:p-4"
     >
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -95,7 +107,9 @@ function SettingNavCard({
             {stateLabel}
           </span>
         </div>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-600">{description}</p>
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-zinc-600 sm:line-clamp-none sm:leading-relaxed">
+          {description}
+        </p>
       </div>
       <span className="flex shrink-0 items-center text-emerald-700/70 transition group-hover:text-emerald-800">
         <ChevronRightIcon className="size-5" />
@@ -138,6 +152,12 @@ export default async function AdminEventDayHubPage({
 
   const { day, summary } = loaded.data;
 
+  const { items: effectiveLunchMenu, dbError: effectiveLunchErr } =
+    await fetchEffectiveLunchMenuItemsForEventDay(supabase, day.id);
+  const lunchByMenuForHub = effectiveLunchErr
+    ? summary.lunchByMenu
+    : mergeEffectiveLunchMenuRowsForHub(effectiveLunchMenu, summary.lunchByMenu);
+
   const nowIso = new Date().toISOString();
   const showDeadlineCatchupEmergency =
     day.status === "open" &&
@@ -168,16 +188,19 @@ export default async function AdminEventDayHubPage({
     day.status === "cancelled_operational" ||
     day.status === "cancelled_minimum";
 
+  const hasAttentionItems =
+    warnings.length > 0 || summary.failedForDay > 0 || showDeadlineCatchupEmergency;
+
   return (
-    <div className="min-w-0 space-y-8">
-      <header className="relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-md ring-1 ring-zinc-100 sm:p-6">
+    <div className="min-w-0 space-y-5 sm:space-y-8">
+      <header className="relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-md ring-1 ring-zinc-100 sm:p-6">
         <div
           className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-linear-to-b from-emerald-600 to-emerald-800"
           aria-hidden
         />
-        <div className="relative space-y-3 pl-4 sm:pl-5">
+        <div className="relative space-y-2 pl-3 sm:space-y-3 sm:pl-5">
           <p className="text-xs font-semibold tracking-wide text-emerald-800">開催運営 · この日の運営画面</p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-3">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
                 {formatIsoDateWithWeekdayJa(day.event_date)}
@@ -206,88 +229,107 @@ export default async function AdminEventDayHubPage({
               開催日一覧へ
             </Link>
           </div>
-          <p className="max-w-3xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
-            指標は参照のみです。設定や詳細は下のカード・ボタンから開きます。
-          </p>
         </div>
       </header>
 
-      {/* サマリ（情報カードのみ） + 右: 要確認・運営メモ */}
-      <section aria-labelledby="hub-summary" className="space-y-4">
+      {/*
+        モバイル表示順（order）: 指標 → 要確認 → 次のアクション → 設定カード → 共有メモ → 緊急・締切
+        lg: 2カラム（左:指標 / 右:要確認+メモを sticky）→ 以下は全幅
+      */}
+      <div className="flex flex-col gap-5 sm:gap-6 lg:grid lg:grid-cols-[1fr_minmax(0,18.5rem)] lg:items-start lg:gap-x-6 lg:gap-y-6">
         <h2 id="hub-summary" className="sr-only">
           サマリ
         </h2>
-        <div className="grid gap-6 lg:grid-cols-[1fr_minmax(0,18.5rem)] lg:items-start">
-          <div className="min-w-0 space-y-3">
-            <h3 className="text-sm font-semibold text-zinc-900">この日の指標</h3>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <HubInfoCard title="予約締切" hint="日本時間">
-                <p className="text-sm font-semibold tabular-nums text-zinc-900">
-                  {formatDateTimeTokyoWithWeekday(day.reservation_deadline_at)}
-                </p>
-              </HubInfoCard>
-              <HubInfoCard title="予約チーム数" hint="有効な予約">
-                <p className="text-lg font-semibold tabular-nums text-zinc-900">{summary.activeTeamCount}</p>
-              </HubInfoCard>
-              <HubInfoCard title="合計参加人数">
-                <p className="text-lg font-semibold tabular-nums text-zinc-900">{summary.totalParticipants}</p>
-              </HubInfoCard>
-              <HubInfoCard title="雨天・開催可否">
-                <p
-                  className={`text-sm font-semibold leading-snug ${
-                    weatherIsCancelled ? "text-red-800" : "text-zinc-900"
-                  }`}
-                >
-                  {weatherLine}
-                </p>
-              </HubInfoCard>
-              <HubInfoCard title="試合表（確定）" hint="対戦の変更は試合表画面から">
-                <p
-                  className={`text-sm font-semibold ${
-                    matchNeedsAttention ? "text-amber-950" : "text-zinc-900"
-                  }`}
-                >
-                  {matchLabel}
-                </p>
-              </HubInfoCard>
-              <HubInfoCard title="送信エラー" hint="処理時点の記録（到達可否ではない）">
-                <p
-                  className={`text-lg font-semibold tabular-nums ${
-                    summary.failedForDay > 0 ? "text-amber-950" : "text-zinc-900"
-                  }`}
-                >
-                  {summary.failedForDay} 件
-                </p>
-              </HubInfoCard>
-            </div>
-            <HubInfoCard title="昼食" hint="有効予約の食数・予約時メニュー名" className="sm:col-span-2 xl:col-span-3">
-              <LunchMealBreakdown
-                totalMeals={summary.totalMeals}
-                lunchByMenu={summary.lunchByMenu}
-                variant="panel"
-              />
+
+        <section
+          aria-labelledby="hub-metrics-heading"
+          className="order-2 min-w-0 space-y-2 sm:space-y-3 lg:col-start-1 lg:row-start-1 lg:row-span-2 lg:justify-self-stretch"
+        >
+          <h3 id="hub-metrics-heading" className="text-sm font-semibold text-zinc-900">
+            この日の指標
+          </h3>
+          <div className="grid grid-cols-2 gap-2 md:gap-3 xl:grid-cols-3">
+            <HubInfoCard title="予約締切">
+              <p className="text-sm font-semibold tabular-nums text-zinc-900">
+                {formatDateTimeTokyoWithWeekday(day.reservation_deadline_at)}
+              </p>
+            </HubInfoCard>
+            <HubInfoCard title="予約チーム数">
+              <p className="text-lg font-semibold tabular-nums text-zinc-900">{summary.activeTeamCount}</p>
+            </HubInfoCard>
+            <HubInfoCard title="合計参加人数">
+              <p className="text-lg font-semibold tabular-nums text-zinc-900">{summary.totalParticipants}</p>
+            </HubInfoCard>
+            <HubInfoCard title="雨天・開催可否">
+              <p
+                className={`text-sm font-semibold leading-snug ${
+                  weatherIsCancelled ? "text-red-800" : "text-zinc-900"
+                }`}
+              >
+                {weatherLine}
+              </p>
+            </HubInfoCard>
+            <HubInfoCard title="試合表（確定）">
+              <p
+                className={`text-sm font-semibold ${
+                  matchNeedsAttention ? "text-amber-950" : "text-zinc-900"
+                }`}
+              >
+                {matchLabel}
+              </p>
+            </HubInfoCard>
+            <HubInfoCard title="送信エラー">
+              <p
+                className={`text-lg font-semibold tabular-nums ${
+                  summary.failedForDay > 0 ? "text-amber-950" : "text-zinc-900"
+                }`}
+              >
+                {summary.failedForDay} 件
+              </p>
             </HubInfoCard>
           </div>
+          <HubInfoCard title="昼食" className="col-span-2 xl:col-span-3">
+            <LunchMealBreakdown
+              totalMeals={summary.totalMeals}
+              lunchByMenu={lunchByMenuForHub}
+              variant="panel"
+              dense
+            />
+          </HubInfoCard>
+        </section>
 
+        <div className="contents lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-4 lg:z-10 lg:flex lg:min-h-0 lg:max-w-none lg:flex-col lg:gap-4">
           <aside
-            className="flex min-h-0 flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm ring-1 ring-zinc-100 lg:sticky lg:top-4"
             aria-labelledby="hub-attention-heading"
+            className={
+              hasAttentionItems
+                ? "order-3 rounded-xl border-2 border-amber-300/90 bg-amber-50/50 p-3 shadow-md ring-2 ring-amber-200/60 sm:p-4 lg:order-0"
+                : "order-3 rounded-xl border border-zinc-200 bg-white p-3 py-2.5 shadow-sm ring-1 ring-zinc-100 sm:p-4 lg:order-0"
+            }
           >
             <div>
               <h3 id="hub-attention-heading" className="text-sm font-semibold text-zinc-900">
                 要確認
               </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
-                試合編成の警告・メール送信エラー・締切リカバリの必要があるときだけ、ここに一覧します。
+              <p
+                className={
+                  hasAttentionItems
+                    ? "mt-1.5 text-xs leading-relaxed text-zinc-600"
+                    : "mt-1 hidden text-xs leading-relaxed text-zinc-500 sm:mt-1.5 sm:block"
+                }
+              >
+                試合表の警告、メール送信エラー、締切まわりの確認が必要な場合に表示されます。
               </p>
             </div>
 
             {warnings.length === 0 &&
             summary.failedForDay === 0 &&
             !showDeadlineCatchupEmergency ? (
-              <p className="text-xs leading-relaxed text-zinc-600">いまは該当がありません。</p>
+              <p className="mt-2 text-xs leading-snug text-zinc-600 sm:mt-2 sm:leading-relaxed">
+                現在、要確認の項目はありません。
+              </p>
             ) : (
-              <ul className="space-y-2 text-sm">
+              <ul className="mt-3 space-y-2 text-sm sm:mt-3">
                 {warnings.map((w) => (
                   <li
                     key={w.key}
@@ -322,32 +364,30 @@ export default async function AdminEventDayHubPage({
                 ) : null}
               </ul>
             )}
-
-            <div className="border-t border-zinc-100 pt-4">
-              <p className="text-sm font-semibold text-zinc-900">運営メモ</p>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                この開催日だけの共有メモです。下の入力欄に書いて「メモを保存」すると登録されます（連絡の抜け漏れ対策）。
-              </p>
-              <EventDayHubNotesClient eventDayId={day.id} initialNotes={day.notes ?? null} />
-            </div>
           </aside>
-        </div>
-      </section>
 
-      {/* 次のアクション: primary 1 / secondary / tertiary */}
-      <section aria-labelledby="hub-actions" className="space-y-3">
-        <h2 id="hub-actions" className="text-sm font-semibold text-zinc-900">
-          次のアクション
-        </h2>
-        <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="order-6 min-w-0 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm ring-1 ring-zinc-100 sm:p-4 lg:order-0">
+            <p className="text-sm font-semibold text-zinc-900">当日の共有メモ</p>
+            <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+              スタッフ間で共有したいことを残せます。
+            </p>
+            <EventDayHubNotesClient eventDayId={day.id} initialNotes={day.notes ?? null} />
+          </div>
+        </div>
+
+        <section
+          aria-labelledby="hub-actions"
+          className="order-4 space-y-2 sm:space-y-3 lg:col-span-2 lg:col-start-1 lg:row-start-3"
+        >
+          <h2 id="hub-actions" className="text-sm font-semibold text-zinc-900">
+            次のアクション
+          </h2>
+          <div className="mx-auto grid w-full max-w-5xl grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           <Link
             href={preDayAdjustHref}
-            className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg bg-emerald-600 px-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-emerald-600 px-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
           >
-            <span>試合表を確認・編集</span>
-            <span className="mt-0.5 block text-[11px] font-normal leading-tight text-emerald-50/95">
-              割当の調整
-            </span>
+            試合表を確認・編集
           </Link>
           <Link
             href={reservationsHref}
@@ -357,63 +397,58 @@ export default async function AdminEventDayHubPage({
           </Link>
           <Link
             href={`/admin/event-days/${day.id}/weather`}
-            className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg border-2 border-emerald-600 bg-white px-3 py-1.5 text-center text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
+            className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border-2 border-emerald-600 bg-white px-3 text-center text-sm font-semibold text-emerald-900 shadow-sm transition hover:bg-emerald-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600"
           >
-            <span>天候対応を登録する</span>
-            <span className="mt-0.5 block text-[11px] font-normal leading-tight text-emerald-900/85">
-              次の画面で確定
-            </span>
+            天候対応を登録する
           </Link>
-          <Link
-            href={notificationsHref}
-            className="inline-flex min-h-12 w-full flex-col items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-center text-sm font-medium text-zinc-800 shadow-sm transition hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400"
-          >
-            <span>メール送信履歴</span>
-            <span className="mt-0.5 block text-[11px] font-normal leading-tight text-zinc-600">
-              処理ログ・再送
-            </span>
-          </Link>
-        </div>
-        <p className="mx-auto max-w-5xl text-xs leading-relaxed text-zinc-600">
-          試合の<strong className="font-medium text-zinc-800">割当</strong>は「試合表を確認・編集」。枠の<strong className="font-medium text-zinc-800">時刻・有効／無効</strong>は「枠・時刻設定」です。
-        </p>
-      </section>
+          </div>
+        </section>
 
-      {/* 確認・設定（押せるカードに統一） */}
-      <section aria-labelledby="hub-deep" className="space-y-4">
-        <h2 id="hub-deep" className="text-sm font-semibold text-zinc-900">
-          確認・設定
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <SettingNavCard
-            href={`/admin/event-days/${day.id}/slots`}
-            title="枠・時刻設定"
-            description="試合枠の時刻・有効化・強制変更（対戦の付け替えではありません）"
-            stateLabel="設定へ"
-          />
-          <SettingNavCard
-            href={`/admin/event-days/${day.id}/lunch`}
-            title="昼食（この開催日）"
-            description="共通メニューのままか、この日だけ並べるメニューを限定するか"
-            stateLabel="設定へ"
-          />
-          <SettingNavCard
-            href={notificationsHref}
-            title="メール送信履歴・再送"
-            description="送信処理の記録と失敗時の再送（指標の件数と連動）"
-            stateLabel={
-              summary.failedForDay > 0 ? `エラー ${summary.failedForDay} 件` : "問題なし"
-            }
-            stateTone={summary.failedForDay > 0 ? "warn" : "neutral"}
-          />
-        </div>
+        <section
+          aria-labelledby="hub-deep"
+          className="order-5 space-y-3 sm:space-y-4 lg:col-span-2 lg:col-start-1 lg:row-start-4"
+        >
+          <h2 id="hub-deep" className="text-sm font-semibold text-zinc-900">
+            この日の設定・確認
+          </h2>
+          <div className="grid gap-2 sm:grid-cols-2 sm:gap-3">
+            <SettingNavCard
+              href={`/admin/event-days/${day.id}/slots`}
+              title="枠・時刻設定"
+              description="試合枠の時刻・有効化・強制変更（対戦の付け替えではありません）"
+              stateLabel="設定へ"
+            />
+            <SettingNavCard
+              href={`/admin/event-days/${day.id}/lunch`}
+              title="昼食（この開催日）"
+              description="共通メニューのままか、この日だけ並べるメニューを限定するか"
+              stateLabel="設定へ"
+            />
+            <SettingNavCard
+              href={notificationsHref}
+              title="メール送信履歴・再送"
+              description="送信処理の記録と失敗時の再送（指標の件数と連動）"
+              stateLabel={
+                summary.failedForDay > 0 ? `エラー ${summary.failedForDay} 件` : "問題なし"
+              }
+              stateTone={summary.failedForDay > 0 ? "warn" : "neutral"}
+            />
+          </div>
+        </section>
 
-        <div className="grid gap-4 lg:grid-cols-2 lg:items-stretch lg:gap-6">
+        <section
+          aria-labelledby="hub-emergency-heading"
+          className="order-7 lg:col-span-2 lg:col-start-1 lg:row-start-5"
+        >
+          <h2 id="hub-emergency-heading" className="sr-only">
+            緊急時の操作・締切まわり
+          </h2>
+          <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch lg:gap-5">
           <div className="min-w-0 flex flex-col">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-800">
               危険・中止
             </h3>
-            <div className="min-h-0 flex-1 rounded-xl border border-red-200 bg-red-50/80 p-4 shadow-sm">
+            <div className="min-h-0 flex-1 rounded-xl border border-red-200 bg-red-50/80 p-3 shadow-sm sm:p-4">
               <Link
                 href={`/admin/event-days/${day.id}/operational-cancel`}
                 className="inline-flex items-center gap-1 text-sm font-semibold text-red-900 underline decoration-red-600/40 underline-offset-2 hover:text-red-950"
@@ -442,21 +477,15 @@ export default async function AdminEventDayHubPage({
                     毎日、システムが自動で締め切り処理をします。それが動いていないときだけ、締切リカバリを使います（今は該当しないため説明のみです）。
                   </p>
                   <p>
-                    開催日一覧から手動で締め切りだけするボタンはありません。運用手順は社内ドキュメントを参照してください。
+                    開催日一覧から手動で締め切りだけするボタンはありません。
                   </p>
                 </div>
               </details>
             )}
           </div>
         </div>
-        <p className="border-t border-zinc-100 pt-4 text-xs leading-relaxed text-zinc-500">
-          合宿・大会の問い合わせは届いた通知メール起点の運用です。昼食マスタの編集は{" "}
-          <Link href="/admin/lunch-menu" className="font-medium text-emerald-800 underline underline-offset-2">
-            昼食メニュー設定
-          </Link>
-          から行ってください。
-        </p>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
