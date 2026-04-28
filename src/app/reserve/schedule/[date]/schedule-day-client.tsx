@@ -335,7 +335,7 @@ export function ScheduleDayClient({
           <div className="sm:hidden">
             <details className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
               <summary className="cursor-pointer text-sm font-bold text-slate-900">
-                午前の対戦枠（状況）
+                午前の枠ごとの予約チーム
               </summary>
               <div className="mt-3">
                 <MorningSlotsSelect

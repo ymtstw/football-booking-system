@@ -1,6 +1,7 @@
 /**
  * 開催確認・試合予定（日別）画面用: event_days を1回だけ取得し、availability / public-schedule を並列構築
  */
+import { unstable_noStore as noStore } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 import {
@@ -25,6 +26,7 @@ export type ScheduleDayViewBundle = {
 };
 
 export async function loadScheduleDayViewBundle(eventDate: string): Promise<ScheduleDayViewBundle> {
+  noStore();
   const supabase = createServiceRoleClient();
 
   const { data: day, error: dayErr } = await supabase

@@ -4,6 +4,9 @@ import { notFound } from "next/navigation";
 import { ScheduleDayClient } from "./schedule-day-client";
 import { loadScheduleDayViewBundle } from "@/lib/event-days/schedule-day-view-bundle";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 function isIsoDateOnly(s: string): boolean {
   return /^\d{4}-\d{2}-\d{2}$/.test(s);
 }

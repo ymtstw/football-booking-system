@@ -16,7 +16,9 @@ export async function loadPublicEventDaysList(): Promise<LoadPublicEventDaysResu
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status, reservation_deadline_at")
+    .select(
+      "id, event_date, grade_band, status, reservation_deadline_at, matching_proposal_notice_sent_at"
+    )
     .in("status", [
       "open",
       "locked",
@@ -58,6 +60,9 @@ export async function loadPublicEventDaysList(): Promise<LoadPublicEventDaysResu
       row.status === "open" && Number.isFinite(t) && t > now;
     return {
       ...row,
+      matchingProposalNoticeSentAt:
+        (row as { matching_proposal_notice_sent_at?: string | null })
+          .matching_proposal_notice_sent_at ?? null,
       acceptingReservations,
       morningRemainingVacancies: acceptingReservations
         ? (vacancyMap.get(String(row.id)) ?? 0)

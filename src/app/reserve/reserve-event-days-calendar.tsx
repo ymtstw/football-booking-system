@@ -41,12 +41,21 @@ function monthTitleJa(year: number, month: number): string {
   return `${year}年${month}月`;
 }
 
-/** カレンダー日セル下部の短い状態表示（開催確認・試合予定と同じラベル体系） */
-function calendarCellSubLabel(event: {
+/** カレンダー日セル下部の短い状態表示 */
+function calendarCellSubLabel(
+  navigationMode: "booking" | "schedule",
+  event: {
   status: string;
   acceptingReservations: boolean;
   matchingProposalNoticeSentAt?: string | null;
 }): { label: string; cancelled: boolean } {
+  // 予約する画面では「試合スケジュール確認中/確定」を見せず、受付可否に寄せる
+  if (navigationMode === "booking") {
+    const { cancelled } = publicScheduleHubStatusLabel(event);
+    if (cancelled) return { label: "中止", cancelled: true };
+    if (event.acceptingReservations) return { label: "予約受付中", cancelled: false };
+    return { label: "受付終了", cancelled: false };
+  }
   const { label, cancelled } = publicScheduleHubStatusLabel(event);
   return { label, cancelled };
 }
@@ -217,7 +226,7 @@ export function ReserveEventDaysCalendar({
 
               if (navigationMode === "schedule") {
                 const { label: stLabel, cancelled: isCancelled } =
-                  calendarCellSubLabel(event!);
+                  calendarCellSubLabel("schedule", event!);
                 const dayLineJa = formatIsoDateWithWeekdayJa(isoDate);
                 const yearsJa = gradeYearsDisplay(event!.grade_band);
                 const title = `締切: ${formatDateTimeTokyoWithWeekday(
@@ -322,7 +331,7 @@ export function ReserveEventDaysCalendar({
               }
 
               const { label: closedLabel, cancelled: isCancelled } =
-                calendarCellSubLabel(event!);
+                calendarCellSubLabel("booking", event!);
               const closedAria = `${dayLineJa}。${title}。${closedLabel}のため選択できません。`;
 
               return (

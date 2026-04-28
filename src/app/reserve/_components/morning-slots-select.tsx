@@ -95,7 +95,7 @@ export function MorningSlotsSelect({
         }
       >
         {sectionHeading ??
-          (readOnly ? "午前の対戦枠（状況）" : "午前の対戦枠（選択可）")}
+          (readOnly ? "午前の枠ごとの予約チーム" : "午前の対戦枠（選択可）")}
       </h2>
       {!minimalIntro ? (
         <p
