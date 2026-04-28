@@ -147,7 +147,7 @@ function RemarksBlock({ row }: { row: HistoryNotificationRow }) {
         {rawDetail ? (
           <details className="rounded border border-red-200/50 bg-white/90 px-2 py-1 text-[10px] text-zinc-700">
             <summary className="cursor-pointer select-none font-medium text-red-950/90">
-              送信サービスからの詳細を開く
+              エラー詳細を確認
             </summary>
             <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[10px] leading-snug text-zinc-800">
               {rawDetail}

@@ -45,7 +45,7 @@ describe("summarizeOutboundEmailError（現場向け短文）", () => {
   it("英語主体は短い要約にし原文は別", () => {
     const r = summarizeOutboundEmailError("Error: SMTP connection refused");
     expect(r.summaryJa).toBe(
-      "送信できませんでした。必要に応じて確認・再送してください。"
+      "送信できませんでした。"
     );
     expect(r.rawDetail).toBe("Error: SMTP connection refused");
   });

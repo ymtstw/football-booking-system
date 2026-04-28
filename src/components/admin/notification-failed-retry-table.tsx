@@ -186,13 +186,13 @@ function FailedNotificationErrorCell({
           }
         >
           <summary className="cursor-pointer select-none font-medium text-red-950/90">
-            送信サービスからの詳細を開く
+            エラー詳細を確認
           </summary>
           <pre
             className={
               compact
-                ? "mt-2 max-h-36 overflow-auto whitespace-pre-wrap break-words rounded border border-zinc-200 bg-zinc-50 p-2 font-mono text-[10px] leading-snug text-zinc-800"
-                : "mt-1 max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[9px] leading-snug text-zinc-800 lg:text-[10px]"
+                ? "mt-2 max-h-36 overflow-auto whitespace-pre-wrap wrap-break-word rounded border border-zinc-200 bg-zinc-50 p-2 font-mono text-[10px] leading-snug text-zinc-800"
+                : "mt-1 max-h-32 overflow-auto whitespace-pre-wrap wrap-break-word font-mono text-[9px] leading-snug text-zinc-800 lg:text-[10px]"
             }
           >
             {rawDetail}
@@ -309,7 +309,7 @@ export function NotificationFailedRetryTable({
           onClick={() => void load()}
           className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-800 hover:bg-zinc-50"
         >
-          一覧を再読み込み
+          再読み込み
         </button>
         {message ? (
           <p className="text-sm text-zinc-800" role="status">
@@ -328,7 +328,7 @@ export function NotificationFailedRetryTable({
           </p>
           {listStatus === "failed" ? (
             <p className="text-xs leading-relaxed text-zinc-500">
-              お客様から届いていないと言われても、ここが空なのは珍しくありません。届かない多くの場合は「送信処理済み」のままです。
+              ※この一覧にない場合でも、メールが届いていないことがあります。
             </p>
           ) : null}
         </div>
@@ -378,7 +378,7 @@ export function NotificationFailedRetryTable({
                       <dd className="mt-0.5 wrap-break-word text-zinc-800">{n.teamName ?? "—"}</dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">補足</dt>
+                      <dt className="text-xs font-medium text-zinc-500">内容</dt>
                       <dd className="mt-0.5">
                         {listStatus === "failed" ? (
                           <FailedNotificationErrorCell errorMessage={n.error_message} compact />
@@ -404,7 +404,7 @@ export function NotificationFailedRetryTable({
                             再送不可
                           </span>
                           <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                            確認用コードを画面に残さないため、この一覧から再送はできません。届いていない場合は、予約確認の案内を別途お伝えする運用で対応してください。
+                            再送できない種類の通知です。必要に応じて、予約詳細から案内してください。
                           </p>
                         </div>
                       ) : (
@@ -448,10 +448,10 @@ export function NotificationFailedRetryTable({
                     className="min-w-48 max-w-md px-3 py-2 font-medium text-zinc-900"
                     title="送信エラーの説明・送信待ちの補足・送信済みの概要など。不要な場合は「—」です。"
                   >
-                    補足
+                    内容
                   </th>
                   {showRetry ? (
-                    <th className="px-3 py-2 font-medium text-zinc-900">操作</th>
+                    <th className="px-3 py-2 font-medium text-zinc-900">対応</th>
                   ) : null}
                 </tr>
               </thead>
@@ -475,7 +475,7 @@ export function NotificationFailedRetryTable({
                         ? formatDateTimeTokyo((n.updated_at ?? n.created_at) as string)
                         : "—"}
                     </td>
-                    <td className="max-w-[10rem] px-3 py-2 text-[11px] text-zinc-800 lg:max-w-[12rem] lg:text-xs">
+                    <td className="max-w-40 px-3 py-2 text-[11px] text-zinc-800 lg:max-w-48 lg:text-xs">
                       {notificationTemplateLabelJa(n.template_key)}
                     </td>
                     <td className="max-w-56 truncate px-3 py-2 text-zinc-700" title={n.toEmail ?? ""}>
@@ -512,7 +512,7 @@ export function NotificationFailedRetryTable({
                               再送不可
                             </span>
                             <p className="mt-1 text-[10px] leading-snug text-zinc-600">
-                              確認用コードを残さないため再送できません。届かない場合は予約確認の案内を別途送ってください。
+                              再送できない種類の通知です。必要に応じて、予約詳細から案内してください。
                             </p>
                           </div>
                         ) : (
@@ -545,9 +545,9 @@ export function NotificationFailedRetryTable({
       )}
       {rows?.length && showRetry ? (
         <p className="mt-3 text-xs leading-relaxed text-zinc-600">
-          「予約完了メール」だけは確認のため再送できません（ボタンなし）。そのほかは内容を確認してから「このメールを再送する」を試してください。
-          この一覧は<strong className="font-medium text-zinc-800">送信できなかったものだけ</strong>
-          です。あとから「届いていない」と分かった場合でも、ここに出ないことがあります。
+          この一覧は、送信できなかった可能性がある通知のみ表示しています。
+          <br />
+          あとから「届いていない」と分かった場合は、予約詳細を確認して必要な案内を行ってください。
         </p>
       ) : null}
     </div>

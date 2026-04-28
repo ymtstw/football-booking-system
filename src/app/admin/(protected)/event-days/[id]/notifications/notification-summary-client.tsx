@@ -149,7 +149,9 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
         <section className="rounded-lg border border-red-200/80 bg-red-50/30 px-4 py-4">
           <h2 className="text-sm font-semibold text-red-950">送信エラーの確認</h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/85">
-            送信を試みたときに「送れない」と返ってきたものだけが並びます。お客様の端末に届いたかどうかは分かりません。届いていないのにここが空なこともあります。宛先と内容を確認し、「予約完了メール」以外の行では「このメールを再送する」が使えます。
+            送信に失敗した可能性がある記録です。宛先と内容を確認し、必要に応じて再送してください。
+            <br />
+            ※この一覧にない場合でも、メールが届いていないことがあります。
           </p>
           <div className="mt-3">
             <NotificationFailedRetryTable eventDayId={eventDayId} />

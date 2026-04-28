@@ -754,7 +754,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             <div className="pb-1">
               <h3 className="text-base font-bold text-zinc-900">試合一覧</h3>
               <p className="mt-1 text-sm leading-relaxed text-zinc-600">
-                変更する試合を選んでください。
+                変更したいチーム名・審判をタップして変更します。変更は保存するまで反映されません。
               </p>
             </div>
 
@@ -925,24 +925,112 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
                           </dd>
                           <dt className="text-zinc-500">対戦</dt>
                           <dd className="min-w-0 wrap-break-word text-zinc-800">
-                            {rowBefore ? (
+                            {row.isSelected && canPatch && selected && patchForSelected ? (
+                              <div className="grid grid-cols-1 gap-2" onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={patchForSelected.reservationAId}
+                                  onChange={(e) =>
+                                    updateDraft(selected, { reservationAId: e.target.value })
+                                  }
+                                  className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-base text-zinc-900 touch-manipulation"
+                                >
+                                  {data!.activeReservations
+                                    .filter((r) => r.id !== patchForSelected.reservationBId)
+                                    .map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        {resLabel(r)}
+                                      </option>
+                                    ))}
+                                </select>
+                                <select
+                                  value={patchForSelected.reservationBId}
+                                  onChange={(e) =>
+                                    updateDraft(selected, { reservationBId: e.target.value })
+                                  }
+                                  className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-base text-zinc-900 touch-manipulation"
+                                >
+                                  {data!.activeReservations
+                                    .filter((r) => r.id !== patchForSelected.reservationAId)
+                                    .map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        {resLabel(r)}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                            ) : rowBefore ? (
                               <TableCellBeforeAfter
                                 beforeText={matchVsTwoLineText(rowBefore.matchLine1, rowBefore.matchLine2)}
                                 afterText={matchVsTwoLineText(row.matchLine1, row.matchLine2)}
                               />
                             ) : (
-                              <MatchVsDisplayAdjust line1={row.matchLine1} line2={row.matchLine2} />
+                              <div className="space-y-0.5">
+                                <button
+                                  type="button"
+                                  className="block text-left font-medium text-emerald-900 underline decoration-emerald-700/30 underline-offset-2"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (canPatch) setAssignmentId(effAsn.id);
+                                  }}
+                                >
+                                  {row.matchLine1}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="block text-left text-emerald-900 underline decoration-emerald-700/30 underline-offset-2"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (canPatch) setAssignmentId(effAsn.id);
+                                  }}
+                                >
+                                  {row.matchLine2}
+                                </button>
+                              </div>
                             )}
                           </dd>
                           <dt className="text-zinc-500">審判</dt>
                           <dd className="min-w-0 wrap-break-word text-zinc-800">
-                            {rowBefore ? (
-                              <TableCellBeforeAfter
-                                beforeText={rowBefore.refStr}
-                                afterText={row.refStr}
-                              />
+                            {row.isSelected && canPatch && selected && patchForSelected ? (
+                              <div onClick={(e) => e.stopPropagation()}>
+                                <select
+                                  value={patchForSelected.refereeReservationId ?? ""}
+                                  onChange={(e) =>
+                                    updateDraft(selected, {
+                                      refereeReservationId: e.target.value ? e.target.value : null,
+                                    })
+                                  }
+                                  className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-base text-zinc-900 touch-manipulation"
+                                >
+                                  <option value="">（審判なし）</option>
+                                  {data!.activeReservations
+                                    .filter(
+                                      (r) =>
+                                        r.id !== patchForSelected.reservationAId &&
+                                        r.id !== patchForSelected.reservationBId
+                                    )
+                                    .map((r) => (
+                                      <option key={r.id} value={r.id}>
+                                        {resLabel(r)}
+                                      </option>
+                                    ))}
+                                </select>
+                              </div>
+                            ) : rowBefore ? (
+                              <TableCellBeforeAfter beforeText={rowBefore.refStr} afterText={row.refStr} />
                             ) : (
-                              row.refStr
+                              <button
+                                type="button"
+                                className="text-left font-medium text-emerald-900 underline decoration-emerald-700/30 underline-offset-2"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (canPatch) setAssignmentId(effAsn.id);
+                                }}
+                              >
+                                {row.refStr}
+                              </button>
                             )}
                           </dd>
                         </dl>
@@ -956,7 +1044,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
             </div>
 
             <div className="mt-4 hidden min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-zinc-200/90 bg-zinc-50/40 shadow-inner [-webkit-overflow-scrolling:touch] md:block">
-              <table className="w-full min-w-[36rem] table-fixed border-separate border-spacing-x-0 border-spacing-y-2 text-left text-sm text-zinc-800 sm:min-w-[42rem]">
+              <table className="w-full min-w-xl table-fixed border-separate border-spacing-x-0 border-spacing-y-2 text-left text-sm text-zinc-800 sm:min-w-2xl">
                 <colgroup>
                   <col style={{ width: "5rem" }} />
                   <col style={{ width: "3.5rem" }} />
@@ -1124,24 +1212,112 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
                               </td>
                               <td className="min-w-0 py-3 pr-3 align-top">
                                 <div className="min-w-0">
-                                  {rowBefore ? (
+                                  {row.isSelected && canPatch && selected && patchForSelected ? (
+                                    <div className="grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
+                                      <select
+                                        value={patchForSelected.reservationAId}
+                                        onChange={(e) =>
+                                          updateDraft(selected, { reservationAId: e.target.value })
+                                        }
+                                        className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900"
+                                      >
+                                        {data!.activeReservations
+                                          .filter((r) => r.id !== patchForSelected.reservationBId)
+                                          .map((r) => (
+                                            <option key={r.id} value={r.id}>
+                                              {resLabel(r)}
+                                            </option>
+                                          ))}
+                                      </select>
+                                      <select
+                                        value={patchForSelected.reservationBId}
+                                        onChange={(e) =>
+                                          updateDraft(selected, { reservationBId: e.target.value })
+                                        }
+                                        className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900"
+                                      >
+                                        {data!.activeReservations
+                                          .filter((r) => r.id !== patchForSelected.reservationAId)
+                                          .map((r) => (
+                                            <option key={r.id} value={r.id}>
+                                              {resLabel(r)}
+                                            </option>
+                                          ))}
+                                      </select>
+                                    </div>
+                                  ) : rowBefore ? (
                                     <TableCellBeforeAfter
                                       beforeText={matchVsTwoLineText(rowBefore.matchLine1, rowBefore.matchLine2)}
                                       afterText={matchVsTwoLineText(row.matchLine1, row.matchLine2)}
                                     />
                                   ) : (
-                                    <MatchVsDisplayAdjust line1={row.matchLine1} line2={row.matchLine2} />
+                                    <div className="space-y-0.5">
+                                      <button
+                                        type="button"
+                                        className="block text-left font-medium text-emerald-900 underline decoration-emerald-700/30 underline-offset-2"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if (canPatch) setAssignmentId(effAsn.id);
+                                        }}
+                                      >
+                                        {row.matchLine1}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="block text-left text-emerald-900 underline decoration-emerald-700/30 underline-offset-2"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if (canPatch) setAssignmentId(effAsn.id);
+                                        }}
+                                      >
+                                        {row.matchLine2}
+                                      </button>
+                                    </div>
                                   )}
                                 </div>
                               </td>
                               <td className="min-w-0 rounded-r-lg py-3 pr-3 wrap-break-word text-zinc-700">
-                                {rowBefore ? (
-                                  <TableCellBeforeAfter
-                                    beforeText={rowBefore.refStr}
-                                    afterText={row.refStr}
-                                  />
+                                {row.isSelected && canPatch && selected && patchForSelected ? (
+                                  <div onClick={(e) => e.stopPropagation()}>
+                                    <select
+                                      value={patchForSelected.refereeReservationId ?? ""}
+                                      onChange={(e) =>
+                                        updateDraft(selected, {
+                                          refereeReservationId: e.target.value ? e.target.value : null,
+                                        })
+                                      }
+                                      className="min-h-10 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900"
+                                    >
+                                      <option value="">（審判なし）</option>
+                                      {data!.activeReservations
+                                        .filter(
+                                          (r) =>
+                                            r.id !== patchForSelected.reservationAId &&
+                                            r.id !== patchForSelected.reservationBId
+                                        )
+                                        .map((r) => (
+                                          <option key={r.id} value={r.id}>
+                                            {resLabel(r)}
+                                          </option>
+                                        ))}
+                                    </select>
+                                  </div>
+                                ) : rowBefore ? (
+                                  <TableCellBeforeAfter beforeText={rowBefore.refStr} afterText={row.refStr} />
                                 ) : (
-                                  row.refStr
+                                  <button
+                                    type="button"
+                                    className="text-left font-medium text-emerald-900 underline decoration-emerald-700/30 underline-offset-2"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (canPatch) setAssignmentId(effAsn.id);
+                                    }}
+                                  >
+                                    {row.refStr}
+                                  </button>
                                 )}
                               </td>
                             </tr>
@@ -1168,106 +1344,12 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
           </div>
 
           <div className="space-y-4 rounded-lg border border-zinc-200 bg-white p-3 sm:p-5">
-            <div>
-              <h3 className="text-sm font-medium text-zinc-900">試合内容の変更</h3>
-              <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                上の一覧から試合を選んでください。変更は保存するまで反映されません。
-              </p>
-            </div>
-            {!selected || !patchForSelected ? (
-              <p className="text-sm text-zinc-600">上の一覧から試合を選んでください。</p>
-            ) : (
-              <div className="grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
-                <div className="sm:col-span-2 border-b border-zinc-100 pb-3">
-                  <p className="text-sm leading-snug text-zinc-700">
-                    <span className="text-zinc-600">時刻</span>{" "}
-                    <span className="tabular-nums font-semibold text-zinc-900">
-                      {selectedMatchSlotTimeLabel}
-                    </span>
-                  </p>
-                </div>
-                <label className="flex min-w-0 flex-col gap-1 text-sm">
-                  <span className="font-medium text-zinc-800">チームA</span>
-                  <DraftCompareHint
-                    beforeText={reservationLine(selected.sideA.reservationId, data)}
-                    afterText={reservationLine(patchForSelected.reservationAId, data)}
-                  />
-                  <select
-                    value={patchForSelected.reservationAId}
-                    onChange={(e) =>
-                      updateDraft(selected, { reservationAId: e.target.value })
-                    }
-                    className="min-h-11 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-base text-zinc-900 touch-manipulation md:min-h-10 md:text-sm"
-                  >
-                    {data.activeReservations
-                      .filter((r) => r.id !== patchForSelected.reservationBId)
-                      .map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {resLabel(r)}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className="flex min-w-0 flex-col gap-1 text-sm">
-                  <span className="font-medium text-zinc-800">チームB</span>
-                  <DraftCompareHint
-                    beforeText={reservationLine(selected.sideB.reservationId, data)}
-                    afterText={reservationLine(patchForSelected.reservationBId, data)}
-                  />
-                  <select
-                    value={patchForSelected.reservationBId}
-                    onChange={(e) =>
-                      updateDraft(selected, { reservationBId: e.target.value })
-                    }
-                    className="min-h-11 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-base text-zinc-900 touch-manipulation md:min-h-10 md:text-sm"
-                  >
-                    {data.activeReservations
-                      .filter((r) => r.id !== patchForSelected.reservationAId)
-                      .map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {resLabel(r)}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className="flex min-w-0 flex-col gap-1 text-sm sm:col-span-2">
-                  <span className="font-medium text-zinc-800">審判</span>
-                  <DraftCompareHint
-                    beforeText={refereeLine(selected.referee?.reservationId ?? null, data)}
-                    afterText={refereeLine(patchForSelected.refereeReservationId, data)}
-                  />
-                  <select
-                    value={patchForSelected.refereeReservationId ?? ""}
-                    onChange={(e) =>
-                      updateDraft(selected, {
-                        refereeReservationId: e.target.value ? e.target.value : null,
-                      })
-                    }
-                    className="min-h-11 w-full min-w-0 rounded-md border border-zinc-300 bg-white px-2 py-2 text-base text-zinc-900 touch-manipulation md:min-h-10 md:text-sm"
-                  >
-                    <option value="">（審判なし）</option>
-                    {data.activeReservations
-                      .filter(
-                        (r) =>
-                          r.id !== patchForSelected.reservationAId &&
-                          r.id !== patchForSelected.reservationBId
-                      )
-                      .map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {resLabel(r)}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-              </div>
-            )}
-
             {hasDirtyPatches ? (
               <p className="text-xs text-zinc-600">保存していない変更があります。</p>
             ) : null}
 
             <label className="flex min-w-0 flex-col gap-1 text-sm">
-              <span className="font-medium text-zinc-800">今回の変更理由（必須）</span>
+              <span className="font-medium text-zinc-800">今回保存する変更の理由（必須）</span>
               <p className="text-xs leading-relaxed text-zinc-600">
                 保存するすべての変更に対する理由として記録されます。
               </p>
@@ -1307,7 +1389,7 @@ export function PreDayAdjustPanel({ eventDate }: { eventDate: string }) {
                 className="text-sm leading-snug text-red-600/90"
                 role="alert"
               >
-                今回の変更理由を入力してください（保存には必須です）。
+                今回保存する変更の理由を入力してください（保存には必須です）。
               </p>
             ) : null}
 

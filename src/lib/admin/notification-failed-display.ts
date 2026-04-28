@@ -90,7 +90,7 @@ export function summarizeOutboundEmailError(raw: string | null): OutboundEmailEr
   }
 
   return {
-    summaryJa: "送信できませんでした。必要に応じて確認・再送してください。",
+    summaryJa: "送信できませんでした。",
     rawDetail: t,
   };
 }

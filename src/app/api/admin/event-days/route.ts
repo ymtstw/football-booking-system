@@ -133,7 +133,7 @@ export async function POST(request: Request) {
   if (dayErr) {
     if (dayErr.code === "23505") {
       return NextResponse.json(
-        { error: "同じ開催日（event_date）が既に存在します" },
+        { error: "同じ開催日が既に存在します" },
         { status: 409 }
       );
     }

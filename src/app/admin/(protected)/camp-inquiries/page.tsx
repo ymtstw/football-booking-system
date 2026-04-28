@@ -11,7 +11,6 @@ import {
   rollingThirtyDaysCutoffIso,
 } from "@/lib/admin/inquiry-admin-list-query";
 import { fetchInquiryTabCountsForPage } from "@/lib/admin/inquiry-count-queries";
-import { getLodgingPlanLabelJa } from "@/lib/camp-inquiry/camp-lodging-plans";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
@@ -48,31 +47,9 @@ function tabLabelWithCount(base: string, count: number): string {
   return count > 0 ? `${base} · ${count}` : base;
 }
 
-/** 代表者・チームを1列に（空は —） */
-function participantTeamLines(a: Record<string, string>): { primary: string; secondary: string | null } {
-  const name = a.contact_name?.trim() ?? "";
-  const team = a.team_name?.trim() ?? "";
-  if (!name && !team) return { primary: "—", secondary: null };
-  if (!name) return { primary: team, secondary: null };
-  if (!team) return { primary: name, secondary: null };
-  return { primary: name, secondary: team };
-}
-
-/** 希望プラン＋希望日程を1列に */
-function hopeContentCell(planLabel: string, datesRaw: string): ReactNode {
-  const dates = datesRaw.trim() || "—";
-  const plan = planLabel.trim() || "—";
-  if (plan === "—" && dates === "—") {
-    return <span className="text-zinc-400">—</span>;
-  }
-  return (
-    <div className="max-w-md min-w-0 space-y-1">
-      <p className="wrap-break-word text-sm text-zinc-900">{plan === "—" ? "—" : plan}</p>
-      <p className="wrap-break-word text-xs leading-snug whitespace-pre-wrap text-zinc-600">
-        {dates === "—" ? <span className="text-zinc-400">—</span> : dates}
-      </p>
-    </div>
-  );
+function trimmedOrDash(v: string | undefined): string {
+  const s = (v ?? "").trim();
+  return s === "" ? "—" : s;
 }
 
 function emptyMessageCamp(tab: InquiryListTab, period: InquiryListPeriod): string {
@@ -205,12 +182,9 @@ export default async function AdminCampInquiriesPage({
           <div className="space-y-3 md:hidden">
             {rows.map((row) => {
               const a = normalizeAnswers(row.answers);
-              const planId = a.preferred_plan?.trim() ?? "";
-              const planLabel =
-                planId === "" ? "—" : getLodgingPlanLabelJa(planId) ?? planId;
-              const dates = a.preferred_dates?.trim() ?? "";
-              const headcount = a.headcount?.trim() || "—";
-              const pt = participantTeamLines(a);
+              const contactName = trimmedOrDash(a.contact_name);
+              const preferredDates = trimmedOrDash(a.preferred_dates);
+              const message = trimmedOrDash(a.inquiry_message);
               return (
                 <article
                   key={row.id}
@@ -222,23 +196,24 @@ export default async function AdminCampInquiriesPage({
                   </p>
                   <dl className="mt-3 space-y-2.5 text-sm text-zinc-900">
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">相談者・チーム</dt>
-                      <dd className="mt-0.5 wrap-break-word">
-                        {pt.primary}
-                        {pt.secondary ? (
-                          <span className="mt-0.5 block text-xs text-zinc-600">{pt.secondary}</span>
-                        ) : null}
+                      <dt className="text-xs font-medium text-zinc-500">代表者名</dt>
+                      <dd className="mt-0.5 wrap-break-word font-medium text-zinc-900">
+                        {contactName}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-medium text-zinc-500">希望内容</dt>
-                      <dd className="mt-0.5">{hopeContentCell(planLabel, dates)}</dd>
+                      <dt className="text-xs font-medium text-zinc-500">希望日程</dt>
+                      <dd className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">
+                        {preferredDates}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs font-medium text-zinc-500">相談内容</dt>
+                      <dd className="mt-0.5 whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">
+                        {message}
+                      </dd>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2">
-                      <div>
-                        <dt className="text-xs font-medium text-zinc-500">人数</dt>
-                        <dd className="mt-0.5">{headcount}</dd>
-                      </div>
                       <div className="text-right">
                         <dt className="text-xs font-medium text-zinc-500">ステータス</dt>
                         <dd className="mt-1">
@@ -261,15 +236,15 @@ export default async function AdminCampInquiriesPage({
           </div>
           <div className="hidden min-w-0 max-w-full md:block">
             <div className="overflow-x-auto overscroll-x-contain rounded-lg border border-zinc-200 bg-white shadow-sm [-webkit-overflow-scrolling:touch]">
-              <table className="min-w-[52rem] w-full border-collapse text-left text-sm">
+              <table className="min-w-240 w-full border-collapse text-left text-sm">
                 <thead className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-600 sm:text-sm">
                   <tr>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">受付日時</th>
-                    <th className="min-w-[10rem] px-3 py-2.5 sm:px-4">相談者・チーム</th>
-                    <th className="min-w-[12rem] px-3 py-2.5 sm:px-4">希望内容</th>
-                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">人数</th>
+                    <th className="min-w-40 px-3 py-2.5 sm:px-4">代表者名</th>
+                    <th className="min-w-48 px-3 py-2.5 sm:px-4">希望日程</th>
+                    <th className="min-w-72 px-3 py-2.5 sm:px-4">相談内容</th>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">ステータス</th>
-                    <th className="sticky right-0 z-20 min-w-[6.5rem] whitespace-nowrap border-l border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] sm:px-4">
+                    <th className="sticky right-0 z-20 min-w-26 whitespace-nowrap border-l border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] sm:px-4">
                       操作
                     </th>
                   </tr>
@@ -277,40 +252,34 @@ export default async function AdminCampInquiriesPage({
                 <tbody className="divide-y divide-zinc-100">
                   {rows.map((row) => {
                     const a = normalizeAnswers(row.answers);
-                    const planId = a.preferred_plan?.trim() ?? "";
-                    const planLabel =
-                      planId === ""
-                        ? "—"
-                        : getLodgingPlanLabelJa(planId) ?? planId;
-                    const dates = a.preferred_dates?.trim() ?? "";
-                    const headcount = a.headcount?.trim() || "—";
-                    const pt = participantTeamLines(a);
+                    const contactName = trimmedOrDash(a.contact_name);
+                    const preferredDates = trimmedOrDash(a.preferred_dates);
+                    const message = trimmedOrDash(a.inquiry_message);
                     return (
                       <tr key={row.id} className="group align-top text-zinc-900">
                         <td className="whitespace-nowrap px-3 py-2.5 text-xs sm:px-4 sm:text-sm">
                           {formatDateTimeTokyoWithWeekday(row.created_at)}
                         </td>
-                        <td className="max-w-[14rem] px-3 py-2.5 sm:px-4">
-                          <div className="wrap-break-word font-medium">{pt.primary}</div>
-                          {pt.secondary ? (
-                            <div className="mt-0.5 wrap-break-word text-xs text-zinc-600">
-                              {pt.secondary}
-                            </div>
-                          ) : null}
+                        <td className="max-w-56 px-3 py-2.5 sm:px-4">
+                          <div className="wrap-break-word font-medium">{contactName}</div>
                         </td>
-                        <td className="px-3 py-2.5 sm:px-4">
-                          {hopeContentCell(planLabel, dates)}
+                        <td className="max-w-72 px-3 py-2.5 sm:px-4">
+                          <div className="line-clamp-3 whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">
+                            {preferredDates}
+                          </div>
                         </td>
-                        <td className="max-w-[8rem] whitespace-nowrap px-3 py-2.5 tabular-nums sm:px-4">
-                          {headcount}
+                        <td className="max-w-104 px-3 py-2.5 sm:px-4">
+                          <div className="line-clamp-3 whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">
+                            {message}
+                          </div>
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
                           <InquiryStatusBadge status={row.status} />
                         </td>
-                        <td className="sticky right-0 z-10 min-w-[6.5rem] whitespace-nowrap border-l border-zinc-200 bg-white px-2 py-2 shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] group-hover:bg-zinc-50 sm:px-3">
+                        <td className="sticky right-0 z-10 min-w-26 whitespace-nowrap border-l border-zinc-200 bg-white px-2 py-2 shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] group-hover:bg-zinc-50 sm:px-3">
                           <Link
                             href={`/admin/camp-inquiries/${row.id}`}
-                            className="inline-flex min-h-9 w-full min-w-[4.75rem] items-center justify-center rounded-md border border-zinc-300 bg-white px-2 text-sm font-semibold text-zinc-800 shadow-sm hover:border-zinc-400 hover:bg-zinc-50"
+                            className="inline-flex min-h-9 w-full min-w-19 items-center justify-center rounded-md border border-zinc-300 bg-white px-2 text-sm font-semibold text-zinc-800 shadow-sm hover:border-zinc-400 hover:bg-zinc-50"
                           >
                             詳細
                           </Link>
