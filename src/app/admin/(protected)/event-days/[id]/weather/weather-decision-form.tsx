@@ -245,7 +245,8 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
               <p className="text-xs leading-relaxed text-zinc-600">
                 <strong className="text-zinc-800">①</strong> はこの画面の「登録する」では送らず、
                 <strong className="text-zinc-800">開催前日に自動で一斉送信</strong>されます（届くのは目安{" "}
-                <strong>17:30頃まで</strong>）。
+                <strong>16:30頃</strong>）。
+                送信状況により、到着まで数分程度かかる場合があります。
                 <strong className="text-zinc-800">②</strong> は雨天中止の確定と、参加者への即時メール送信をセットで行う経路です。
                 誤送信を防ぐため、下のチェックをオンにしないと「登録する」を押せません。
               </p>
@@ -261,7 +262,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
                   className="mt-1"
                 />
                 <span>
-                  <span className="font-semibold text-zinc-900">① 前日・自動で一斉送信（目安17:30頃までに届く）</span>
+                  <span className="font-semibold text-zinc-900">① 前日・自動で一斉送信（16:30頃）</span>
                   <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
                     開催前日の定時処理（目安16:30開始）で送信。ここで登録しただけではまだ送りません。
                   </span>

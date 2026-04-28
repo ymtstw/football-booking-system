@@ -1,18 +1,18 @@
 /**
  * 予約サイト・案内メール本文の時刻表記（`vercel.json` の UTC と整合）。
- * - マッチング案内 Cron: UTC `0 7` → 16:00 JST → 利用者向け「17:00まで」
- * - 前日最終 Cron: UTC `30 7` → 16:30 JST → 利用者向け「17:30まで」
+ * - マッチング案内 Cron: UTC `0 7` → 16:00 JST（対戦スケジュール案内）
+ * - 前日最終 Cron: UTC `30 7` → 16:30 JST（最終案内）
  */
 export const RESERVE_MAIL_PUBLIC_JA = {
   matchingCronHint: "16:00頃",
-  matchingBy: "17:00",
+  matchingBy: "16:00",
   dayBeforeCronHint: "16:30頃",
-  dayBeforeBy: "17:30",
+  dayBeforeBy: "16:30",
 } as const;
 
 /** 予約者向けに共通で付ける注記（ピッタリ時刻の保証はしない） */
 export const RESERVE_MAIL_TIMING_NOTE_JA =
-  "※送信処理の開始時刻やメールの到着時刻は前後する場合があります。";
+  "送信状況により、到着まで数分程度かかる場合があります。";
 
 /**
  * 予約内容の変更・Web からのキャンセルが可能な締切（開催日基準）。

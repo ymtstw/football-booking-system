@@ -107,11 +107,11 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
             <dd>{data.weatherDayBeforeRainScheduled ? "あり" : "なし"}</dd>
           </div>
           <div>
-            <dt className="text-zinc-500">対戦案内メール（16:00頃・目安17:00まで）</dt>
+            <dt className="text-zinc-500">対戦案内メール（16:00頃）</dt>
             <dd>{data.matchingProposalNoticeSentAt ? "送信処理済み" : "未"}</dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-zinc-500">前日最終メール（16:30頃・目安17:30まで）</dt>
+            <dt className="text-zinc-500">前日最終メール（16:30頃）</dt>
             <dd>{data.finalDayBeforeNoticeCompletedAt ? "完了記録あり" : "未完了"}</dd>
           </div>
           <div className="sm:col-span-2 border-t border-zinc-100 pt-3">

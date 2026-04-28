@@ -1098,7 +1098,7 @@
     {
       "id": "a0e3ae992ff21ea8",
       "section": "3. Phase 3 — 運用補正・本番",
-      "text": "雨天判断を前日一括最終メール（16:30頃・目安17:30まで）に含める（例外: 即時 `weather_cancel_immediate`・`day_before_17` 雨天予約）",
+      "text": "雨天判断を前日一括最終メール（16:30頃）に含める（例外: 即時 `weather_cancel_immediate`・`day_before_17` 雨天予約）",
       "defaultDone": true,
       "sourceLine": 310
     },

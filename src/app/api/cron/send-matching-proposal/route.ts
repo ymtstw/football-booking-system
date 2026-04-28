@@ -18,6 +18,19 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 
 export const dynamic = "force-dynamic";
 
+function tokyoNowMinutes(): number {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const hh = Number(parts.find((p) => p.type === "hour")?.value);
+  const mm = Number(parts.find((p) => p.type === "minute")?.value);
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0;
+  return hh * 60 + mm;
+}
+
 export async function GET(request: NextRequest) {
   const secret = cronSecretConfigured();
   if (!secret) {
@@ -36,7 +49,26 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const todayTokyo = tokyoIsoDateToday();
-  const targetEventDate = addDaysIsoDate(todayTokyo, 2);
+  const isDev = process.env.NODE_ENV !== "production";
+  const targetOverride = request.nextUrl.searchParams.get("targetEventDate")?.trim();
+  const forcePublish = isDev && request.nextUrl.searchParams.get("forcePublish") === "1";
+  const nowMinutes = tokyoNowMinutes();
+  const opsConfirmMinutes = 16 * 60;
+  if (!forcePublish && nowMinutes < opsConfirmMinutes) {
+    return NextResponse.json(
+      {
+        ok: true,
+        todayTokyo,
+        skippedReason: "before_ops_confirm_time",
+        note: "運営確認の想定時刻（16:00 JST）より前のため、公開スタンプを行いません。",
+      },
+      { status: 200 }
+    );
+  }
+  const targetEventDate =
+    isDev && targetOverride && /^\d{4}-\d{2}-\d{2}$/.test(targetOverride)
+      ? targetOverride
+      : addDaysIsoDate(todayTokyo, 2);
 
   const { data: eventDays, error: dayErr } = await supabase
     .from("event_days")
@@ -63,6 +95,24 @@ export async function GET(request: NextRequest) {
     let sent = 0;
     let skipped = 0;
     let emailFailed = 0;
+    let publishReady = false;
+
+    // 公開条件: 試合表（matching_run + scheduled assignments）が作られていること
+    // ※これが無い状態で公開スタンプだけ立てると、公開画面が空になる。
+    const { data: currentRun } = await supabase
+      .from("matching_runs")
+      .select("id")
+      .eq("event_day_id", eventDayId)
+      .eq("is_current", true)
+      .maybeSingle();
+    if (currentRun?.id) {
+      const { count } = await supabase
+        .from("match_assignments")
+        .select("id", { count: "exact", head: true })
+        .eq("matching_run_id", currentRun.id)
+        .eq("status", "scheduled");
+      publishReady = typeof count === "number" && count > 0;
+    }
 
     const { data: reservations, error: resErr } = await supabase
       .from("reservations")
@@ -164,7 +214,9 @@ export async function GET(request: NextRequest) {
     }
 
     let stampFailed = false;
-    if (emailFailed === 0) {
+    // 公開（確定）トリガーは「メール成功」ではなく「公開処理が走った」こと。
+    // ただし、試合表ができていない状態では公開しない（空表示防止）。
+    if (publishReady) {
       const { error: stampErr } = await supabase
         .from("event_days")
         .update({ matching_proposal_notice_sent_at: new Date().toISOString() })
@@ -174,6 +226,8 @@ export async function GET(request: NextRequest) {
       if (stampErr) {
         stampFailed = true;
       }
+    } else {
+      stampFailed = true;
     }
 
     const failed = emailFailed + (stampFailed ? 1 : 0);
@@ -191,7 +245,9 @@ export async function GET(request: NextRequest) {
       });
     } else if (stampFailed) {
       await sendOpsBatchFailureDigestEmail({
-        jobLabelJa: "マッチング案内済みフラグ更新（Cron）",
+        jobLabelJa: publishReady
+          ? "マッチング案内済みフラグ更新（Cron）"
+          : "試合表未生成のため公開スキップ（Cron）",
         templateKey: "event_days.matching_proposal_notice_sent_at",
         eventDayId,
         eventDateIso: eventDate,

@@ -29,6 +29,8 @@ export type EventDayPublic = {
   status: string;
   reservation_deadline_at: string;
   acceptingReservations: boolean;
+  /** 対戦案内メール送信済み（公開側で「試合スケジュール確定」扱い） */
+  matchingProposalNoticeSentAt?: string | null;
   /** GET /api/event-days で付与。有効予約（チーム）数 */
   activeReservationCount?: number;
   /** GET /api/event-days で付与。受付中のみ数値、それ以外は null */
@@ -43,6 +45,7 @@ function monthTitleJa(year: number, month: number): string {
 function calendarCellSubLabel(event: {
   status: string;
   acceptingReservations: boolean;
+  matchingProposalNoticeSentAt?: string | null;
 }): { label: string; cancelled: boolean } {
   const { label, cancelled } = publicScheduleHubStatusLabel(event);
   return { label, cancelled };
@@ -227,7 +230,7 @@ export function ReserveEventDaysCalendar({
                     ? "bg-rose-50/90 ring-rose-200 hover:bg-rose-100/90"
                     : event!.acceptingReservations
                       ? "bg-rp-mint ring-rp-brand/20 hover:bg-rp-mint-2/90"
-                      : "bg-zinc-100 ring-zinc-200 hover:bg-zinc-200/80");
+                      : "bg-sky-50 ring-sky-200 hover:bg-sky-100/80");
                 return (
                   <Link
                     key={isoDate + idx}

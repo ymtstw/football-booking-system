@@ -92,7 +92,9 @@ export default function ReserveEventGuidePage() {
             <ReserveInfoCard title="開催判断について" icon={<IconCloudRain className="h-4 w-4 sm:h-6 sm:w-6" />}>
               <p>雨天やグラウンド状況により、中止となる場合があります。</p>
               <p className="mt-1.5 sm:mt-2">
-                開催可否の最終案内は、前日17:30頃までにメールでご案内します。
+                開催可否の最終案内は、前日16:30頃にメールでご案内します。
+                <br />
+                送信状況により、到着まで数分程度かかる場合があります。
               </p>
             </ReserveInfoCard>
           </ReserveInfoGrid>
@@ -126,13 +128,17 @@ export default function ReserveEventGuidePage() {
                 <div>
                   <p className="font-bold">開催予定・試合予定のご案内</p>
                   <p className="mt-1">
-                    開催日の2日前 17:30頃までに、開催予定と試合予定をメールでご案内します。
+                    開催日の2日前 16:00頃に、開催予定と試合予定をメールでご案内します。
+                    <br />
+                    送信状況により、到着まで数分程度かかる場合があります。
                   </p>
                 </div>
                 <div>
                   <p className="font-bold">最終開催判断のご案内</p>
                   <p className="mt-1">
-                    開催日前日 17:30頃までに、最終的な開催可否をメールでご案内します。
+                    開催日前日 16:30頃に、最終的な開催可否をメールでご案内します。
+                    <br />
+                    送信状況により、到着まで数分程度かかる場合があります。
                   </p>
                   <p className="mt-1.5">
                     悪天候などにより安全な実施が難しい場合は、中止となります。
@@ -231,7 +237,7 @@ export default function ReserveEventGuidePage() {
 /** 昼食について（目立つカード） */
 function LunchCard() {
   return (
-    <section className="mt-8 overflow-hidden rounded-2xl border border-green-200/70 bg-gradient-to-b from-green-50/50 to-white sm:mt-10">
+    <section className="mt-8 overflow-hidden rounded-2xl border border-green-200/70 bg-linear-to-b from-green-50/50 to-white sm:mt-10">
       <header className="border-b border-green-200/50 bg-white/85 px-5 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
           <span

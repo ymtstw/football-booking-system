@@ -70,7 +70,8 @@ export function ScheduleHubClient({
           開催日ごとの参加チーム・試合予定
         </h1>
         <p className="text-sm leading-relaxed text-slate-600">
-        開催可否は、開催日前日17:30頃までに反映します。
+        開催可否は、開催日前日16:30頃までに反映します。
+        送信状況により、到着まで数分程度かかる場合があります。
         </p>
       </header>
 
@@ -113,7 +114,7 @@ export function ScheduleHubClient({
                   <li key={d.id}>
                     <Link
                       href={`/reserve/schedule/${d.event_date}`}
-                      className={`flex min-h-[3.25rem] items-center gap-3 rounded-lg border px-3 py-2 shadow-sm transition-colors active:scale-[0.99] sm:min-h-14 sm:px-3.5 sm:py-2.5 ${toneClass}`}
+                      className={`flex min-h-13 items-center gap-3 rounded-lg border px-3 py-2 shadow-sm transition-colors active:scale-[0.99] sm:min-h-14 sm:px-3.5 sm:py-2.5 ${toneClass}`}
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-bold leading-tight text-slate-900 sm:text-[15px]">
@@ -133,7 +134,7 @@ export function ScheduleHubClient({
                           参加チーム：{teamCount}チーム
                         </p>
                       </div>
-                      <span className="inline-flex min-h-10 max-w-[10.5rem] shrink-0 items-center justify-center rounded-lg bg-rp-brand px-2 py-1.5 text-center text-[11px] font-bold leading-snug text-white shadow-sm ring-1 ring-rp-brand/30 sm:min-h-11 sm:max-w-none sm:whitespace-nowrap sm:px-3.5 sm:text-sm">
+                      <span className="inline-flex min-h-10 max-w-42 shrink-0 items-center justify-center rounded-lg bg-rp-brand px-2 py-1.5 text-center text-[11px] font-bold leading-snug text-white shadow-sm ring-1 ring-rp-brand/30 sm:min-h-11 sm:max-w-none sm:whitespace-nowrap sm:px-3.5 sm:text-sm">
                         参加チーム・試合予定を見る
                       </span>
                     </Link>

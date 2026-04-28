@@ -80,7 +80,8 @@ export default async function AdminEventDaySlotsDetailPage({
         <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-sky-950">
           <p className="font-semibold text-sky-950">登録完了しました。</p>
           <p className="mt-1 leading-relaxed text-sky-900/95">
-            天候対応の登録が完了しました。原則、参加者向けの最終文面は前日の一括メール（16:30頃開始・目安17:30まで）に反映されます。
+            天候対応の登録が完了しました。原則、参加者向けの最終文面は前日の一括メール（16:30頃開始）に反映されます。
+            送信状況により、到着まで数分程度かかる場合があります。
           </p>
           {imLine ? (
             <p className="mt-2 text-xs leading-relaxed text-sky-900/90">{imLine}</p>
@@ -99,7 +100,8 @@ export default async function AdminEventDaySlotsDetailPage({
         <div className="rounded-xl border border-sky-200 bg-sky-50/60 px-4 py-3 text-sm text-sky-950">
           <p className="font-semibold text-sky-950">登録完了しました。</p>
           <p className="mt-1 leading-relaxed text-sky-900/95">
-            運営都合による緊急中止を登録しました。原則、入力したお知らせ文は前日の一括メール（16:30頃開始・目安17:30まで）に反映されます。
+            運営都合による緊急中止を登録しました。原則、入力したお知らせ文は前日の一括メール（16:30頃開始）に反映されます。
+            送信状況により、到着まで数分程度かかる場合があります。
           </p>
           {imLine ? (
             <p className="mt-2 text-xs leading-relaxed text-sky-900/90">{imLine}</p>

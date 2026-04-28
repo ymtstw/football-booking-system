@@ -17,6 +17,8 @@ type AvailabilityJson = {
   eventDayStatus?: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
+  /** 対戦案内メール送信済み（公開側で「試合スケジュール確定」扱い） */
+  matchingProposalNoticeSentAt?: string | null;
   /** 有効予約チーム数（枠未選択のチームも含む） */
   activeReservationCount?: number;
   morningSlots: MorningSlotSelectRow[];
@@ -43,6 +45,8 @@ type PublicScheduleJson = {
   eventDayStatus: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
+  /** 対戦案内メール送信済み（公開側で「試合スケジュール確定」扱い） */
+  matchingProposalNoticeSentAt: string | null;
   confirmedMatches: PublicMatch[] | null;
   error?: string;
 };
@@ -150,7 +154,8 @@ export function ScheduleDayClient({
   }
 
   const matches = schedule?.confirmedMatches;
-  const showMatchSection = avail.eventDayStatus === "confirmed";
+  const isAfterDeadline = !avail.acceptingReservations;
+  const schedulePublished = Boolean(schedule?.matchingProposalNoticeSentAt);
   const hasMatches = Array.isArray(matches) && matches.length > 0;
 
   return (
@@ -173,6 +178,7 @@ export function ScheduleDayClient({
               publicScheduleHubStatusLabel({
                 status: String(avail.eventDayStatus ?? ""),
                 acceptingReservations: avail.acceptingReservations,
+                matchingProposalNoticeSentAt: avail.matchingProposalNoticeSentAt ?? null,
               }).label
             }{" "}
             / 参加チーム：
@@ -181,35 +187,20 @@ export function ScheduleDayClient({
         </div>
       </ReserveMainShell>
 
-      <MorningSlotsSelect
-        morningSlots={avail.morningSlots}
-        acceptingReservations={avail.acceptingReservations}
-        eventDayStatus={avail.eventDayStatus}
-        selectedSlotId=""
-        onSelectSlot={() => {}}
-        readOnly
-        categoryLegendMode="none"
-        minimalIntro
-        variant="full"
-      />
-
-      <section className="rounded-[20px] border border-rp-mint-2 bg-white p-4 shadow-sm sm:p-5">
-        <h2 className="text-lg font-bold text-rp-navy sm:text-xl">試合スケジュール</h2>
-        {scheduleError && showMatchSection ? (
-          <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-            {scheduleError}
-          </p>
-        ) : null}
-        {!showMatchSection ? (
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            編成が確定（開催決定）すると、ここに当日の試合スケジュールを表示します。
-          </p>
-        ) : scheduleError ? null : !hasMatches ? (
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            開催決定ですが、試合データがまだ登録されていないか、取得できませんでした。しばらくしてから再度お試しください。
-          </p>
-        ) : (
-          <>
+      {schedulePublished ? (
+        <>
+          <section className="rounded-[20px] border border-rp-mint-2 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="text-lg font-bold text-rp-navy sm:text-xl">試合スケジュール</h2>
+            {scheduleError ? (
+              <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                {scheduleError}
+              </p>
+            ) : !hasMatches ? (
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                試合データがまだ登録されていないか、取得できませんでした。しばらくしてから再度お試しください。
+              </p>
+            ) : (
+              <>
 
             <div className="mt-4 space-y-4 sm:hidden">
               {matches!.map((m, idx) => {
@@ -338,8 +329,74 @@ export function ScheduleDayClient({
               </table>
             </div>
           </>
-        )}
-      </section>
+            )}
+          </section>
+
+          <div className="sm:hidden">
+            <details className="rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm">
+              <summary className="cursor-pointer text-sm font-bold text-slate-900">
+                午前の対戦枠（状況）
+              </summary>
+              <div className="mt-3">
+                <MorningSlotsSelect
+                  morningSlots={avail.morningSlots}
+                  acceptingReservations={avail.acceptingReservations}
+                  eventDayStatus={avail.eventDayStatus}
+                  selectedSlotId=""
+                  onSelectSlot={() => {}}
+                  readOnly
+                  categoryLegendMode="none"
+                  minimalIntro
+                  variant="full"
+                />
+              </div>
+            </details>
+          </div>
+          <div className="hidden sm:block">
+            <MorningSlotsSelect
+              morningSlots={avail.morningSlots}
+              acceptingReservations={avail.acceptingReservations}
+              eventDayStatus={avail.eventDayStatus}
+              selectedSlotId=""
+              onSelectSlot={() => {}}
+              readOnly
+              categoryLegendMode="none"
+              minimalIntro
+              variant="full"
+            />
+          </div>
+        </>
+      ) : (
+        <>
+          <MorningSlotsSelect
+            morningSlots={avail.morningSlots}
+            acceptingReservations={avail.acceptingReservations}
+            eventDayStatus={avail.eventDayStatus}
+            selectedSlotId=""
+            onSelectSlot={() => {}}
+            readOnly
+            categoryLegendMode="none"
+            minimalIntro
+            variant="full"
+          />
+
+          <section className="rounded-[20px] border border-rp-mint-2 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="text-lg font-bold text-rp-navy sm:text-xl">試合スケジュール</h2>
+            {isAfterDeadline ? (
+              <div className="mt-2 space-y-1.5 text-sm leading-relaxed text-slate-700">
+                <p className="font-bold text-slate-900">試合スケジュール確認中</p>
+                <p>予約受付は締め切りました。</p>
+                <p>現在、運営側で試合スケジュールを確認しています。</p>
+                <p>確定後、参加チームへメールでご案内します。</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                予約締切後にご案内します。
+              </p>
+            )}
+          </section>
+        </>
+      )}
     </div>
   );
 }

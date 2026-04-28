@@ -30,8 +30,10 @@ export default async function AdminEventDayWeatherPage({
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">天候対応</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
         実施／中止を登録します。雨天で中止にするときの連絡は次の2通りです。{" "}
-        <strong>① 開催前日に自動で一斉送信</strong>（届くのは目安17:30頃まで）／{" "}
+        <strong>① 開催前日に自動で一斉送信</strong>（16:30頃）／{" "}
         <strong>② 登録と同時にメール送信</strong>（緊急時）。
+        <br />
+        送信状況により、到着まで数分程度かかる場合があります。
         <span className="mt-2 block text-xs text-zinc-500">
           天候以外の中止は{" "}
           <Link

@@ -41,7 +41,7 @@ export function OperationalCancelForm({
       "運営都合による開催中止として登録します。\n" +
         (sendImmediate
           ? "② のとおり、登録と同時に「運営都合により開催中止」の即時メールを送ります。\n"
-          : "① のとおり、この画面ではまだ送信せず、開催前日の定時バッチ（目安16:30開始・届くのは目安17:30頃まで）にこの文面が載ります。\n") +
+          : "① のとおり、この画面ではまだ送信せず、開催前日の定時バッチ（目安16:30開始）にこの文面が載ります。\n") +
         "\n実行してよいですか？"
     );
     if (!ok) return;
@@ -162,7 +162,8 @@ export function OperationalCancelForm({
           はこの画面では送らず、
           <strong className="text-zinc-800">開催前日に自動で一斉送信</strong>
           されます（届くのは目安
-          <strong className="text-zinc-800"> 17:30頃まで</strong>）。
+          <strong className="text-zinc-800"> 16:30頃</strong>）。
+          送信状況により、到着まで数分程度かかる場合があります。
           <strong className="text-zinc-800">②</strong>
           は運営中止の確定と、参加者への即時メール送信をセットで行う経路です。
           誤送信を防ぐため、下のチェックをオンにしないと「緊急中止として登録する」を押せません。
@@ -180,7 +181,7 @@ export function OperationalCancelForm({
           />
           <span>
             <span className="font-semibold text-zinc-900">
-              ① 前日・自動で一斉送信（目安17:30頃までに届く）
+              ① 前日・自動で一斉送信（16:30頃）
             </span>
             <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
               開催前日の定時処理（目安16:30開始）で送信。ここで登録しただけではまだ送りません。

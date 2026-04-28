@@ -23,6 +23,8 @@ export type PublicAvailabilityDayRow = {
   grade_band: string;
   status: string;
   reservation_deadline_at: string;
+  /** 2日前16:00の対戦案内メール（matching_proposal）送信済みの記録。null の間は公開側で「確定」と見せない。 */
+  matching_proposal_notice_sent_at?: string | null;
 };
 
 export type PublicAvailabilityPayload = {
@@ -32,6 +34,8 @@ export type PublicAvailabilityPayload = {
   eventDayStatus: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
+  /** 対戦案内メール送信済み（公開側の「試合スケジュール確定」判定に使用） */
+  matchingProposalNoticeSentAt?: string | null;
   activeReservationCount: number;
   morningSlots: Array<{
     id: string;
@@ -220,6 +224,7 @@ export async function buildPublicAvailabilityPayloadForDay(
     eventDayStatus: status,
     reservationDeadlineAt: day.reservation_deadline_at,
     acceptingReservations,
+    matchingProposalNoticeSentAt: day.matching_proposal_notice_sent_at ?? null,
     activeReservationCount: activeReservationTotal,
     morningSlots,
   };

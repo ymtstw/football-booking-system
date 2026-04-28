@@ -82,6 +82,8 @@ export type PublicSchedulePayload = {
   eventDayStatus: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
+  /** 対戦案内メール送信済み（公開側の「試合スケジュール確定」判定に使用） */
+  matchingProposalNoticeSentAt: string | null;
   confirmedMatches: PublicScheduleConfirmedMatch[] | null;
 };
 
@@ -130,8 +132,11 @@ export async function buildPublicSchedulePayloadForDay(
   const deadlineMs = new Date(day.reservation_deadline_at).getTime();
   const acceptingReservations =
     status === "open" && Number.isFinite(deadlineMs) && Date.now() < deadlineMs;
+  const publishedAt = day.matching_proposal_notice_sent_at ?? null;
 
-  if (status !== "confirmed") {
+  // 公開側の「試合スケジュール確定」は、2日前16:00の案内メール送信後（publishedAt）を基準にする。
+  // confirmed/locked であっても publishedAt が null の間は試合スケジュールを出さない。
+  if (!(status === "confirmed" || status === "locked") || !publishedAt) {
     return {
       ok: true,
       payload: {
@@ -140,6 +145,7 @@ export async function buildPublicSchedulePayloadForDay(
         eventDayStatus: status,
         reservationDeadlineAt: day.reservation_deadline_at,
         acceptingReservations,
+        matchingProposalNoticeSentAt: publishedAt,
         confirmedMatches: null as null,
       },
     };
@@ -174,6 +180,7 @@ export async function buildPublicSchedulePayloadForDay(
         eventDayStatus: status,
         reservationDeadlineAt: day.reservation_deadline_at,
         acceptingReservations,
+        matchingProposalNoticeSentAt: publishedAt,
         confirmedMatches: [] as PublicScheduleConfirmedMatch[],
       },
     };
@@ -278,6 +285,7 @@ export async function buildPublicSchedulePayloadForDay(
       eventDayStatus: status,
       reservationDeadlineAt: day.reservation_deadline_at,
       acceptingReservations,
+        matchingProposalNoticeSentAt: publishedAt,
       confirmedMatches,
     },
   };

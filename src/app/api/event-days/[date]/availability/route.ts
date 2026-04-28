@@ -37,7 +37,7 @@ export async function GET(
 
   const { data: day, error: dayErr } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status, reservation_deadline_at")
+    .select("id, event_date, grade_band, status, reservation_deadline_at, matching_proposal_notice_sent_at")
     .eq("event_date", eventDate)
     .in("status", [...publicEventDayStatuses()])
     .maybeSingle();
