@@ -298,7 +298,7 @@ export default async function AdminEventDayHubPage({
           </HubInfoCard>
         </section>
 
-        <div className="contents lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:sticky lg:top-4 lg:z-10 lg:flex lg:min-h-0 lg:max-w-none lg:flex-col lg:gap-4">
+        <div className="contents lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:flex lg:min-h-0 lg:max-w-none lg:flex-col lg:gap-4">
           <aside
             aria-labelledby="hub-attention-heading"
             className={
@@ -446,7 +446,7 @@ export default async function AdminEventDayHubPage({
           <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch lg:gap-5">
           <div className="min-w-0 flex flex-col">
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-red-800">
-              危険・中止
+            　緊急・中止
             </h3>
             <div className="min-h-0 flex-1 rounded-xl border border-red-200 bg-red-50/80 p-3 shadow-sm sm:p-4">
               <Link
