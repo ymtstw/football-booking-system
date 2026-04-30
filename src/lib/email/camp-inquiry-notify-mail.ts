@@ -3,10 +3,7 @@ import "server-only";
 import { Resend } from "resend";
 
 import { buildAdminCampInquiryDetailUrl } from "@/lib/camp-inquiry/camp-inquiry-admin-url";
-import {
-  CAMP_INQUIRY_SCHEMA_VERSION,
-  formatCampInquiryAnswersForDisplay,
-} from "@/lib/camp-inquiry/camp-inquiry-field-registry";
+import { formatCampInquiryAnswersForDisplay } from "@/lib/camp-inquiry/camp-inquiry-field-registry";
 import { getLodgingPlanLabelJa } from "@/lib/camp-inquiry/camp-lodging-plans";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_OPS_CAMP } from "@/lib/email/mail-brand";
@@ -89,9 +86,6 @@ export async function sendCampInquiryNotifyEmail(params: {
     "※この受付は「予約の確定」を意味しません。内容を確認のうえ、運営から返信メールまたはお電話でご連絡ください。",
     "（当日の進行や対戦表の自動管理は対象外です。）",
     "",
-    `照会 ID: ${params.inquiryId}`,
-    `スキーマ: ${CAMP_INQUIRY_SCHEMA_VERSION}`,
-    "",
     ...structuredLines.filter(([, v]) => v.trim() !== "").map(([k, v]) => `${k}: ${v}`),
     ...(extraLines.length > 0
       ? ["", "--- 任意項目・その他 ---", ...extraLines.map((l) => `${l.labelJa}: ${l.value}`)]
@@ -129,11 +123,9 @@ export async function sendCampInquiryNotifyEmail(params: {
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>「${escapeHtml(MAIL_BODY_SERVICE_NAME)}」の合宿のご相談フォームから、新しいお問い合わせがあります。</p>
 <p style="font-size:14px;color:#3f3f46"><strong>予約の確定ではありません。</strong>運営で内容を確認のうえ、返信メールまたはお電話でご連絡ください。</p>
-<p style="font-size:13px;color:#52525b">照会 ID: <code>${escapeHtml(params.inquiryId)}</code> / スキーマ: ${escapeHtml(CAMP_INQUIRY_SCHEMA_VERSION)}</p>
 <table style="border-collapse:collapse;font-size:14px;max-width:640px">${structuredHtmlRows}</table>
 ${extraHtml}
 ${adminBlock}
-<p style="font-size:12px;color:#71717a;margin-top:16px">返信は通常メールで。再通知機能は MVP ではありません。</p>
 </body></html>`;
 
   const replyTo = a.contact_email?.trim();

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { InquiryInternalNotePresenceLabel } from "@/components/admin/inquiry-internal-note-presence";
 import { InquiryStatusBadge } from "@/components/admin/inquiry-status-badge";
 import {
   type InquiryListPeriod,
@@ -22,6 +23,7 @@ type CampInquiryRow = {
   schema_version: string;
   answers: unknown;
   source_path: string | null;
+  internal_note: string | null;
 };
 
 function normalizeAnswers(raw: unknown): Record<string, string> {
@@ -86,7 +88,7 @@ export default async function AdminCampInquiriesPage({
   let query = supabase
     .from("camp_inquiries")
     .select(
-      "id, created_at, updated_at, status, schema_version, answers, source_path"
+      "id, created_at, updated_at, status, schema_version, answers, source_path, internal_note"
     )
     .order("created_at", { ascending: false })
     .limit(200);
@@ -214,6 +216,12 @@ export default async function AdminCampInquiriesPage({
                       </dd>
                     </div>
                     <div className="flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-2">
+                      <div>
+                        <dt className="text-xs font-medium text-zinc-500">対応メモ</dt>
+                        <dd className="mt-1">
+                          <InquiryInternalNotePresenceLabel internalNote={row.internal_note} />
+                        </dd>
+                      </div>
                       <div className="text-right">
                         <dt className="text-xs font-medium text-zinc-500">ステータス</dt>
                         <dd className="mt-1">
@@ -243,6 +251,7 @@ export default async function AdminCampInquiriesPage({
                     <th className="min-w-40 px-3 py-2.5 sm:px-4">代表者名</th>
                     <th className="min-w-48 px-3 py-2.5 sm:px-4">希望日程</th>
                     <th className="min-w-72 px-3 py-2.5 sm:px-4">相談内容</th>
+                    <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">対応メモ</th>
                     <th className="whitespace-nowrap px-3 py-2.5 sm:px-4">ステータス</th>
                     <th className="sticky right-0 z-20 min-w-26 whitespace-nowrap border-l border-zinc-200 bg-zinc-50 px-3 py-2.5 text-center shadow-[-8px_0_12px_-6px_rgba(0,0,0,0.12)] sm:px-4">
                       操作
@@ -272,6 +281,9 @@ export default async function AdminCampInquiriesPage({
                           <div className="line-clamp-3 whitespace-pre-wrap wrap-break-word text-sm text-zinc-900">
                             {message}
                           </div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
+                          <InquiryInternalNotePresenceLabel internalNote={row.internal_note} />
                         </td>
                         <td className="whitespace-nowrap px-3 py-2.5 sm:px-4">
                           <InquiryStatusBadge status={row.status} />

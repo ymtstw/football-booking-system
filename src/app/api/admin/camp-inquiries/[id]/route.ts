@@ -4,6 +4,7 @@ import {
   ADMIN_API_SAVE_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { appendInternalNoteToPatchIfPresent } from "@/lib/admin/inquiry-internal-note-api";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import {
   CAMP_INQUIRY_STATUS_VALUES_HINT,
@@ -35,20 +36,39 @@ export async function PATCH(
     return NextResponse.json({ error: "JSON が不正です" }, { status: 400 });
   }
 
-  const status = (body as { status?: unknown }).status;
-  if (typeof status !== "string" || !isCampInquiryStatus(status)) {
+  const b = body as Record<string, unknown>;
+  const hasStatus = Object.prototype.hasOwnProperty.call(b, "status");
+  const patch: Record<string, unknown> = {};
+
+  if (hasStatus) {
+    const status = b.status;
+    if (typeof status !== "string" || !isCampInquiryStatus(status)) {
+      return NextResponse.json(
+        { error: `status は次のいずれかです: ${CAMP_INQUIRY_STATUS_VALUES_HINT}` },
+        { status: 422 }
+      );
+    }
+    patch.status = status;
+  }
+
+  const noteResult = appendInternalNoteToPatchIfPresent(b, patch);
+  if (!noteResult.ok) {
+    return NextResponse.json({ error: noteResult.error }, { status: 422 });
+  }
+
+  if (Object.keys(patch).length === 0) {
     return NextResponse.json(
-      { error: `status は次のいずれかです: ${CAMP_INQUIRY_STATUS_VALUES_HINT}` },
-      { status: 422 }
+      { error: "status または internal_note を指定してください" },
+      { status: 400 }
     );
   }
 
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("camp_inquiries")
-    .update({ status })
+    .update(patch)
     .eq("id", id)
-    .select("id, status, updated_at")
+    .select("id, status, updated_at, internal_note")
     .single();
 
   if (error) {

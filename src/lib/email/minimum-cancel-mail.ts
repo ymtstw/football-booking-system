@@ -59,7 +59,7 @@ export async function sendMinimumCancelNoticeEmailAndUpdateNotification(params: 
     eventDateIso && /^\d{4}-\d{2}-\d{2}$/.test(eventDateIso)
       ? formatIsoDateWithWeekdayJa(eventDateIso)
       : "開催日は予約画面でご確認ください。";
-  const gradeLine = gradeBand?.trim() ? `学年帯: ${gradeBand.trim()}` : null;
+  const gradeBandTrimmed = gradeBand?.trim() ?? "";
   const subject = `${MAIL_SUBJECT_BRAND_USER}最少催行に満たず開催中止のお知らせ`;
 
   const text = [
@@ -67,25 +67,33 @@ export async function sendMinimumCancelNoticeEmailAndUpdateNotification(params: 
     "",
     `「${MAIL_BODY_SERVICE_NAME}」をご利用いただきありがとうございます。`,
     "",
-    "予約締切時点の参加チーム数が最少催行に満たなかったため、当該開催日は開催中止となりました。",
+    "お申し込みいただいていた下記の開催日は、予約締切時点で参加チーム数が最少催行数に満たなかったため、開催中止となりました。",
     "",
-    `チーム名: ${teamName}`,
-    `開催日: ${eventLine}`,
-    ...(gradeLine ? [gradeLine] : []),
+    "【開催内容】",
+    `チーム名：${teamName}`,
+    `開催日：${eventLine}`,
+    ...(gradeBandTrimmed ? [`学年帯：${gradeBandTrimmed}`] : []),
     "",
-    "本メールに心当たりがない場合は破棄してください。",
+    "このたびはご希望に沿えず申し訳ございません。",
+    "また別の開催日でのご参加をご検討いただけますと幸いです。",
+    "",
+    "なお、今回の予約についてお客様側でのお手続きは不要です。",
   ].join("\n");
+
+  const gradeHtmlLine = gradeBandTrimmed
+    ? `<p style="margin:0.25em 0">学年帯：${escaped(gradeBandTrimmed)}</p>`
+    : "";
 
   const html = `<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"/></head><body style="font-family:sans-serif;line-height:1.6;color:#18181b">
 <p>${escaped(contactName)} 様</p>
 <p>「${escaped(MAIL_BODY_SERVICE_NAME)}」をご利用いただきありがとうございます。</p>
-<p>予約締切時点の参加チーム数が最少催行に満たなかったため、当該開催日は<strong>開催中止</strong>となりました。</p>
-<ul>
-<li>チーム名: ${escaped(teamName)}</li>
-<li>開催日: ${escaped(eventLine)}</li>
-${gradeLine ? `<li>${escaped(gradeLine)}</li>` : ""}
-</ul>
-<p style="font-size:12px;color:#71717a">本メールに心当たりがない場合は破棄してください。</p>
+<p>お申し込みいただいていた下記の開催日は、予約締切時点で参加チーム数が<strong>最少催行数</strong>に満たなかったため、<strong>開催中止</strong>となりました。</p>
+<p style="margin-bottom:0.35em"><strong>【開催内容】</strong></p>
+<p style="margin:0.25em 0">チーム名：${escaped(teamName)}</p>
+<p style="margin:0.25em 0">開催日：${escaped(eventLine)}</p>
+${gradeHtmlLine}
+<p>このたびはご希望に沿えず申し訳ございません。<br/>また別の開催日でのご参加をご検討いただけますと幸いです。</p>
+<p>なお、今回の予約についてお客様側でのお手続きは不要です。</p>
 </body></html>`;
 
   const resend = new Resend(apiKey);

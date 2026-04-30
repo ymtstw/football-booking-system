@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { InquiryInternalNoteSection } from "../../_components/inquiry-internal-note-section";
 import { TournamentInquiryDetailManageClient } from "../tournament-inquiry-detail-manage-client";
 import {
   buildInquiryComposeBundleLimited,
@@ -23,6 +24,7 @@ type Row = {
   contact_email: string;
   contact_phone: string | null;
   message: string;
+  internal_note: string | null;
 };
 
 /** 管理: 大会お問い合わせの詳細 */
@@ -40,7 +42,7 @@ export default async function AdminTournamentInquiryDetailPage({
   const { data, error } = await supabase
     .from("tournament_inquiries")
     .select(
-      "id, created_at, updated_at, status, contact_name, contact_email, contact_phone, message"
+      "id, created_at, updated_at, status, contact_name, contact_email, contact_phone, message, internal_note"
     )
     .eq("id", id)
     .single();
@@ -79,6 +81,12 @@ export default async function AdminTournamentInquiryDetailPage({
         <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">お問い合わせ · 詳細</h1>
       </div>
+
+      <InquiryInternalNoteSection
+        inquiryId={row.id}
+        apiPath={`/api/admin/tournament-inquiries/${row.id}`}
+        initialInternalNote={row.internal_note}
+      />
 
       <TournamentInquiryDetailManageClient
         inquiryId={row.id}

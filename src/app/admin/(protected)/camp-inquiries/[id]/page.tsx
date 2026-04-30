@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { InquiryInternalNoteSection } from "../../_components/inquiry-internal-note-section";
 import { CampInquiryDetailManageClient } from "../camp-inquiry-detail-manage-client";
 import { InquiryStatusBadge } from "@/components/admin/inquiry-status-badge";
 import { CAMP_INQUIRY_FIELD_DEFS } from "@/lib/camp-inquiry/camp-inquiry-field-registry";
@@ -39,6 +40,7 @@ type Row = {
   updated_at: string;
   status: string;
   answers: unknown;
+  internal_note: string | null;
 };
 
 /** 管理: 合宿相談の詳細 */
@@ -55,9 +57,7 @@ export default async function AdminCampInquiryDetailPage({
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("camp_inquiries")
-    .select(
-      "id, created_at, updated_at, status, answers"
-    )
+    .select("id, created_at, updated_at, status, answers, internal_note")
     .eq("id", id)
     .single();
 
@@ -101,6 +101,12 @@ export default async function AdminCampInquiryDetailPage({
         <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
         <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">合宿相談 · 詳細</h1>
       </div>
+
+      <InquiryInternalNoteSection
+        inquiryId={row.id}
+        apiPath={`/api/admin/camp-inquiries/${row.id}`}
+        initialInternalNote={row.internal_note}
+      />
 
       <CampInquiryDetailManageClient
         inquiryId={row.id}

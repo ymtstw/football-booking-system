@@ -58,7 +58,7 @@ function escapeHtmlLite(s: string): string {
 /**
  * 予約完了メールが利用者宛に送れなかったとき、運営宛（OPS_NOTIFY_EMAIL）に 1 通。
  * テスト用 Resend では利用者宛が拒否されても、運営メールなら同一キーで届くことが多い。
- * 確認コードは含めない。
+ * 利用者向けの確認コードは本文に含めない。
  */
 async function notifyOpsReservationCreatedDeliveryFailed(params: {
   reservationId: string;
@@ -96,8 +96,6 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
     "次の確認: 宛先の誤記、Resend のドメイン検証・テストモードの宛先制限など。",
     `予約の管理: ${adminResUrl}`,
     `メール送信履歴（送信できなかった）: ${failedListUrl}`,
-    "",
-    "（確認コードはこの通知には含めていません）",
   ].join("\n");
 
   const adminHref = base
@@ -121,7 +119,6 @@ async function notifyOpsReservationCreatedDeliveryFailed(params: {
 <p><strong>Resend のエラー</strong></p>
 <pre style="white-space:pre-wrap;font-size:12px;background:#f4f4f5;padding:12px;border-radius:8px">${escapeHtmlLite(errShort)}</pre>
 ${adminFailedLinksHtml}
-<p style="font-size:12px;color:#71717a">確認コードはこの通知には含めていません。</p>
 </body></html>`;
 
   try {

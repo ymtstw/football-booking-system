@@ -23,6 +23,14 @@ function monthTitleJa(year: number, month: number): string {
   return `${year}年${month}月`;
 }
 
+/** grade_band（例: 1-2）をカレンダー用「1-2年」表記に（公開側カレンダーと同じ） */
+function gradeBandYearsJa(gradeBand: string): string {
+  const s = gradeBand.trim();
+  if (!s) return "—";
+  if (s.endsWith("年")) return s;
+  return `${s}年`;
+}
+
 function cellClassesForStatus(status: string): string {
   switch (status) {
     case "open":
@@ -181,7 +189,7 @@ export function AdminEventDaysCompactCalendar({
                 );
               }
 
-              const sub = ev!.grade_band;
+              const sub = gradeBandYearsJa(ev!.grade_band);
               const title = `${eventDayStatusLabelJa(ev!.status)} · 学年帯 ${sub}（一覧の基準日にする）`;
 
               return (
