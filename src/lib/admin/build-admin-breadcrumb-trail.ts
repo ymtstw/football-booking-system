@@ -61,6 +61,10 @@ export function buildAdminBreadcrumbTrail(pathname: string): AdminBreadcrumbSegm
     return [DASHBOARD, { kind: "current", label: "昼食メニュー設定" }];
   }
 
+  if (p === "/admin/guide") {
+    return [DASHBOARD, { kind: "current", label: "運営ガイド" }];
+  }
+
   if (p === "/admin/notifications/failed") {
     return [DASHBOARD, { kind: "current", label: "メール送信履歴" }];
   }

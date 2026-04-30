@@ -9,7 +9,7 @@ import type { InquiryBellCounts } from "@/lib/admin/inquiry-count-queries";
 import { AdminSignOutButton } from "./sign-out-button";
 import { ADMIN_OPS_SECTION_LINKS } from "./admin-section-ops-links";
 
-type AdminSection = "ops" | "reserve" | "inquiries" | "settings";
+type AdminSection = "ops" | "reserve" | "inquiries" | "settings" | "guide";
 
 type SectionDef = {
   id: AdminSection;
@@ -56,6 +56,12 @@ function buildSections(inquiry: InquiryBellCounts | null): readonly SectionDef[]
       defaultHref: "/admin/lunch-menu",
       links: [{ href: "/admin/lunch-menu", label: "昼食メニュー設定" }],
     },
+    {
+      id: "guide",
+      label: "ガイド",
+      defaultHref: "/admin/guide",
+      links: [{ href: "/admin/guide", label: "運営ガイド" }],
+    },
   ];
 }
 
@@ -65,6 +71,7 @@ const MOBILE_ICON_GRAD: Record<AdminSection, string> = {
   reserve: "from-sky-700 to-sky-900",
   inquiries: "from-violet-600 to-violet-900",
   settings: "from-amber-600 to-amber-800",
+  guide: "from-emerald-600 to-teal-900",
 };
 
 const SECTION_THEME: Record<
@@ -94,6 +101,12 @@ const SECTION_THEME: Record<
       "bg-amber-800 !text-white hover:!text-white shadow-sm ring-1 ring-amber-900/25",
     drawerTop: "bg-amber-500",
     drawerIcon: "text-amber-800",
+  },
+  guide: {
+    segmentActive:
+      "bg-emerald-800 !text-white hover:!text-white shadow-sm ring-1 ring-emerald-900/25",
+    drawerTop: "bg-emerald-600",
+    drawerIcon: "text-emerald-800",
   },
 };
 
@@ -164,8 +177,22 @@ function SectionIcon({ id, className }: { id: AdminSection; className?: string }
           <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
         </svg>
       );
-    default:
-      return null;
+    case "guide":
+      return (
+        <svg
+          className={cn}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+      );
   }
 }
 
@@ -200,11 +227,13 @@ function isSubnavCurrent(pathname: string | null, href: string): boolean {
     return true;
   if (href === "/admin/reservations" && pathname.startsWith("/admin/reservations/")) return true;
   if (href === "/admin/lunch-menu" && pathname.startsWith("/admin/lunch-menu")) return true;
+  if (href === "/admin/guide" && pathname.startsWith("/admin/guide")) return true;
   return false;
 }
 
 function resolveSection(pathname: string | null): AdminSection {
   if (!pathname) return "ops";
+  if (pathname.startsWith("/admin/guide")) return "guide";
   if (pathname.startsWith("/admin/reservations")) return "reserve";
   if (pathname.startsWith("/admin/lunch-menu")) return "settings";
   if (pathname.startsWith("/admin/camp-inquiries") || pathname.startsWith("/admin/tournament-inquiries")) {

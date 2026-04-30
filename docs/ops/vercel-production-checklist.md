@@ -22,8 +22,8 @@
 
 - リポジトリの **`vercel.json`** に以下が含まれていること（UTC。JST は UTC+9）:
   - `0 6 * * *` → `GET /api/cron/lock-event-days`（同日 **15:00** JST。`locked` になった開催は **同一リクエスト内で自動編成まで**実行）
-  - `0 7 * * *` → `GET /api/cron/send-matching-proposal`（**16:00** JST。予約サイトでは利用者向けに **17:00 まで**の目安で案内）
-  - `30 7 * * *` → `GET /api/cron/send-day-before-final`（**16:30** JST。利用者向けに **17:30 まで**の目安で案内。マッチング案内と 30 分ずらし）
+  - `0 7 * * *` → `GET /api/cron/send-matching-proposal`（**16:00** JST。利用者向け表記は **16:00頃**＋到着注記。正本は `src/lib/copy/reserve-public-mail-schedule.ts`）
+  - `30 7 * * *` → `GET /api/cron/send-day-before-final`（**16:30** JST。利用者向け表記は **16:30頃**＋到着注記。マッチング案内と 30 分ずらし）
 - Vercel のプランによっては **Cron が無効または制限**される場合がある。ダッシュボードの **Cron** タブで有効・直近実行ログを確認する。
 - Cron リクエストには **`Authorization: Bearer <CRON_SECRET>`** が付与される（`CRON_SECRET` が未設定だと API は 503）。
 - **ローカルで同じ 3 本を順実行:** `npm run cron:local-day-before`（`.env.local` と `npm run dev` が前提。詳細は **`docs/ops/local-day-before-cron.md`**）。

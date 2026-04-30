@@ -53,7 +53,7 @@
 
 ※ `GET /api/cron/run-matching-locked` は **Vercel 定期実行からは外してある**（手動・ローカル連鎖用）。**`locked` のまま編成が未完の日**の再試行に使う想定。締切 Cron は `open` のみ拾うため、滞留対応は運用で本ルートを叩くか定期追加かを決める（[implemented-behavior-catalog.md](./implemented-behavior-catalog.md) §1.6）。
 
-利用者向けの「○時までに届く目安」は **`src/lib/copy/reserve-public-mail-schedule.ts`**（案内 **17:00** まで・前日 **17:30** まで＋前後注記）と予約 UI で一致させる。
+利用者向けの時刻表記は **`src/lib/copy/reserve-public-mail-schedule.ts`**（マッチング案内 **16:00頃**・前日最終 **16:30頃**＋到着の前後注記）と予約 UI で一致させる。
 
 ## 仕様ドキュメントのマップ
 
