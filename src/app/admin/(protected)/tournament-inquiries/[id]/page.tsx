@@ -2,7 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { InquiryInternalNoteSection } from "../../_components/inquiry-internal-note-section";
-import { TournamentInquiryDetailManageClient } from "../tournament-inquiry-detail-manage-client";
+import {
+  TournamentInquiryContactSection,
+  TournamentInquiryStatusSection,
+} from "../tournament-inquiry-detail-manage-client";
 import {
   buildInquiryComposeBundleLimited,
   formatInquiryReplyClipboardBlock,
@@ -67,39 +70,21 @@ export default async function AdminTournamentInquiryDetailPage({
 
   return (
     <div className="min-w-0 space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <header className="space-y-3">
+        <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">お問い合わせ · 詳細</h1>
+          <InquiryStatusBadge status={row.status} />
+        </div>
         <Link
           href="/admin/tournament-inquiries"
-          className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
+          className="inline-flex min-h-10 items-center text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
         >
           ← 一覧へ
         </Link>
-        <InquiryStatusBadge status={row.status} />
-      </div>
+      </header>
 
-      <div>
-        <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
-        <h1 className="mt-1 text-xl font-semibold text-zinc-900 sm:text-2xl">お問い合わせ · 詳細</h1>
-      </div>
-
-      <InquiryInternalNoteSection
-        inquiryId={row.id}
-        apiPath={`/api/admin/tournament-inquiries/${row.id}`}
-        initialInternalNote={row.internal_note}
-      />
-
-      <TournamentInquiryDetailManageClient
-        inquiryId={row.id}
-        initialStatus={row.status}
-        contactEmail={row.contact_email}
-        contactPhone={row.contact_phone}
-        outlookWebHref={compose.outlookWebHref}
-        mailtoHref={compose.mailtoHref}
-        mailtoTruncated={compose.truncated}
-        replyClipboardText={replyClipboardText}
-      />
-
-      <div className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
+      <section className="rounded-lg border border-zinc-200 bg-white p-4 sm:p-5">
         <h2 className="text-sm font-semibold text-zinc-900">受付内容</h2>
         <dl className="mt-4 space-y-3">
           <div className="grid gap-1 sm:grid-cols-[minmax(0,10rem)_1fr] sm:gap-4">
@@ -131,7 +116,24 @@ export default async function AdminTournamentInquiryDetailPage({
             </dd>
           </div>
         </dl>
-      </div>
+      </section>
+
+      <TournamentInquiryStatusSection inquiryId={row.id} initialStatus={row.status} />
+
+      <InquiryInternalNoteSection
+        inquiryId={row.id}
+        apiPath={`/api/admin/tournament-inquiries/${row.id}`}
+        initialInternalNote={row.internal_note}
+      />
+
+      <TournamentInquiryContactSection
+        contactEmail={row.contact_email}
+        contactPhone={row.contact_phone}
+        outlookWebHref={compose.outlookWebHref}
+        mailtoHref={compose.mailtoHref}
+        mailtoTruncated={compose.truncated}
+        replyClipboardText={replyClipboardText}
+      />
 
       <div className="rounded-lg border border-zinc-100 bg-zinc-50/90 px-4 py-3 text-xs leading-relaxed text-zinc-600 sm:text-sm">
         <p>
