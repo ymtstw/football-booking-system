@@ -41,6 +41,14 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const tomorrowTokyo = addDaysIsoDate(tokyoIsoDateToday(), 1);
+  /** Staging 手動検証用（Vercel にのみ設定）。`targetEventDate` で開催日を明示するとその日のみ処理。 */
+  const allowEventDateOverride =
+    process.env.CRON_ALLOW_EVENT_DATE_OVERRIDE === "true";
+  const targetOverride = request.nextUrl.searchParams.get("targetEventDate")?.trim();
+  const validOverride =
+    !!targetOverride && /^\d{4}-\d{2}-\d{2}$/.test(targetOverride);
+  const filterEventDate =
+    allowEventDateOverride && validOverride ? targetOverride : tomorrowTokyo;
   const nowIso = new Date().toISOString();
 
   const { data: eventDays, error: dayErr } = await supabase
@@ -48,7 +56,7 @@ export async function GET(request: NextRequest) {
     .select(
       "id, event_date, grade_band, status, weather_status, operational_cancellation_notice, weather_day_before_rain_scheduled, final_day_before_notice_completed_at"
     )
-    .eq("event_date", tomorrowTokyo)
+    .eq("event_date", filterEventDate)
     .in("status", ["confirmed", "cancelled_weather", "cancelled_operational", "locked"]);
 
   if (dayErr) {
@@ -300,6 +308,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     ok: true,
     tomorrowTokyo,
+    filterEventDate,
+    usedManualTarget: allowEventDateOverride && validOverride,
     eventDayCount: eventDays?.length ?? 0,
     summary,
   });

@@ -50,25 +50,42 @@ export async function GET(request: NextRequest) {
   const supabase = createServiceRoleClient();
   const todayTokyo = tokyoIsoDateToday();
   const isDev = process.env.NODE_ENV !== "production";
+  /** Staging 手動検証用（Vercel にのみ設定。未設定時は本番と同じく日付は東京暦のみ）。 */
+  const allowEventDateOverride =
+    process.env.CRON_ALLOW_EVENT_DATE_OVERRIDE === "true";
   const targetOverride = request.nextUrl.searchParams.get("targetEventDate")?.trim();
   const forcePublish = isDev && request.nextUrl.searchParams.get("forcePublish") === "1";
+  const skipOpsTimeGate =
+    allowEventDateOverride && request.nextUrl.searchParams.get("skipTimeGate") === "1";
   const nowMinutes = tokyoNowMinutes();
   const opsConfirmMinutes = 16 * 60;
-  if (!forcePublish && nowMinutes < opsConfirmMinutes) {
+  const validOverride =
+    !!targetOverride && /^\d{4}-\d{2}-\d{2}$/.test(targetOverride);
+  /** `targetEventDate` と `skipTimeGate=1` を両方付けた手動 Cron（Bearer 認証済み）では Vercel の定期実行と区別できるため、時刻ゲートと手動日付を許可する */
+  const cronManualDateAndSkipGate =
+    validOverride && request.nextUrl.searchParams.get("skipTimeGate") === "1";
+  const useManualTarget =
+    validOverride &&
+    (isDev || allowEventDateOverride || cronManualDateAndSkipGate);
+  const skipOpsTimeGateEffective = skipOpsTimeGate || cronManualDateAndSkipGate;
+  if (
+    !forcePublish &&
+    !skipOpsTimeGateEffective &&
+    nowMinutes < opsConfirmMinutes
+  ) {
     return NextResponse.json(
       {
         ok: true,
         todayTokyo,
         skippedReason: "before_ops_confirm_time",
-        note: "運営確認の想定時刻（16:00 JST）より前のため、公開スタンプを行いません。",
+        note: "運営確認の想定時刻（16:00 JST）より前のため送信・公開スタンプをスキップしました。手動テストは `targetEventDate=…&skipTimeGate=1`（Bearer 付き）で回避できます。",
       },
       { status: 200 }
     );
   }
-  const targetEventDate =
-    isDev && targetOverride && /^\d{4}-\d{2}-\d{2}$/.test(targetOverride)
-      ? targetOverride
-      : addDaysIsoDate(todayTokyo, 2);
+  const targetEventDate = useManualTarget
+    ? (targetOverride as string)
+    : addDaysIsoDate(todayTokyo, 2);
 
   const { data: eventDays, error: dayErr } = await supabase
     .from("event_days")
@@ -265,6 +282,7 @@ export async function GET(request: NextRequest) {
     ok: true,
     todayTokyo,
     targetEventDate,
+    usedManualTarget: useManualTarget,
     eventDayCount: eventDays?.length ?? 0,
     summary,
   });
