@@ -8,7 +8,9 @@
  *   npm run cron:staging-matching -- 2026-05-04
  *
  * URL は targetEventDate + skipTimeGate=1（Bearer CRON_SECRET）。最新 API では 16:00 前でも送信フローに入る。
- * 応答が before_ops_confirm_time のままなら Staging が未デプロイ。
+ *
+ * 前日最終（send-day-before-final）は本番 16:30 JST 想定。手動は final YYYY-MM-DD（開催日）。
+ * targetEventDate + manualTest=1（Bearer）。時刻ゲートは無し。
  */
 import { config } from "dotenv";
 import { resolve, dirname } from "path";
@@ -64,6 +66,9 @@ function buildUrl(path, eventDate) {
     u.searchParams.set("targetEventDate", eventDate);
     if (path.includes("send-matching-proposal")) {
       u.searchParams.set("skipTimeGate", "1");
+    }
+    if (path.includes("send-day-before-final")) {
+      u.searchParams.set("manualTest", "1");
     }
   }
   return u.toString();

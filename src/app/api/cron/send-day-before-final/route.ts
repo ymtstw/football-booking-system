@@ -41,14 +41,19 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServiceRoleClient();
   const tomorrowTokyo = addDaysIsoDate(tokyoIsoDateToday(), 1);
-  /** Staging 手動検証用（Vercel にのみ設定）。`targetEventDate` で開催日を明示するとその日のみ処理。 */
+  /** Staging 手動検証用（環境変数）。 */
   const allowEventDateOverride =
     process.env.CRON_ALLOW_EVENT_DATE_OVERRIDE === "true";
   const targetOverride = request.nextUrl.searchParams.get("targetEventDate")?.trim();
   const validOverride =
     !!targetOverride && /^\d{4}-\d{2}-\d{2}$/.test(targetOverride);
+  /** Bearer 付きで `targetEventDate` + `manualTest=1` のとき、定時 Cron（クエリ無し）と区別して開催日を固定する */
+  const cronManualEventDate =
+    validOverride && request.nextUrl.searchParams.get("manualTest") === "1";
   const filterEventDate =
-    allowEventDateOverride && validOverride ? targetOverride : tomorrowTokyo;
+    validOverride && (allowEventDateOverride || cronManualEventDate)
+      ? targetOverride!
+      : tomorrowTokyo;
   const nowIso = new Date().toISOString();
 
   const { data: eventDays, error: dayErr } = await supabase
@@ -309,7 +314,8 @@ export async function GET(request: NextRequest) {
     ok: true,
     tomorrowTokyo,
     filterEventDate,
-    usedManualTarget: allowEventDateOverride && validOverride,
+    usedManualTarget:
+      validOverride && (allowEventDateOverride || cronManualEventDate),
     eventDayCount: eventDays?.length ?? 0,
     summary,
   });
