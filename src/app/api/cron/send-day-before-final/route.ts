@@ -4,7 +4,7 @@
  * `vercel.json`: `30 7 * * *`（UTC 07:30 = 同日 16:30 Asia/Tokyo）。
  * マッチング案内（`0 7` = 16:00 JST）と重ならないよう 30 分ずらしている。
  * 雨天: `weather_day_before_rain_scheduled` かつ中止判断があれば、この処理で `cancelled_weather` に確定してから送る。
- * 即時 `weather_cancel_immediate` 済みの予約には `day_before_final` を送らない（二重防止）。
+ * 即時 `weather_cancel_immediate` または `operational_cancel_immediate` 済みの予約には `day_before_final` を送らない（二重防止）。
  */
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -12,6 +12,7 @@ import { buildReservationScheduleLines } from "@/lib/day-before/reservation-sche
 import {
   sendDayBeforeFinalEmailAndUpdateNotification,
   TEMPLATE_DAY_BEFORE_FINAL,
+  TEMPLATE_OPERATIONAL_CANCEL_IMMEDIATE,
   type DayBeforeFinalVariant,
 } from "@/lib/email/day-before-final-mail";
 import { sendOpsBatchFailureDigestEmail } from "@/lib/email/ops-batch-failure-notify";
@@ -190,6 +191,18 @@ export async function GET(request: NextRequest) {
         .maybeSingle();
 
       if (imImmediate?.status === "sent") {
+        skipped += 1;
+        continue;
+      }
+
+      const { data: opImmediate } = await supabase
+        .from("notifications")
+        .select("status")
+        .eq("reservation_id", reservationId)
+        .eq("template_key", TEMPLATE_OPERATIONAL_CANCEL_IMMEDIATE)
+        .maybeSingle();
+
+      if (opImmediate?.status === "sent") {
         skipped += 1;
         continue;
       }
