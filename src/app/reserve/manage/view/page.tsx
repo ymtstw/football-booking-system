@@ -110,6 +110,27 @@ function statusLabelJa(status: string): string {
   return status;
 }
 
+function reservationBadgeLabelJa(input: {
+  reservationStatus: string;
+  eventDayStatus: string;
+  reservationDeadlineAt: string;
+}): { label: string; tone: "active" | "muted" } {
+  const { reservationStatus, eventDayStatus, reservationDeadlineAt } = input;
+  if (reservationStatus === "cancelled") {
+    return { label: "キャンセル済み", tone: "muted" };
+  }
+  if (reservationStatus !== "active") {
+    return { label: statusLabelJa(reservationStatus), tone: "muted" };
+  }
+  if (eventDayStatus !== "open") {
+    return { label: "受付終了", tone: "muted" };
+  }
+  if (!isBeforeDeadline(reservationDeadlineAt)) {
+    return { label: "受付終了", tone: "muted" };
+  }
+  return { label: "予約受付中", tone: "active" };
+}
+
 function ReadRow({ label, children: value }: { label: string; children: ReactNode }) {
   return (
     <div className="border-b border-zinc-100 py-2.5 last:border-b-0 sm:py-3">
@@ -534,6 +555,12 @@ export default function ReserveManageViewPage() {
     ? `${formatHm(reservation.morningSlot.startTime)}〜${formatHm(reservation.morningSlot.endTime)}`
     : "—";
 
+  const badge = reservationBadgeLabelJa({
+    reservationStatus: reservation.status,
+    eventDayStatus: reservation.eventDay.status,
+    reservationDeadlineAt: reservation.eventDay.reservationDeadlineAt,
+  });
+
   return (
     <div className="mx-auto w-full max-w-[min(100%,820px)] space-y-5 sm:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -585,12 +612,12 @@ export default function ReserveManageViewPage() {
           <div className="mb-3 flex flex-wrap items-center gap-2">
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${
-                reservation.status === "cancelled"
-                  ? "bg-zinc-200 text-zinc-700"
-                  : "bg-rp-brand text-white"
+                badge.tone === "active"
+                  ? "bg-rp-brand text-white"
+                  : "bg-zinc-200 text-zinc-700"
               }`}
             >
-              {statusLabelJa(reservation.status)}
+              {badge.label}
             </span>
           </div>
           <div>
@@ -724,7 +751,7 @@ export default function ReserveManageViewPage() {
                             key={m.id}
                             className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm"
                           >
-                            <p className="text-sm font-semibold leading-snug text-zinc-900 break-words">
+                            <p className="text-sm font-semibold leading-snug text-zinc-900 wrap-break-word">
                               {m.name}
                             </p>
                             <div className="mt-3 space-y-3 text-sm">
@@ -901,7 +928,7 @@ export default function ReserveManageViewPage() {
                     type="button"
                     onClick={() => void executeCancel()}
                     disabled={cancelling}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-red-600 px-5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 sm:min-w-[10rem]"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full bg-red-600 px-5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50 sm:min-w-40"
                   >
                     {cancelling ? <InlineSpinner variant="onDark" /> : null}
                     {cancelling ? "処理中…" : "キャンセルを実行する"}
@@ -913,7 +940,7 @@ export default function ReserveManageViewPage() {
                       setCancelMessage(null);
                     }}
                     disabled={cancelling}
-                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:min-w-[10rem]"
+                    className="inline-flex min-h-12 flex-1 items-center justify-center rounded-full border border-zinc-300 bg-white px-5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 sm:min-w-40"
                   >
                     やめる
                   </button>
@@ -936,7 +963,7 @@ export default function ReserveManageViewPage() {
       {/* 保存成功：長いフォームの下でも必ず気づけるようモーダル */}
       {saveSuccessModalOpen ? (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          className="fixed inset-0 z-60 flex items-end justify-center bg-black/45 p-4 sm:items-center"
           role="presentation"
         >
           <div
@@ -966,7 +993,7 @@ export default function ReserveManageViewPage() {
 
       {cancelSuccessModalOpen ? (
         <div
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/45 p-4 sm:items-center"
+          className="fixed inset-0 z-60 flex items-end justify-center bg-black/45 p-4 sm:items-center"
           role="presentation"
         >
           <div
