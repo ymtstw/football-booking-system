@@ -216,6 +216,9 @@ export function NotificationFailedRetryTable({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolveOpenId, setResolveOpenId] = useState<string | null>(null);
+  const [resolveNoteById, setResolveNoteById] = useState<Record<string, string>>({});
   const [message, setMessage] = useState<string | null>(null);
   /** 再送ボタンのクールダウン残り表示用（1 秒ごと） */
   const [, setRetryCooldownTick] = useState(0);
@@ -272,7 +275,7 @@ export function NotificationFailedRetryTable({
       });
       const json = (await res.json()) as { ok?: boolean; status?: string; error?: string };
       if (!res.ok) {
-        setMessage(json.error ?? "再送できませんでした。しばらくしてから試すか、システム担当へ相談してください。");
+        setMessage("メールの再送に失敗しました。時間をおいて再度お試しください。");
         return;
       }
       writeRetryCooldownUntil(id, Date.now() + RETRY_COOLDOWN_MS);
@@ -285,9 +288,51 @@ export function NotificationFailedRetryTable({
       );
       await load();
     } catch {
-      setMessage("再送リクエストで通信エラーが発生しました");
+      setMessage("メールの再送に失敗しました。時間をおいて再度お試しください。");
     } finally {
       setRetryingId(null);
+    }
+  };
+
+  const presets = [
+    "電話で案内済み",
+    "別メールで送信済み",
+    "現地で共有済み",
+    "内容確認のみ、追加対応不要",
+  ] as const;
+
+  const resolveOne = async (id: string) => {
+    const note = (resolveNoteById[id] ?? "").trim();
+    const ok = window.confirm(
+      "送信エラーを対応済みにしますか？\n\n" +
+        "メールは再送されません。\n" +
+        "この送信失敗の記録は残したまま、未対応一覧から外します。\n" +
+        "電話・別メール・現地共有などで案内済みの場合に使用してください。"
+    );
+    if (!ok) return;
+
+    setResolvingId(id);
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/notifications/${id}/resolve`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note: note || undefined }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok) {
+        void json;
+        setMessage("対応済みへの更新に失敗しました。時間をおいて再度お試しください。");
+        return;
+      }
+      setRows((prev) => (prev ? prev.filter((r) => r.id !== id) : prev));
+      setResolveOpenId((cur) => (cur === id ? null : cur));
+      setMessage("対応済みにしました。");
+    } catch {
+      setMessage("対応済みへの更新に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setResolvingId(null);
     }
   };
 
@@ -416,22 +461,74 @@ export function NotificationFailedRetryTable({
                           </p>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={
-                            retryingId !== null ||
-                            (cooldownRemainingMs > 0 && retryingId !== n.id)
-                          }
-                          onClick={() => void retryOne(n.id)}
-                          className="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-indigo-700 px-3 text-sm font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
-                        >
-                          {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
-                          {retryingId === n.id
-                            ? "送信中…"
-                            : cooldownRemainingMs > 0
-                              ? `再送まで ${formatRetryRemainingMs(cooldownRemainingMs)}`
-                              : "このメールを再送する"}
-                        </button>
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            disabled={
+                              retryingId !== null ||
+                              (cooldownRemainingMs > 0 && retryingId !== n.id)
+                            }
+                            onClick={() => void retryOne(n.id)}
+                            className="inline-flex min-h-10 w-full items-center justify-center rounded-md bg-indigo-700 px-3 text-sm font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
+                          >
+                            {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
+                            {retryingId === n.id
+                              ? "送信中…"
+                              : cooldownRemainingMs > 0
+                                ? `再送まで ${formatRetryRemainingMs(cooldownRemainingMs)}`
+                                : "メールを再送する"}
+                          </button>
+
+                          <button
+                            type="button"
+                            disabled={resolvingId !== null || retryingId !== null}
+                            onClick={() => setResolveOpenId((cur) => (cur === n.id ? null : n.id))}
+                            className="inline-flex min-h-10 w-full items-center justify-center rounded-md border border-amber-300 bg-amber-50 px-3 text-sm font-medium text-amber-950 hover:bg-amber-100/70 disabled:opacity-50"
+                          >
+                            対応済みにする（メールは送信しない）
+                          </button>
+
+                          {resolveOpenId === n.id ? (
+                            <div className="rounded-md border border-zinc-200 bg-white p-3">
+                              <p className="text-xs font-medium text-zinc-800">対応メモ（任意）</p>
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {presets.map((p) => (
+                                  <button
+                                    key={p}
+                                    type="button"
+                                    onClick={() =>
+                                      setResolveNoteById((prev) => ({ ...prev, [n.id]: p }))
+                                    }
+                                    className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs text-zinc-800 hover:bg-zinc-100"
+                                  >
+                                    {p}
+                                  </button>
+                                ))}
+                              </div>
+                              <textarea
+                                rows={3}
+                                value={resolveNoteById[n.id] ?? ""}
+                                onChange={(ev) =>
+                                  setResolveNoteById((prev) => ({
+                                    ...prev,
+                                    [n.id]: ev.target.value,
+                                  }))
+                                }
+                                placeholder="例：電話で案内済み"
+                                className="mt-2 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
+                              />
+                              <button
+                                type="button"
+                                disabled={resolvingId !== null}
+                                onClick={() => void resolveOne(n.id)}
+                                className="mt-2 inline-flex min-h-10 w-full items-center justify-center rounded-md bg-amber-700 px-3 text-sm font-medium text-white hover:bg-amber-800 disabled:opacity-50"
+                              >
+                                {resolvingId === n.id ? <InlineSpinner variant="onDark" /> : null}
+                                {resolvingId === n.id ? "更新中…" : "対応済みにする"}
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       )}
                     </div>
                   ) : null}
@@ -524,22 +621,77 @@ export function NotificationFailedRetryTable({
                             </p>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            disabled={
-                              retryingId !== null ||
-                              (cooldownRemainingMs > 0 && retryingId !== n.id)
-                            }
-                            onClick={() => void retryOne(n.id)}
-                            className="inline-flex min-h-9 items-center justify-center rounded-md bg-indigo-700 px-2.5 text-xs font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
-                          >
-                            {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
-                            {retryingId === n.id
-                              ? "送信中…"
-                              : cooldownRemainingMs > 0
-                                ? `再送まで ${formatRetryRemainingMs(cooldownRemainingMs)}`
-                                : "このメールを再送する"}
-                          </button>
+                          <div className="flex max-w-64 flex-col gap-2">
+                            <button
+                              type="button"
+                              disabled={
+                                retryingId !== null ||
+                                (cooldownRemainingMs > 0 && retryingId !== n.id)
+                              }
+                              onClick={() => void retryOne(n.id)}
+                              className="inline-flex min-h-9 items-center justify-center rounded-md bg-indigo-700 px-2.5 text-xs font-medium text-white hover:bg-indigo-800 disabled:opacity-45"
+                            >
+                              {retryingId === n.id ? <InlineSpinner variant="onDark" /> : null}
+                              {retryingId === n.id
+                                ? "送信中…"
+                                : cooldownRemainingMs > 0
+                                  ? `再送まで ${formatRetryRemainingMs(cooldownRemainingMs)}`
+                                  : "メールを再送する"}
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={resolvingId !== null || retryingId !== null}
+                              onClick={() => setResolveOpenId((cur) => (cur === n.id ? null : n.id))}
+                              className="inline-flex min-h-9 items-center justify-center rounded-md border border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-950 hover:bg-amber-100/70 disabled:opacity-50"
+                            >
+                              対応済みにする
+                            </button>
+
+                            {resolveOpenId === n.id ? (
+                              <div className="rounded-md border border-zinc-200 bg-white p-2.5">
+                                <p className="text-[11px] font-medium text-zinc-800">対応メモ（任意）</p>
+                                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                  {presets.map((p) => (
+                                    <button
+                                      key={p}
+                                      type="button"
+                                      onClick={() =>
+                                        setResolveNoteById((prev) => ({ ...prev, [n.id]: p }))
+                                      }
+                                      className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[11px] text-zinc-800 hover:bg-zinc-100"
+                                    >
+                                      {p}
+                                    </button>
+                                  ))}
+                                </div>
+                                <textarea
+                                  rows={3}
+                                  value={resolveNoteById[n.id] ?? ""}
+                                  onChange={(ev) =>
+                                    setResolveNoteById((prev) => ({
+                                      ...prev,
+                                      [n.id]: ev.target.value,
+                                    }))
+                                  }
+                                  placeholder="例：電話で案内済み"
+                                  className="mt-1.5 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={resolvingId !== null}
+                                  onClick={() => void resolveOne(n.id)}
+                                  className="mt-2 inline-flex min-h-9 w-full items-center justify-center rounded-md bg-amber-700 px-2.5 text-xs font-medium text-white hover:bg-amber-800 disabled:opacity-50"
+                                >
+                                  {resolvingId === n.id ? <InlineSpinner variant="onDark" /> : null}
+                                  {resolvingId === n.id ? "更新中…" : "対応済みにする"}
+                                </button>
+                                <p className="mt-1 text-[10px] leading-snug text-zinc-600">
+                                  ※メールは再送されません。未対応一覧から外す操作です。
+                                </p>
+                              </div>
+                            ) : null}
+                          </div>
                         )}
                       </td>
                     ) : null}

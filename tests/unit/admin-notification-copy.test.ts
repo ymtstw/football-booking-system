@@ -54,7 +54,13 @@ describe("summarizeOutboundEmailError（現場向け短文）", () => {
 describe("eventDayStatusLabelJa", () => {
   it("既知ステータスは業務ラベル", () => {
     expect(eventDayStatusLabelJa("locked")).toBe("受付終了");
-    expect(eventDayStatusLabelJa("confirmed")).toBe("開催確定");
+    // confirmed は「最終案内の完了」まで含意しない（開催確定は別条件）
+    expect(eventDayStatusLabelJa("confirmed")).toBe("試合スケジュール確定");
+    expect(
+      eventDayStatusLabelJa("confirmed", {
+        finalDayBeforeNoticeCompletedAt: "2026-05-01T00:00:00.000Z",
+      })
+    ).toBe("開催確定");
   });
 
   it("未知は要確認（raw enum を画面に出さない）", () => {
