@@ -16,6 +16,7 @@ export type EventDayHubDayRow = {
   status: string;
   weather_status: string | null;
   reservation_deadline_at: string;
+  final_day_before_notice_completed_at?: string | null;
   notes: string | null;
 };
 
@@ -25,7 +26,7 @@ export type EventDayHubPayload = {
 };
 
 const HUB_SELECT =
-  "id, event_date, grade_band, status, weather_status, reservation_deadline_at, notes" as const;
+  "id, event_date, grade_band, status, weather_status, reservation_deadline_at, final_day_before_notice_completed_at, notes" as const;
 
 type SummaryInput = {
   id: string;

@@ -265,7 +265,7 @@
 ### 2-8. 通知（設計書 9章・案内＋JOB03）
 
 - [x] マッチング案内メール（`matching_proposal`・Cron `send-matching-proposal`）
-- [x] 前日確定通知（JOB03）の本文に対戦予定・雨天メモを含める（最終版テンプレ `day_before_final`・中止時も同一テンプレで出し分け）
+- [x] 前日確定通知（JOB03）の本文に対戦予定・天候メモを含める（最終版テンプレ `day_before_final`・中止時も同一テンプレで出し分け）
 - [x] 送信失敗を notifications に failed で残す（`reservation_created` / `minimum_cancel_notice` / `matching_proposal` / `day_before_final` / `weather_cancel_immediate`）
 
 ### 2-9. Cron（Vercel）
