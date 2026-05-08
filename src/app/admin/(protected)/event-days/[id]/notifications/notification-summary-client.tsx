@@ -149,9 +149,9 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
 
       {data ? (
         <section className="rounded-lg border border-red-200/80 bg-red-50/30 px-4 py-4">
-          <h2 className="text-sm font-semibold text-red-950">送信エラーの確認</h2>
+          <h2 className="text-sm font-semibold text-red-950">未対応の送信エラーの確認</h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/85">
-            送信に失敗した可能性がある記録です。宛先と内容を確認し、必要に応じて再送してください。
+            未対応の送信失敗の記録です。宛先と内容を確認し、必要に応じて再送してください。
             <br />
             ※この一覧にない場合でも、メールが届いていないことがあります。
           </p>

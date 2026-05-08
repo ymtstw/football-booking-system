@@ -70,7 +70,7 @@ export default async function AdminDashboardPage({
     <div className="min-w-0 space-y-8">
       <header className="relative overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-md ring-1 ring-zinc-100 sm:p-6">
         <div
-          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-emerald-500 to-emerald-700"
+          className="pointer-events-none absolute inset-y-0 left-0 w-1.5 bg-linear-to-b from-emerald-500 to-emerald-700"
           aria-hidden
         />
         <div className="relative pl-4 sm:pl-5">
@@ -79,7 +79,7 @@ export default async function AdminDashboardPage({
             直近の開催日
           </h1>
           <p className="mt-2 max-w-2xl border-t border-zinc-100 pt-3 text-sm leading-relaxed text-zinc-600">
-            予約数・昼食・試合表の状態・天候・メール送信エラーなど、この日の運営に必要な情報を一覧します。基準日は下のバーで変更できます。
+            予約数・昼食・試合表の状態・天候・未対応の送信エラーなど、この日の運営に必要な情報を一覧します。基準日は下のバーで変更できます。
           </p>
         </div>
       </header>

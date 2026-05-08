@@ -5,7 +5,6 @@ import { DateInputWithPicker } from "@/components/ui/date-input-with-picker";
 import {
   assignmentTypeShortLabelJa,
   buildMatchVsLines,
-  formatAdminIdTail,
   teamDisplayNameBare,
   teamGradeCategoryDetailJa,
 } from "@/lib/admin/operator-display";
@@ -453,25 +452,6 @@ function UnifiedSlotsTable({
   );
 }
 
-function statusBadgeClass(status: string): string {
-  switch (status) {
-    case "locked":
-      return "border-amber-300 bg-amber-50 text-amber-950";
-    case "confirmed":
-      return "border-emerald-300 bg-emerald-50 text-emerald-950";
-    case "open":
-      return "border-sky-300 bg-sky-50 text-sky-950";
-    case "draft":
-      return "border-zinc-300 bg-zinc-100 text-zinc-800";
-    case "cancelled_weather":
-    case "cancelled_operational":
-    case "cancelled_minimum":
-      return "border-red-300 bg-red-50 text-red-950";
-    default:
-      return "border-zinc-300 bg-white text-zinc-800";
-  }
-}
-
 export type PreDayResultsTab = "matches" | "adjust";
 
 export function PreDayResultsClient({
@@ -742,10 +722,10 @@ export function PreDayResultsClient({
           aria-labelledby="failed-notif-title"
         >
           <h2 id="failed-notif-title" className="text-sm font-semibold text-red-950">
-            送信エラーの確認
+            未対応の送信エラーの確認
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-red-900/80">
-            送信できなかったメールだけです。届いていないのにここが空なこともあります。宛先と内容を確認し、再送できる行は「このメールを再送する」から試してください。
+            未対応の送信失敗の記録です。届いていないのにここが空なこともあります。宛先と内容を確認し、再送できる行は「このメールを再送する」から試してください。
           </p>
           <div className="mt-3">
             {!data?.eventDay?.id ? (
