@@ -14,7 +14,8 @@ export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getAdminUser())) {
+  const admin = await getAdminUser();
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -24,7 +25,10 @@ export async function POST(
   }
 
   const supabase = createServiceRoleClient();
-  const result = await retryFailedNotificationById(supabase, id);
+  const result = await retryFailedNotificationById(supabase, id, {
+    resolvedBy: admin.id,
+    resolvedNote: "管理画面の再送で送信成功",
+  });
 
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.statusCode });

@@ -112,7 +112,7 @@ export default async function AdminCampInquiriesPage({
   return (
     <div className="min-w-0 space-y-6">
       <header className="space-y-2">
-        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">対応案件</h1>
+        <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">問い合わせ</h1>
         <h2 className="text-lg font-semibold text-zinc-800 sm:text-xl">合宿相談</h2>
         <p className="text-sm leading-relaxed text-zinc-600">
           公開フォームから届いた合宿相談を確認できます。

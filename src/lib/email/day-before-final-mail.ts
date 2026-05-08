@@ -23,6 +23,54 @@ function reserveContactPageUrl(): string | null {
   return `${base}/reserve/contact`;
 }
 
+function smartParkIosUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SMARTPARK_IOS_URL?.trim() ||
+    "https://apps.apple.com/jp/app/id1525506836"
+  );
+}
+
+function smartParkAndroidUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SMARTPARK_ANDROID_URL?.trim() ||
+    "https://play.google.com/store/apps/details?id=jp.smartpark.app.smapa"
+  );
+}
+
+function buildParkingNoticeTextLines(): string[] {
+  const iosUrl = smartParkIosUrl();
+  const androidUrl = smartParkAndroidUrl();
+  return [
+    "【駐車場をご利用の方へ】",
+    "",
+    "駐車料金のお支払いは、SmartParkアプリでの決済のみとなります。",
+    "現地での現金精算はできません。",
+    "",
+    "当日スムーズにご利用いただくため、事前にSmartParkアプリのインストールをお願いいたします。",
+    "",
+    "アプリのダウンロードはこちら",
+    `iPhoneをご利用の方：${iosUrl}`,
+    `Androidをご利用の方：${androidUrl}`,
+    "",
+    "当日は、現地の案内に沿ってSmartParkアプリを操作し、駐車料金をお支払いください。",
+    "当日スムーズにご利用いただくため、駐車場をご利用される保護者・関係者の方にも、事前に本内容をご周知ください。",
+  ];
+}
+
+function buildParkingNoticeHtml(): string {
+  const iosUrl = smartParkIosUrl();
+  const androidUrl = smartParkAndroidUrl();
+  return `<p style="margin-top:20px;font-size:15px"><strong>【駐車場をご利用の方へ】</strong></p>
+<p style="margin-top:10px"><strong>駐車料金のお支払いは、SmartParkアプリでの決済のみとなります。</strong><br/>
+<strong>現地での現金精算はできません。</strong></p>
+<p>当日スムーズにご利用いただくため、事前にSmartParkアプリのインストールをお願いいたします。</p>
+<p style="margin-top:10px"><strong>アプリのダウンロードはこちら</strong><br/>
+iPhoneをご利用の方：<a href="${escaped(iosUrl)}">${escaped(iosUrl)}</a><br/>
+Androidをご利用の方：<a href="${escaped(androidUrl)}">${escaped(androidUrl)}</a></p>
+<p>当日は、現地の案内に沿ってSmartParkアプリを操作し、駐車料金をお支払いください。</p>
+<p>当日スムーズにご利用いただくため、駐車場をご利用される保護者・関係者の方にも、事前に本内容をご周知ください。</p>`;
+}
+
 function escaped(s: string): string {
   return s
     .replace(/&/g, "&amp;")
@@ -244,6 +292,7 @@ export async function sendDayBeforeFinalEmailAndUpdateNotification(params: {
       "当日の対戦順や組み合わせは、チーム間で合意があれば調整いただいて構いません。";
 
     const footerStandardLines = standardTransactionalFooterTextLines(contactUrl);
+    const parkingLines = variant === "held" ? buildParkingNoticeTextLines() : [];
 
     const footerPendingLines = [
       ...(contactUrl
@@ -262,6 +311,8 @@ export async function sendDayBeforeFinalEmailAndUpdateNotification(params: {
         scheduleBodyText,
         "",
         supplementHeld,
+        "",
+        ...parkingLines,
         "",
         ...footerStandardLines
       );
@@ -284,6 +335,7 @@ ${gradeLine ? `<li>${escaped(gradeLine)}</li>` : ""}
     const scheduleSectionHtml = showSchedule
       ? `<p style="margin-top:16px;font-size:15px"><strong>【対戦スケジュール】</strong></p>${scheduleBodyHtml}<p style="margin-top:12px">${escaped(supplementHeld)}</p>`
       : "";
+    const parkingHtml = variant === "held" ? buildParkingNoticeHtml() : "";
 
     const footerStandardHtml = standardTransactionalFooterHtml(contactUrl);
 
@@ -298,6 +350,7 @@ ${footerStandardHtml}`;
 <p><strong>${escaped(headline)}</strong></p>
 ${reservationListHtml}
 ${scheduleSectionHtml}
+${parkingHtml}
 ${footerStandardHtml}
 </body></html>`
         : variant === "pending_matching"

@@ -16,7 +16,9 @@ export default async function AdminEventDayWeatherPage({
 
   const { data: eventDay, error } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status, weather_status, status_before_weather_cancel")
+    .select(
+      "id, event_date, grade_band, status, weather_status, status_before_weather_cancel, final_day_before_notice_completed_at"
+    )
     .eq("id", id)
     .maybeSingle();
 
@@ -62,6 +64,9 @@ export default async function AdminEventDayWeatherPage({
             status_before_weather_cancel:
               (eventDay as { status_before_weather_cancel?: string | null })
                 .status_before_weather_cancel ?? null,
+            final_day_before_notice_completed_at:
+              (eventDay as { final_day_before_notice_completed_at?: string | null })
+                .final_day_before_notice_completed_at ?? null,
           }}
         />
       )}

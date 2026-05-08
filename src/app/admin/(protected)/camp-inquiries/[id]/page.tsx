@@ -91,7 +91,7 @@ export default async function AdminCampInquiryDetailPage({
   return (
     <div className="min-w-0 space-y-6">
       <header className="space-y-3">
-        <p className="text-xs font-semibold tracking-wide text-zinc-500">対応案件</p>
+        <p className="text-xs font-semibold tracking-wide text-zinc-500">問い合わせ</p>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <h1 className="text-xl font-semibold text-zinc-900 sm:text-2xl">合宿相談 · 詳細</h1>
           <InquiryStatusBadge status={row.status} />

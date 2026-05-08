@@ -39,7 +39,8 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  if (!(await getAdminUser())) {
+  const admin = await getAdminUser();
+  if (!admin) {
     return NextResponse.json({ error: "認証が必要です" }, { status: 401 });
   }
 
@@ -97,6 +98,7 @@ export async function POST(
       reservation_token_hash,
       public_ref,
       teams (
+        id,
         team_name,
         contact_name,
         representative_grade_year
@@ -127,6 +129,11 @@ export async function POST(
   );
   if (!team) {
     return NextResponse.json({ error: "チーム情報が見つかりません" }, { status: 500 });
+  }
+
+  const teamId = String((team as TeamEmbed & { id?: string }).id ?? "").trim();
+  if (!teamId || !UUID_RE.test(teamId)) {
+    return NextResponse.json({ error: "チームIDが見つかりません" }, { status: 500 });
   }
 
   const gy = team.representative_grade_year;
@@ -174,6 +181,16 @@ export async function POST(
       { error: "予約番号（public_ref）が未設定です。DB マイグレーションを適用してください。" },
       { status: 500 }
     );
+  }
+
+  // 再送で確認できたメールアドレスを正として保存し、以降の通知送信先も更新する
+  const { error: teamUpdErr } = await supabase
+    .from("teams")
+    .update({ contact_email: toEmailRaw })
+    .eq("id", teamId);
+  if (teamUpdErr) {
+    logAdminApiDbError("POST resend-created-email update teams.contact_email", teamUpdErr);
+    return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
   for (let attempt = 0; attempt < 6; attempt++) {
@@ -241,6 +258,19 @@ export async function POST(
       notificationId: notif.id,
       deliveryTrigger: "admin_resend",
     });
+
+    // 以前の失敗通知（reservation_created）は事実として残しつつ、運用上は「対応済み」にする
+    await supabase
+      .from("notifications")
+      .update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: admin.id,
+        resolved_note: "管理画面から再送で対応済み",
+      })
+      .eq("reservation_id", id)
+      .eq("template_key", "reservation_created")
+      .eq("status", "failed")
+      .is("resolved_at", null);
 
     return NextResponse.json({
       ok: true,

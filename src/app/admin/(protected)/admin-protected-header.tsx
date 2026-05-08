@@ -26,7 +26,7 @@ function buildSections(inquiry: InquiryBellCounts | null): readonly SectionDef[]
       ? `お問い合わせ · ${inquiry.tournamentTodo}`
       : "お問い合わせ";
   const inqMain =
-    inquiry && inquiry.totalOpen > 0 ? `対応案件 · ${inquiry.totalOpen}` : "対応案件";
+    inquiry && inquiry.totalOpen > 0 ? `問い合わせ · ${inquiry.totalOpen}` : "問い合わせ";
 
   return [
     {
@@ -308,8 +308,8 @@ function InquiryBellButton({ counts }: { counts: InquiryBellCounts }) {
         }`}
         aria-label={
           n > 0
-            ? `未対応の対応案件が${n}件（合宿 ${counts.campTodo}・お問い合わせ ${counts.tournamentTodo}）`
-            : "対応案件を開く（要対応なし）"
+            ? `未対応の問い合わせが${n}件（合宿 ${counts.campTodo}・お問い合わせ ${counts.tournamentTodo}）`
+            : "問い合わせを開く（要対応なし）"
         }
       >
         <BellIcon className="h-5 w-5" />

@@ -16,7 +16,16 @@ export type WeatherEventDayRow = {
   weather_status: string | null;
   /** 雨天中止にした直前の status。取り消し可否の判定に使う */
   status_before_weather_cancel: string | null;
+  final_day_before_notice_completed_at?: string | null;
 };
+
+function weatherStatusDisplayJa(weatherStatus: string | null): string | null {
+  const w = weatherStatus?.trim();
+  if (!w) return null;
+  if (w === "go") return "開催予定";
+  if (w === "cancel") return "中止予定";
+  return `天候メモ: ${w}`;
+}
 
 export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow }) {
   const router = useRouter();
@@ -73,7 +82,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!decision) {
-      setMessage("判断（実施 / 中止）を選んでください");
+      setMessage("判断（開催する / 中止する）を選んでください");
       return;
     }
     const isCancel = decision === "cancel";
@@ -114,8 +123,17 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
           {formatIsoDateWithWeekdayJa(eventDay.event_date)}（{eventDay.grade_band}）
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          状態: {eventDayStatusLabelJa(eventDay.status)}
-          {eventDay.weather_status ? ` ／ 天候フラグ: ${eventDay.weather_status}` : ""}
+          状態:{" "}
+          {eventDayStatusLabelJa(eventDay.status, {
+            finalDayBeforeNoticeCompletedAt:
+              eventDay.status === "confirmed"
+                ? eventDay.final_day_before_notice_completed_at ?? null
+                : null,
+          })}
+          {(() => {
+            const s = weatherStatusDisplayJa(eventDay.weather_status);
+            return s ? ` ／ ${s}` : "";
+          })()}
         </p>
       </div>
 
@@ -177,7 +195,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
                 checked={decision === "go"}
                 onChange={() => setDecision("go")}
               />
-              実施（go）
+              開催する
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -187,7 +205,7 @@ export function WeatherDecisionForm({ eventDay }: { eventDay: WeatherEventDayRow
                 checked={decision === "cancel"}
                 onChange={() => setDecision("cancel")}
               />
-              中止（cancel）
+              中止する
             </label>
           </fieldset>
 

@@ -1,5 +1,8 @@
 /** event_days.status を管理画面用の短い日本語に。 */
-export function eventDayStatusLabelJa(status: string): string {
+export function eventDayStatusLabelJa(
+  status: string,
+  opts?: { finalDayBeforeNoticeCompletedAt?: string | null }
+): string {
   switch (status) {
     case "draft":
       return "公開前";
@@ -8,7 +11,7 @@ export function eventDayStatusLabelJa(status: string): string {
     case "locked":
       return "受付終了";
     case "confirmed":
-      return "開催確定";
+      return opts?.finalDayBeforeNoticeCompletedAt ? "開催確定" : "試合スケジュール確定";
     case "cancelled_weather":
       return "天候により中止";
     case "cancelled_minimum":

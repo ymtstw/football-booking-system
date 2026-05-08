@@ -60,7 +60,7 @@ export default async function AdminEventDayOperationalCancelPage({
       />
       <h1 className="mb-2 text-lg font-semibold text-zinc-900">緊急中止（運営の都合）</h1>
       <p className="mb-6 text-sm leading-relaxed text-zinc-600">
-        雨天とは別枠です。登録すると開催日は<strong>運営都合中止</strong>となり、お知らせ文は必須です。
+        雨天とは別枠です。登録すると開催日は<strong>運営都合中止</strong>となり、参加チーム向けのお知らせ文は必須です。
         <strong className="font-semibold text-zinc-800">①</strong>
         前日の一括送信に載せるか、
         <strong className="font-semibold text-zinc-800">②</strong>
