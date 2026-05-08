@@ -67,7 +67,13 @@ export async function POST(
   const alreadyResolved =
     (before as { resolved_at?: string | null }).resolved_at != null;
   if (alreadyResolved) {
-    return NextResponse.json({ error: "すでに対応済みです" }, { status: 409 });
+    return NextResponse.json(
+      {
+        error:
+          "この送信エラーは、すでに対応済みとして記録されています。最新の一覧を表示しました。",
+      },
+      { status: 409 }
+    );
   }
 
   const { error: upErr } = await supabase
