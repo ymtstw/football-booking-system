@@ -322,7 +322,11 @@ export function NotificationFailedRetryTable({
       });
       const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
       if (!res.ok) {
-        void json;
+        if (res.status === 409 && json.error) {
+          setMessage(json.error);
+          await load();
+          return;
+        }
         setMessage("対応済みへの更新に失敗しました。時間をおいて再度お試しください。");
         return;
       }
