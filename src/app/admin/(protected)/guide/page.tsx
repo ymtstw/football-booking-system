@@ -116,149 +116,199 @@ export default async function AdminGuidePage() {
         </p>
       </SectionCard>
 
-      <SectionCard id="ops" title="運用担当者がやること" accent="emphasis">
+      <SectionCard id="first-checks" title="まず確認すること" accent="emphasis">
+        <BulletList
+          items={[
+            "参加チームが3チーム以上あるか",
+            "試合スケジュールに不自然な点がないか",
+            "昼食数に不自然な点がないか",
+            "送信エラーがないか（ある場合は対応が必要）",
+            "天候・施設状況に問題がないか",
+            "当日の共有メモに必要な内容が残っているか",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="schedule" title="通常の運営スケジュール">
         <div className="space-y-0 pt-1">
           <TimelineItem
             timeLabel="予約受付中"
-            body={
-              <BulletList
-                items={[
-                  "予約チーム数を確認する",
-                  "昼食数を確認する",
-                  "気になる予約内容があれば確認する",
-                  "共有が必要な内容は「当日の共有メモ」に残す",
-                ]}
-              />
-            }
+            body={<>予約内容・参加チーム数・昼食数を、必要に応じて確認します。</>}
           />
           <TimelineItem
-            timeLabel="開催2日前 15:00"
+            timeLabel="開催2日前 15:00以降"
             body={
-              <BulletList
-                items={[
-                  "予約が締め切られているか確認する",
-                  "参加チームが3チーム以上あるか確認する",
-                  "3チーム未満の場合は、中止案内を確認する",
-                ]}
-              />
-            }
-          />
-          <TimelineItem
-            timeLabel="開催2日前 15:00〜16:00"
-            body={
-              <BulletList
-                items={[
-                  "試合スケジュールを確認する",
-                  "対戦相手、審判、時刻に不自然な点がないか確認する",
-                  "チーム別の昼食数を確認する",
-                  "必要があれば、案内前に修正する",
-                ]}
-              />
+              <>
+                予約締切後に、参加チーム数・試合スケジュール・昼食数を確認します。
+                <br />
+                参加チームが3チーム未満の場合は、原則として開催中止になります。
+              </>
             }
           />
           <TimelineItem
             timeLabel="開催2日前 16:00頃"
             body={
-              <BulletList
-                items={[
-                  "試合スケジュール案内の送信状況を確認する",
-                  "送信エラーがあれば、メールアドレス確認や個別連絡を行う",
-                ]}
-              />
+              <>
+                試合スケジュール案内の送信状況を確認します。
+                <br />
+                送信エラーがあれば、必要に応じて対応します。
+              </>
             }
           />
           <TimelineItem
             timeLabel="開催前日 16:30頃"
-            body={
-              <BulletList
-                items={[
-                  "天候、施設状況、駐車場、持ち物を確認する",
-                  "前日最終案内の送信状況を確認する",
-                  "当日共有すべき内容を「当日の共有メモ」に残す",
-                ]}
-              />
-            }
+            body={<>天候・施設状況を確認し、前日最終案内の送信状況を確認します。</>}
           />
           <TimelineItem
             timeLabel="開催当日"
             body={
-              <BulletList
-                items={[
-                  "受付状況を確認する",
-                  "試合進行を確認する",
-                  "昼食数を確認する",
-                  "共有メモを確認する",
-                  "遅刻、キャンセル、変更があれば関係者へ共有する",
-                ]}
-              />
+              <>
+                受付状況・試合進行・昼食数を確認し、必要事項を関係者へ共有します。
+              </>
             }
           />
         </div>
       </SectionCard>
 
-      <SectionCard id="exceptions" title="例外対応" accent="warn">
-        <h3 className="text-sm font-semibold text-zinc-900">3チーム未満の場合</h3>
+      <SectionCard id="while-open" title="予約受付中に確認すること">
         <BulletList
           items={[
-            "原則として開催中止",
-            "中止案内が送られているか確認する",
-            "必要に応じて個別連絡する",
-          ]}
-        />
-        <h3 className="mt-5 text-sm font-semibold text-zinc-900">天候による中止の場合</h3>
-        <BulletList
-          items={[
-            "天候対応を登録する",
-            "判断理由や注意事項をメモに残す",
-            "必要に応じてメールや電話で連絡する",
-          ]}
-        />
-        <h3 className="mt-5 text-sm font-semibold text-zinc-900">運営都合による中止の場合</h3>
-        <BulletList
-          items={[
-            "緊急中止を登録する",
-            "参加者向けのお知らせを入力する",
-            "振替、返金、連絡方法など、次に必要な案内を明記する",
-          ]}
-        />
-        <h3 className="mt-5 text-sm font-semibold text-zinc-900">メール送信エラーの場合</h3>
-        <BulletList
-          items={[
-            "対象チームのメールアドレスを確認する",
-            "誤りがあれば修正する",
-            "重要な案内は、必要に応じて電話でも確認する",
+            "予約チーム数を必要に応じて確認する",
+            "昼食数に不自然な点がないか確認する",
+            "気になる予約内容があれば確認する",
+            "共有が必要な内容は「当日の共有メモ」に残す",
           ]}
         />
       </SectionCard>
 
-      <SectionCard id="notes-and-mail" title="メモ・メールの注意">
+      <SectionCard id="two-days-before" title="開催2日前に確認すること">
+        <BulletList
+          items={[
+            "予約が締め切られているか確認する",
+            "参加チームが3チーム以上あるか確認する",
+            "3チーム未満の場合は、中止案内の送信状況を確認する",
+            "試合スケジュールと昼食数の全体を確認する",
+            "特別な連絡が必要なチームがないか確認する",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="match-schedule-notes" title="試合スケジュール確認時の注意">
+        <BulletList
+          items={[
+            "対戦相手に不自然な点がないか",
+            "審判に不自然な点がないか",
+            "時刻に不自然な点がないか",
+            "必要があれば、案内前に修正する",
+            "時刻を変更する場合は、集合時間や案内内容に影響がないか確認する",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="lunch-notes" title="昼食確認時の注意">
+        <BulletList
+          items={[
+            "チーム別の昼食数を確認する",
+            "参加人数と昼食数が大きくずれている場合は、必要に応じて確認する",
+            "当日混乱しそうな点は「当日の共有メモ」に残す",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="before-mails" title="案内メール送信前に確認すること">
+        <BulletList
+          items={[
+            "試合スケジュールに修正漏れがないか",
+            "特別な連絡が必要なチームがないか",
+            "送信後に追加連絡が必要になりそうな変更が残っていないか",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="day-before" title="開催前日に確認すること">
+        <BulletList
+          items={[
+            "天候・施設状況を確認する",
+            "駐車場・持ち物などの案内に不足がないか確認する",
+            "当日共有すべき内容を「当日の共有メモ」に残す",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="event-day" title="開催当日に確認すること">
+        <BulletList
+          items={[
+            "受付状況を確認する",
+            "試合進行を確認する",
+            "昼食数を確認する",
+            "共有メモを確認する",
+            "遅刻・キャンセル・変更があれば関係者へ共有する",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="inquiries" title="問い合わせ対応">
+        <BulletList
+          items={[
+            "未対応・確認が必要な問い合わせがないか確認する",
+            "必要に応じて対応状況を更新する",
+            "電話やメールで対応した内容は、必要に応じて対応メモに残す",
+          ]}
+        />
+      </SectionCard>
+
+      <SectionCard id="memos" title="メモの使い分け">
         <h3 className="text-sm font-semibold text-zinc-900">当日の共有メモ</h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-700">
           開催日全体で共有したい内容を残します。
         </p>
         <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">例</p>
-        <BulletList
-          items={[
-            "天候注意",
-            "駐車場案内",
-            "遅刻予定",
-            "昼食受け渡し注意",
-          ]}
-        />
+        <BulletList items={["天候注意", "駐車場案内", "遅刻予定", "昼食受け渡し注意"]} />
 
         <h3 className="mt-5 text-sm font-semibold text-zinc-900">対応メモ</h3>
         <p className="mt-2 text-sm leading-relaxed text-zinc-700">
           問い合わせや相談ごとの管理者用メモです。お客様には表示されません。
         </p>
+      </SectionCard>
 
-        <h3 className="mt-5 text-sm font-semibold text-zinc-900">メール送信について</h3>
+      <SectionCard id="mail-delivery" title="メール送信について">
         <BulletList
           items={[
-            "送信状況は、メールを送る処理の結果です",
+            "送信状況は、メール送信処理の結果です",
             "相手が受信・確認したことを保証するものではありません",
-            "重要な変更は、必要に応じて電話などでも確認してください",
+            "送信エラーがある場合は、メールアドレス確認や個別連絡を検討してください",
+            "重要な変更をした場合は、対象チームへ伝わっているか確認してください",
           ]}
         />
+      </SectionCard>
+
+      <SectionCard id="where-to-look" title="困ったときの確認先">
+        <dl className="mt-1 space-y-4 text-sm">
+          <div className="min-w-0">
+            <dt className="font-semibold text-zinc-900">開催日の確認</dt>
+            <dd className="mt-1.5 leading-relaxed text-zinc-700">
+              開催日ごとの状況・試合スケジュール・昼食数・共有メモを確認します。
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="font-semibold text-zinc-900">予約内容の確認</dt>
+            <dd className="mt-1.5 leading-relaxed text-zinc-700">
+              チームごとの予約内容を確認します。
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="font-semibold text-zinc-900">お問い合わせの確認</dt>
+            <dd className="mt-1.5 leading-relaxed text-zinc-700">
+              問い合わせの対応状況を確認します。
+            </dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="font-semibold text-zinc-900">メール送信履歴</dt>
+            <dd className="mt-1.5 leading-relaxed text-zinc-700">
+              送信状況と送信エラーの有無を確認します。
+            </dd>
+          </div>
+        </dl>
       </SectionCard>
     </div>
   );

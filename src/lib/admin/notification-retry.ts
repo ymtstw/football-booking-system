@@ -217,14 +217,27 @@ export async function retryFailedNotificationById(
     };
   }
 
-  const { error: upErr } = await supabase
+  // failed は「送信失敗の事実」として残す。再送は新しい pending 行を追加して履歴として管理する。
+  const { data: inserted, error: insErr } = await supabase
     .from("notifications")
-    .update({ status: "pending", error_message: null })
-    .eq("id", notificationId)
-    .eq("status", "failed");
+    .insert({
+      event_day_id: row.event_day_id,
+      reservation_id: row.reservation_id,
+      channel: "email",
+      status: "pending",
+      template_key: row.template_key,
+      payload_summary: row.payload_summary,
+      error_message: null,
+    })
+    .select("id")
+    .maybeSingle();
 
-  if (upErr) {
-    logAdminApiDbError("retryFailedNotificationById pending update", upErr);
+  if (insErr) {
+    logAdminApiDbError("retryFailedNotificationById insert pending notification", insErr);
+    return { ok: false, error: ADMIN_API_GENERIC_ERROR_JA, statusCode: 500 };
+  }
+  const pendingId = String((inserted as { id?: string } | null)?.id ?? "").trim();
+  if (!pendingId) {
     return { ok: false, error: ADMIN_API_GENERIC_ERROR_JA, statusCode: 500 };
   }
 
@@ -276,7 +289,7 @@ export async function retryFailedNotificationById(
             status: "failed",
             error_message: "開催日情報の取得に失敗しました（再送中断）",
           })
-          .eq("id", notificationId);
+          .eq("id", pendingId);
         return { ok: false, error: "開催日情報の取得に失敗しました", statusCode: 500 };
       }
       await sendDayBeforeFinalEmailAndUpdateNotification({
@@ -325,7 +338,7 @@ export async function retryFailedNotificationById(
             status: "failed",
             error_message: "朝枠変更通知の payload_summary が不正のため再送できません",
           })
-          .eq("id", notificationId);
+          .eq("id", pendingId);
         return {
           ok: false,
           error: "通知の保存内容（枠・時刻）が取得できません。開催日を確認してください。",
@@ -349,7 +362,7 @@ export async function retryFailedNotificationById(
           : ((ed?.grade_band as string | null) ?? null);
       await sendMorningSlotForceChangedEmailAndUpdateNotification({
         supabase,
-        notificationId,
+        notificationId: pendingId,
         to: contact.contactEmail,
         contactName: contact.contactName,
         teamName,
@@ -376,7 +389,7 @@ export async function retryFailedNotificationById(
             status: "failed",
             error_message: "運営中止のお知らせ文が空のため再送できません（開催日を確認してください）",
           })
-          .eq("id", notificationId);
+          .eq("id", pendingId);
         return {
           ok: false,
           error: "運営中止のお知らせ文が空です。開催日データを修正してから再送してください。",
@@ -400,7 +413,7 @@ export async function retryFailedNotificationById(
           status: "failed",
           error_message: `再送未対応の template_key: ${templateKey}`,
         })
-        .eq("id", notificationId);
+        .eq("id", pendingId);
       return {
         ok: false,
         error: `このテンプレートは再送未対応です: ${templateKey || "（なし）"}`,
@@ -415,27 +428,31 @@ export async function retryFailedNotificationById(
         status: "failed",
         error_message: "再送処理でエラーが発生しました（サーバーログを確認してください）",
       })
-      .eq("id", notificationId);
+      .eq("id", pendingId);
     return { ok: false, error: ADMIN_API_GENERIC_ERROR_JA, statusCode: 500 };
   }
 
   const { data: after } = await supabase
     .from("notifications")
     .select("status")
-    .eq("id", notificationId)
+    .eq("id", pendingId)
     .maybeSingle();
 
   const st = (after?.status as string) ?? "pending";
   if (st === "sent") {
     const resolvedBy = opts?.resolvedBy?.trim() ?? "";
-    await supabase
-      .from("notifications")
-      .update({
-        resolved_at: new Date().toISOString(),
-        resolved_by: resolvedBy || null,
-        resolved_note: (opts?.resolvedNote ?? "再送により送信成功").trim().slice(0, 2000),
-      })
-      .eq("id", notificationId);
+    if (resolvedBy) {
+      // 再送が成功した場合、必要なら「未対応」から外す（failed の事実は残す）
+      await supabase
+        .from("notifications")
+        .update({
+          resolved_at: new Date().toISOString(),
+          resolved_by: resolvedBy,
+          resolved_note: (opts?.resolvedNote ?? "再送により送信成功").trim().slice(0, 2000),
+        })
+        .eq("id", notificationId)
+        .eq("status", "failed");
+    }
     return { ok: true, status: "sent" };
   }
   if (st === "failed") {
