@@ -451,7 +451,8 @@ export async function retryFailedNotificationById(
           resolved_note: (opts?.resolvedNote ?? "再送により送信成功").trim().slice(0, 2000),
         })
         .eq("id", notificationId)
-        .eq("status", "failed");
+        .eq("status", "failed")
+        .is("resolved_at", null);
     }
     return { ok: true, status: "sent" };
   }

@@ -64,6 +64,11 @@ export async function POST(
       { status: 409 }
     );
   }
+  const alreadyResolved =
+    (before as { resolved_at?: string | null }).resolved_at != null;
+  if (alreadyResolved) {
+    return NextResponse.json({ error: "すでに対応済みです" }, { status: 409 });
+  }
 
   const { error: upErr } = await supabase
     .from("notifications")
@@ -73,7 +78,8 @@ export async function POST(
       resolved_note: note,
     })
     .eq("id", id)
-    .eq("status", "failed");
+    .eq("status", "failed")
+    .is("resolved_at", null);
 
   if (upErr) {
     logAdminApiDbError("POST notifications/[id]/resolve update", upErr);
