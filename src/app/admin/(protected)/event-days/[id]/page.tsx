@@ -40,6 +40,59 @@ function ChevronRightIcon({ className }: { className?: string }) {
   );
 }
 
+type TeamLunchItem = { name: string; quantity: number };
+type TeamLunchRow = {
+  reservationId: string;
+  teamName: string;
+  displayName: string | null;
+  totalQty: number;
+  items: TeamLunchItem[];
+};
+
+function buildTeamLunchRows(input: Array<{
+  id: string;
+  display_name: string | null;
+  teams: { team_name: string } | { team_name: string }[] | null;
+  reservation_lunch_items: { item_name_snapshot: string; quantity: number }[] | null;
+}>): TeamLunchRow[] {
+  const singleTeam = (t: { team_name: string } | { team_name: string }[] | null) =>
+    Array.isArray(t) ? t[0] ?? null : t;
+
+  const rows: TeamLunchRow[] = [];
+  for (const r of input) {
+    const team = singleTeam(r.teams);
+    const teamName = team?.team_name?.trim() ?? "";
+    if (!teamName) continue;
+
+    const byName = new Map<string, number>();
+    for (const li of r.reservation_lunch_items ?? []) {
+      const name = String(li.item_name_snapshot ?? "").trim();
+      const q = Number(li.quantity ?? 0);
+      if (!name || !Number.isFinite(q) || q <= 0) continue;
+      byName.set(name, (byName.get(name) ?? 0) + q);
+    }
+    const items = [...byName.entries()]
+      .map(([name, quantity]) => ({ name, quantity }))
+      .sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));
+    const totalQty = items.reduce((s, x) => s + x.quantity, 0);
+
+    rows.push({
+      reservationId: r.id,
+      teamName,
+      displayName: r.display_name,
+      totalQty,
+      items,
+    });
+  }
+  rows.sort(
+    (a, b) =>
+      b.totalQty - a.totalQty ||
+      a.teamName.localeCompare(b.teamName) ||
+      a.reservationId.localeCompare(b.reservationId)
+  );
+  return rows;
+}
+
 /** 読み取り専用の指標カード（クリック不可の見た目） */
 function HubInfoCard({
   title,
@@ -151,6 +204,11 @@ export default async function AdminEventDayHubPage({
   }
 
   const { day, summary } = loaded.data;
+  const finalDayBeforeNoticeCompletedAt =
+    day.status === "confirmed"
+      ? ((day as { final_day_before_notice_completed_at?: string | null })
+          .final_day_before_notice_completed_at ?? null)
+      : null;
 
   const { items: effectiveLunchMenu, dbError: effectiveLunchErr } =
     await fetchEffectiveLunchMenuItemsForEventDay(supabase, day.id);
@@ -168,6 +226,29 @@ export default async function AdminEventDayHubPage({
   const preDayAdjustHref = `${preDayBase}&tab=adjust`;
   const reservationsHref = `/admin/reservations?eventDayId=${encodeURIComponent(day.id)}`;
   const notificationsHref = `/admin/event-days/${day.id}/notifications`;
+
+  const { data: reservationLunchRowsRaw } = await supabase
+    .from("reservations")
+    .select(
+      `
+      id,
+      display_name,
+      teams ( team_name ),
+      reservation_lunch_items ( item_name_snapshot, quantity )
+    `
+    )
+    .eq("event_day_id", day.id)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+
+  const teamLunchRows = buildTeamLunchRows(
+    (reservationLunchRowsRaw ?? []) as Array<{
+      id: string;
+      display_name: string | null;
+      teams: { team_name: string } | { team_name: string }[] | null;
+      reservation_lunch_items: { item_name_snapshot: string; quantity: number }[] | null;
+    }>
+  );
 
   const warnings: { key: string; label: string; href?: string }[] = [];
   if (summary.warningCount != null && summary.warningCount > 0) {
@@ -218,7 +299,9 @@ export default async function AdminEventDayHubPage({
                         : "border-zinc-200 bg-white text-zinc-800"
                   }`}
                 >
-                  {eventDayStatusLabelJa(day.status)}
+                  {eventDayStatusLabelJa(day.status, {
+                    finalDayBeforeNoticeCompletedAt,
+                  })}
                 </span>
               </p>
             </div>
@@ -295,6 +378,47 @@ export default async function AdminEventDayHubPage({
               variant="panel"
               dense
             />
+            <div className="mt-3 border-t border-zinc-200/70 pt-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-zinc-800">チーム別の昼食数</p>
+                <Link
+                  href={reservationsHref}
+                  className="text-xs font-medium text-sky-800 underline decoration-sky-600/40 underline-offset-2 hover:text-sky-950"
+                >
+                  予約詳細で確認 →
+                </Link>
+              </div>
+              {teamLunchRows.length === 0 ? (
+                <p className="mt-2 text-xs text-zinc-600">昼食の注文はまだありません。</p>
+              ) : (
+                <div className="mt-2 max-h-72 overflow-auto rounded-lg border border-zinc-200 bg-white">
+                  <ul className="divide-y divide-zinc-100">
+                    {teamLunchRows.map((r) => (
+                      <li key={r.reservationId} className="px-3 py-2">
+                        <div className="flex min-w-0 items-baseline justify-between gap-2">
+                          <p className="min-w-0 truncate text-sm font-medium text-zinc-900">
+                            {r.teamName}
+                            {r.displayName?.trim()
+                              ? `（${r.displayName.trim()}）`
+                              : ""}
+                          </p>
+                          <p className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900">
+                            {r.totalQty} 食
+                          </p>
+                        </div>
+                        {r.items.length ? (
+                          <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                            {r.items.map((x) => `${x.name} ${x.quantity}`).join(" / ")}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-zinc-500">（内訳なし）</p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           </HubInfoCard>
         </section>
 

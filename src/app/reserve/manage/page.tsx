@@ -20,6 +20,9 @@ import {
   RESERVE_FLOW_NETWORK_ERROR_JA,
 } from "@/lib/reserve/reserve-flow-user-message";
 
+const CONTACT_PHONE =
+  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "04-1234-5678";
+
 type ReservationJson = {
   reservation?: Record<string, unknown>;
   error?: string;
@@ -159,6 +162,16 @@ export default function ReserveManagePage() {
               </Link>
               ください。
             </p>
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950">
+              メールが届かず、確認コードもお控えでない場合は、再度予約登録を行わず、
+              <a
+                href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
+                className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
+              >
+                {CONTACT_PHONE}
+              </a>
+              までお電話ください。
+            </p>
           </div>
         </details>
       </div>
@@ -182,6 +195,16 @@ export default function ReserveManagePage() {
                 お問い合わせ
               </Link>
               ください。
+            </p>
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950">
+              メールが届かず、確認コードもお控えでない場合は、再度予約登録を行わず、
+              <a
+                href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
+                className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
+              >
+                {CONTACT_PHONE}
+              </a>
+              までお電話ください。
             </p>
           </div>
         </section>

@@ -46,13 +46,14 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    forbidden ? MSG_NO_ADMIN_PERMISSION : null
+  );
   const [loading, setLoading] = useState(false);
 
   /** 保護画面から弾かれた直後など、URL の forbidden を一度だけ画面に出す */
   useEffect(() => {
     if (!forbidden) return;
-    setError(MSG_NO_ADMIN_PERMISSION);
     router.replace("/admin/login", { scroll: false });
   }, [forbidden, router]);
 

@@ -61,7 +61,7 @@ export async function GET(
 
   const { data: notifRows, error: nErr } = await supabase
     .from("notifications")
-    .select("template_key, status")
+    .select("template_key, status, resolved_at")
     .eq("event_day_id", eventDayId);
 
   if (nErr) {
@@ -72,10 +72,13 @@ export async function GET(
   const rows = notifRows ?? [];
   const countSent = (key: string) =>
     rows.filter((r) => r.template_key === key && r.status === "sent").length;
-  const countPendingOrFailed = (key: string) =>
+  const countPendingOrUnresolvedFailed = (key: string) =>
     rows.filter(
       (r) =>
-        r.template_key === key && (r.status === "pending" || r.status === "failed")
+        r.template_key === key &&
+        (r.status === "pending" ||
+          (r.status === "failed" &&
+            (r as { resolved_at?: string | null }).resolved_at == null))
     ).length;
 
   const edExt = ed as {
@@ -98,23 +101,23 @@ export async function GET(
     notifications: {
       minimumCancelNotice: {
         sent: countSent(TEMPLATE_MINIMUM_CANCEL_NOTICE),
-        pendingOrFailed: countPendingOrFailed(TEMPLATE_MINIMUM_CANCEL_NOTICE),
+        pendingOrFailed: countPendingOrUnresolvedFailed(TEMPLATE_MINIMUM_CANCEL_NOTICE),
       },
       matchingProposal: {
         sent: countSent(TEMPLATE_MATCHING_PROPOSAL),
-        pendingOrFailed: countPendingOrFailed(TEMPLATE_MATCHING_PROPOSAL),
+        pendingOrFailed: countPendingOrUnresolvedFailed(TEMPLATE_MATCHING_PROPOSAL),
       },
       weatherCancelImmediate: {
         sent: countSent(TEMPLATE_WEATHER_CANCEL_IMMEDIATE),
-        pendingOrFailed: countPendingOrFailed(TEMPLATE_WEATHER_CANCEL_IMMEDIATE),
+        pendingOrFailed: countPendingOrUnresolvedFailed(TEMPLATE_WEATHER_CANCEL_IMMEDIATE),
       },
       dayBeforeFinal: {
         sent: countSent(TEMPLATE_DAY_BEFORE_FINAL),
-        pendingOrFailed: countPendingOrFailed(TEMPLATE_DAY_BEFORE_FINAL),
+        pendingOrFailed: countPendingOrUnresolvedFailed(TEMPLATE_DAY_BEFORE_FINAL),
       },
       morningSlotForceChanged: {
         sent: countSent(TEMPLATE_MORNING_SLOT_FORCE_CHANGED),
-        pendingOrFailed: countPendingOrFailed(TEMPLATE_MORNING_SLOT_FORCE_CHANGED),
+        pendingOrFailed: countPendingOrUnresolvedFailed(TEMPLATE_MORNING_SLOT_FORCE_CHANGED),
       },
     },
   });

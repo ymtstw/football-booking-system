@@ -166,7 +166,7 @@ export function ReservationCreatedMailResendClient({
       >
         <p>予約者から「メールが届いていない」と連絡があった場合に使用します。</p>
         <p className="text-zinc-600">
-          送信先のメールアドレスを確認してから再送してください。
+          再送したメールアドレスは、連絡先メールとして自動的に登録されます。
         </p>
       </div>
 

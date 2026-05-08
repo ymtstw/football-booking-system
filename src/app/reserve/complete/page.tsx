@@ -22,6 +22,8 @@ import { formatReservationPublicRefForDisplay } from "@/lib/reservations/public-
 import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 
 const SESSION_COMPLETE_KEY = "football_reservation_complete_v1";
+const CONTACT_PHONE =
+  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "04-1234-5678";
 
 type Stored = {
   reservationToken: string;
@@ -411,13 +413,29 @@ export default function ReserveCompletePage() {
         aria-labelledby="complete-next-heading"
       >
         <h2 id="complete-next-heading" className="text-sm font-bold text-rp-navy sm:text-base">
-          次にご確認ください
+          予約語のご案内
         </h2>
         <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-zinc-800">
           <li>・確認メールをご確認ください。</li>
           <li>・変更・キャンセルは開催日の2日前15:00まで可能です。</li>
           <li>・当日の詳細は、開催日前にメールでお知らせします。</li>
         </ul>
+      </section>
+
+      <section
+        className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950 shadow-sm sm:px-5 sm:py-4"
+        aria-label="メールが届かない場合のご案内"
+      >
+        <p>
+          メールが届かず、確認コードもお控えでない場合は、再度予約登録を行わず、
+          <a
+            href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
+            className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
+          >
+            {CONTACT_PHONE}
+          </a>
+          までお電話ください。
+        </p>
       </section>
 
       {/* 5. アクション（最大2つ） */}

@@ -32,7 +32,7 @@ export function OperationalCancelForm({
     e.preventDefault();
     const trimmed = notice.trim();
     if (!trimmed) {
-      setMessage("参加者向けのお知らせ文を入力してください");
+      setMessage("参加チーム向けのお知らせ文は必須です。案内文を記載ください");
       return;
     }
     const sendImmediate =
@@ -128,7 +128,9 @@ export function OperationalCancelForm({
           参加者向けのお知らせ文（必須）
         </label>
         <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
-          <strong className="font-semibold text-zinc-900">緊急中止では必須です。</strong>
+          <strong className="font-semibold text-zinc-900">
+            参加チーム向けのお知らせ文は必須です。
+          </strong>
           電話・振替の期限など、ご家庭が次に取れる行動が分かるように書いてください。
         </p>
         <div className="mt-3 rounded-md border border-rose-200 bg-rose-50/90 px-3 py-2.5 text-xs leading-relaxed text-rose-950 sm:text-sm">

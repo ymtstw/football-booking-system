@@ -5,8 +5,10 @@ export function weatherSummaryJa(status: string, weatherStatus: string | null): 
   if (status === "cancelled_operational") return "中止（運営）";
   if (status === "cancelled_minimum") return "中止（最少催行）";
   const w = weatherStatus?.trim();
-  if (w) return `雨天メモ: ${w}`;
-  return "雨天メモ未設定";
+  if (!w) return "天候未判断";
+  if (w === "go") return "開催予定";
+  if (w === "cancel") return "中止予定";
+  return `天候メモ: ${w}`;
 }
 
 export function preDayConfirmedJa(dayStatus: string): string {

@@ -198,9 +198,12 @@ export function CampInquiryForm({
           ご相談を受け付けました
         </ReserveHeadingWithIcon>
         <div className="space-y-3 text-[15px] leading-relaxed text-zinc-800 sm:text-sm">
-          <p>内容を確認のうえ、担当者よりご連絡します。</p>
+          <p>お問い合わせありがとうございます。</p>
+          <p>内容を確認のうえ、担当者よりご連絡いたします。</p>
           <p>この時点では、合宿の予約はまだ確定していません。</p>
-          <p>日程・人数・宿泊内容などの調整は、担当者からの返信で進めます。</p>
+          <p>
+            日程・人数・宿泊内容などの詳細は、担当者からのご連絡時に確認・調整させていただきます。
+          </p>
         </div>
       </div>
     );

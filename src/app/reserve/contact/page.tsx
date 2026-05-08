@@ -18,6 +18,8 @@ const RESERVATION_INQUIRY_HINT_LINES_JA = [
 ] as const;
 
 const CONTACT_REPLY_NOTE_JA = "お問い合わせ内容を確認のうえ、担当者よりご連絡いたします。";
+const CONTACT_PHONE =
+  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "04-1234-5678";
 
 export default function ReserveContactPage() {
   const [name, setName] = useState("");
@@ -106,6 +108,17 @@ export default function ReserveContactPage() {
           お急ぎの方は、ページ下部の電話番号までご連絡ください。
         </div>
       ) : null}
+
+      <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950 sm:px-4 sm:py-2.5">
+        メールが届かず、確認コードもお控えでない場合は、再度予約登録を行わず、
+        <a
+          href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
+          className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
+        >
+          {CONTACT_PHONE}
+        </a>
+        までお電話ください。
+      </div>
 
       {submitted ? (
         <div className="space-y-4 rounded-xl border border-rp-mint-2 bg-rp-mint/70 px-4 py-4 sm:px-5">

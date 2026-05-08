@@ -125,6 +125,7 @@
 
 - `event_days.weather_status` は表示用スナップショット。履歴は `weather_decisions`。
 - 雨天メールの即時／前日一括（`day_before_17`）予約等は `POST .../weather-decision` のペイロードで切替（実装の enum / テンプレを正とする）。
+- 管理画面の表示は内部値（`go` / `cancel`）をそのまま出さず、`go` は「開催予定」、`cancel` は「中止予定」、その他は「天候メモ: ...」として見せる（空は「天候未判断」）。
 
 ---
 

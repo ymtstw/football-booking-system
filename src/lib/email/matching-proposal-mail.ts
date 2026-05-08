@@ -40,6 +40,54 @@ function reserveContactUrl(): string | null {
   return `${base}/reserve/contact`;
 }
 
+function smartParkIosUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SMARTPARK_IOS_URL?.trim() ||
+    "https://apps.apple.com/jp/app/id1525506836"
+  );
+}
+
+function smartParkAndroidUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SMARTPARK_ANDROID_URL?.trim() ||
+    "https://play.google.com/store/apps/details?id=jp.smartpark.app.smapa"
+  );
+}
+
+function buildParkingNoticeText(): string {
+  const iosUrl = smartParkIosUrl();
+  const androidUrl = smartParkAndroidUrl();
+  return [
+    "【駐車場をご利用の方へ】",
+    "",
+    "駐車料金のお支払いは、SmartParkアプリでの決済のみとなります。",
+    "現地での現金精算はできません。",
+    "",
+    "当日スムーズにご利用いただくため、事前にSmartParkアプリのインストールをお願いいたします。",
+    "",
+    "アプリのダウンロードはこちら",
+    `iPhoneをご利用の方：${iosUrl}`,
+    `Androidをご利用の方：${androidUrl}`,
+    "",
+    "当日は、現地の案内に沿ってSmartParkアプリを操作し、駐車料金をお支払いください。",
+    "当日スムーズにご利用いただくため、駐車場をご利用される保護者・関係者の方にも、事前に本内容をご周知ください。",
+  ].join("\n");
+}
+
+function buildParkingNoticeHtml(): string {
+  const iosUrl = smartParkIosUrl();
+  const androidUrl = smartParkAndroidUrl();
+  return `<p style="margin-top:20px;font-size:15px"><strong>【駐車場をご利用の方へ】</strong></p>
+<p style="margin-top:10px"><strong>駐車料金のお支払いは、SmartParkアプリでの決済のみとなります。</strong><br/>
+<strong>現地での現金精算はできません。</strong></p>
+<p>当日スムーズにご利用いただくため、事前にSmartParkアプリのインストールをお願いいたします。</p>
+<p style="margin-top:10px"><strong>アプリのダウンロードはこちら</strong><br/>
+iPhoneをご利用の方：<a href="${escaped(iosUrl)}">${escaped(iosUrl)}</a><br/>
+Androidをご利用の方：<a href="${escaped(androidUrl)}">${escaped(androidUrl)}</a></p>
+<p>当日は、現地の案内に沿ってSmartParkアプリを操作し、駐車料金をお支払いください。</p>
+<p>当日スムーズにご利用いただくため、駐車場をご利用される保護者・関係者の方にも、事前に本内容をご周知ください。</p>`;
+}
+
 function rowsToPlainSchedule(rows: ReservationScheduleRow[]): string {
   if (rows.length === 0) {
     return "（対戦スケジュールの行はまだありません。運営で調整中の場合があります）";
@@ -151,6 +199,8 @@ export async function sendMatchingProposalEmailAndUpdateNotification(params: {
     "【対戦スケジュール】",
     schedulePlain,
     "",
+    buildParkingNoticeText(),
+    "",
     contactText,
     "なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。",
     "",
@@ -169,6 +219,7 @@ ${escaped(dayBeforeFinalNoticeSentence)}</p>
 <ul style="margin:8px 0;padding-left:1.25rem">${reservationListHtml}</ul>
 <p><strong>【対戦スケジュール】</strong></p>
 ${rowsToScheduleTableHtml(scheduleRows)}
+${buildParkingNoticeHtml()}
 ${contactHtml}
 <p>なお、こちらは送信専用メールアドレスのため、返信いただいてもご回答できません。</p>
 <p>よろしくお願いいたします。</p>
