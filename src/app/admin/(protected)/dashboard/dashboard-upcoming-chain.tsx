@@ -132,7 +132,7 @@ function EventDayCard(props: {
                   : "text-zinc-500"
               }
             >
-              送信エラー
+              未対応の送信エラー
             </dt>
             <dd className="sm:text-right">
               {summary.failedForDay > 0 ? (

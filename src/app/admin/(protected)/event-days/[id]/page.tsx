@@ -361,7 +361,7 @@ export default async function AdminEventDayHubPage({
                 {matchLabel}
               </p>
             </HubInfoCard>
-            <HubInfoCard title="送信エラー">
+            <HubInfoCard title="未対応の送信エラー">
               <p
                 className={`text-lg font-semibold tabular-nums ${
                   summary.failedForDay > 0 ? "text-amber-950" : "text-zinc-900"
@@ -442,7 +442,7 @@ export default async function AdminEventDayHubPage({
                     : "mt-1 hidden text-xs leading-relaxed text-zinc-500 sm:mt-1.5 sm:block"
                 }
               >
-                試合表の警告、メール送信エラー、締切まわりの確認が必要な場合に表示されます。
+                試合表の警告、未対応の送信エラー、締切まわりの確認が必要な場合に表示されます。
               </p>
             </div>
 
@@ -471,7 +471,7 @@ export default async function AdminEventDayHubPage({
                 {summary.failedForDay > 0 ? (
                   <li className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
                     <span className="font-medium text-amber-950">
-                      メール送信エラー {summary.failedForDay} 件
+                      未対応の送信エラー {summary.failedForDay} 件
                     </span>
                     <Link
                       href={notificationsHref}
