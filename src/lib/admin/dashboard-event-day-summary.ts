@@ -46,7 +46,8 @@ export async function buildDashboardEventDaySummaryPayload(
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("event_day_id", dayId)
-      .eq("status", "failed"),
+      .eq("status", "failed")
+      .is("resolved_at", null),
   ]);
 
   const activeRows = activeRes.data ?? [];

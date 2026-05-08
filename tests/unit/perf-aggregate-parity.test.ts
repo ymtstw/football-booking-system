@@ -54,10 +54,13 @@ function createDashboardSummaryMock(opts: {
         select: () => ({
           eq: () => ({
             eq: () =>
-              Promise.resolve({
-                count: opts.failedNotificationCount,
-                error: null,
-              }),
+              ({
+                is: () =>
+                  Promise.resolve({
+                    count: opts.failedNotificationCount,
+                    error: null,
+                  }),
+              }) as unknown,
           }),
         }),
       };

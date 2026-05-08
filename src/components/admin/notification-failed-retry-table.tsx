@@ -44,6 +44,9 @@ export type FailedNotificationRow = {
   status: string;
   template_key: string | null;
   error_message: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  resolved_note?: string | null;
   /** API / DB により文字列または JSON オブジェクトになることがある */
   payload_summary?: unknown;
   created_at: string;
@@ -241,7 +244,12 @@ export function NotificationFailedRetryTable({
         setError(json.error ?? "一覧を取得できませんでした。再読み込みするか、ログイン状態を確認してください。");
         return;
       }
-      setRows(json.notifications ?? []);
+      const rawRows = json.notifications ?? [];
+      const filtered =
+        listStatus === "failed"
+          ? rawRows.filter((r) => r.resolved_at == null)
+          : rawRows;
+      setRows(filtered);
     } catch {
       setRows(null);
       setError("通信エラーが発生しました");

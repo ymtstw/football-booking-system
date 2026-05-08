@@ -166,7 +166,8 @@ async function buildDayBeforeFinalRetryContext(
  */
 export async function retryFailedNotificationById(
   supabase: SupabaseClient,
-  notificationId: string
+  notificationId: string,
+  opts?: { resolvedBy?: string; resolvedNote?: string }
 ): Promise<NotificationRetryResult> {
   const { data: n, error: nErr } = await supabase
     .from("notifications")
@@ -426,6 +427,15 @@ export async function retryFailedNotificationById(
 
   const st = (after?.status as string) ?? "pending";
   if (st === "sent") {
+    const resolvedBy = opts?.resolvedBy?.trim() ?? "";
+    await supabase
+      .from("notifications")
+      .update({
+        resolved_at: new Date().toISOString(),
+        resolved_by: resolvedBy || null,
+        resolved_note: (opts?.resolvedNote ?? "再送により送信成功").trim().slice(0, 2000),
+      })
+      .eq("id", notificationId);
     return { ok: true, status: "sent" };
   }
   if (st === "failed") {
