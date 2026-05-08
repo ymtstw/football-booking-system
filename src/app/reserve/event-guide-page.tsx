@@ -5,6 +5,7 @@
  * 予約は /reserve/calendar から開始する。
  */
 import Link from "next/link";
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 import {
@@ -20,7 +21,6 @@ import {
   IconHandshake,
   IconLunch,
   IconPitch,
-  IconSoccerBall,
   IconTent,
   IconX,
 } from "./_components/reserve-icons";
@@ -29,7 +29,6 @@ import {
   ReserveInfoGrid,
   ReserveMainShell,
 } from "./_components/ui";
-import { RESERVE_PARKING_INFO_LINES_JA } from "@/lib/copy/reserve-parking-info";
 
 export default function ReserveEventGuidePage() {
   return (
@@ -37,21 +36,17 @@ export default function ReserveEventGuidePage() {
       <ReserveMainShell className="overflow-hidden">
         {/* 1. タイトル・概要 */}
         <section>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-            <IconSoccerBall className="h-3.5 w-3.5" strokeWidth={2} />
-            人工芝グラウンド無料利用
-          </span>
-          <h1 className="mt-3 text-2xl font-bold leading-snug text-slate-900 sm:text-3xl md:text-[2rem] md:leading-tight">
+          <h1 className=" text-2xl font-bold leading-snug text-slate-900 sm:text-3xl md:text-[2rem] md:leading-tight">
             小学生サッカー対戦予約
           </h1>
           <p className="mt-3 text-[15px] font-normal leading-relaxed text-slate-700 sm:text-base sm:leading-loose">
             小学生チーム向けの交流試合イベントです。
           </p>
           <p className="mt-2 text-[15px] font-normal leading-relaxed text-slate-700 sm:text-base sm:leading-loose">
-            人工芝グラウンドを無料で、午前から午後までご利用いただけます。
+            人工芝グラウンドを無料で利用し、午前・午後それぞれ最低1試合ずつ、他チームと対戦いただけます。
           </p>
           <p className="mt-2 text-[15px] font-medium leading-relaxed text-slate-700 sm:text-base">
-          ご予約前に、参加条件・昼食・当日までの流れをご確認ください。
+            ご予約前に、参加条件・昼食・当日までの流れをご確認ください。
           </p>
         </section>
 
@@ -59,11 +54,11 @@ export default function ReserveEventGuidePage() {
         <section className="mt-8 sm:mt-10">
           <h2 className="text-base font-bold leading-snug text-slate-900">このイベントについて</h2>
           <ReserveInfoGrid>
-            <ReserveInfoCard title="ご利用いただくグラウンド" icon={<IconPitch className="h-4 w-4 sm:h-6 sm:w-6" />}>
+            <ReserveInfoCard title="試合でご利用いただくグラウンド" icon={<IconPitch className="h-4 w-4 sm:h-6 sm:w-6" />}>
               <p>
-                <strong className="font-semibold text-slate-800">予約の対象は人工芝グラウンドです。</strong>
+                <strong className="font-semibold text-slate-800">予約の対象は人工芝グラウンド1コートです。</strong>
               </p>
-              <p className="mt-1.5 sm:mt-2">土グラウンドもありますが、予約枠には含まれません。</p>
+              <p className="mt-1.5 sm:mt-2">土グラウンドも1コートありますが、予約枠には含まれません。</p>
               <p className="mt-1.5 sm:mt-2">
                 当日は空き状況に応じて、参加チーム同士で譲り合ってご利用ください。
               </p>
@@ -71,7 +66,7 @@ export default function ReserveEventGuidePage() {
             <ReserveInfoCard title="終日参加のイベントです" icon={<IconClock className="h-4 w-4 sm:h-6 sm:w-6" />}>
               <p>このイベントは、午前から午後までご参加いただく形式です。</p>
               <p className="mt-1.5 sm:mt-2">
-                <strong>午前のみ・午後のみのご予約はできません。</strong>
+                <strong>午前のみ午後のみでのご予約はできません。</strong>
               </p>
             </ReserveInfoCard>
             <ReserveInfoCard
@@ -80,13 +75,20 @@ export default function ReserveEventGuidePage() {
             >
               <p>ご予約時に、午前の希望枠を1つお選びください。</p>
               <p className="mt-1.5 sm:mt-2">
-                対戦相手や午後の試合は、参加チーム数や登録内容をもとに運営が調整します。
+                希望枠・参加チーム数・登録内容をもとに、運営が試合スケジュールを調整します。
+              </p>
+              <p className="mt-1.5 sm:mt-2">
+                空き枠の状況により、{" "}
+                <strong>希望枠より前の時間帯にも試合が入る場合があります。</strong>
               </p>
               <p className="mt-1.5 sm:mt-2">
                 各チーム、午前・午後それぞれ1枠以上の対戦を予定しています。
               </p>
               <p className="mt-1.5 sm:mt-2">
                 参加チーム数に応じて、対戦枠が増える場合があります。
+              </p>
+              <p className="mt-1.5 sm:mt-2">
+                自チームの試合がない時間帯に、審判のご担当を割り当てています。
               </p>
             </ReserveInfoCard>
             <ReserveInfoCard title="開催判断について" icon={<IconCloudRain className="h-4 w-4 sm:h-6 sm:w-6" />}>
@@ -182,15 +184,35 @@ export default function ReserveEventGuidePage() {
           </div>
 
           <div className="mt-4 sm:mt-5">
-            <DetailsBlock icon={<IconPitch className="h-4 w-4" />} title="駐車場のご案内">
-              <ul className="list-disc space-y-1.5 pl-4 text-[15px] leading-relaxed text-slate-700">
-                {RESERVE_PARKING_INFO_LINES_JA.map((line) => (
-                  <li key={line} className="wrap-break-word">
-                    {line}
-                  </li>
-                ))}
-              </ul>
-            </DetailsBlock>
+            {/* スマホ: アコーディオン（初期は開いた状態） */}
+            <div className="sm:hidden">
+              <DetailsBlock
+                icon={<IconPitch className="h-4 w-4" />}
+                title="駐車場のご案内"
+                defaultOpen
+              >
+                <ParkingPaymentNotice />
+              </DetailsBlock>
+            </div>
+            {/* PC: 常に表示（アコーディオンにしない） */}
+            <div className="hidden sm:block">
+              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center gap-2.5 px-5 py-4">
+                  <span
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600"
+                    aria-hidden
+                  >
+                    <IconPitch className="h-4 w-4" />
+                  </span>
+                  <h3 className="text-base font-bold leading-snug text-slate-900">
+                    駐車場のご案内
+                  </h3>
+                </div>
+                <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+                  <ParkingPaymentNotice />
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -335,13 +357,18 @@ function DetailsBlock({
   icon,
   title,
   children,
+  defaultOpen = false,
 }: {
   icon: ReactNode;
   title: string;
   children: ReactNode;
+  defaultOpen?: boolean;
 }) {
   return (
-    <details className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <details
+      className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      open={defaultOpen}
+    >
       <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 sm:py-4">
         <span className="flex items-center gap-2.5 text-base font-bold leading-snug text-slate-900">
           <span
@@ -361,6 +388,91 @@ function DetailsBlock({
         {children}
       </div>
     </details>
+  );
+}
+
+function ParkingPaymentNotice() {
+  const iosUrl =
+    process.env.NEXT_PUBLIC_SMARTPARK_IOS_URL?.trim() ||
+    "https://apps.apple.com/jp/app/id1525506836";
+  const androidUrl =
+    process.env.NEXT_PUBLIC_SMARTPARK_ANDROID_URL?.trim() ||
+    "https://play.google.com/store/apps/details?id=jp.smartpark.app.smapa";
+
+  return (
+    <div className="space-y-3 text-[15px] leading-relaxed text-slate-700">
+      <ul className="list-disc space-y-1.5 pl-5">
+        <li className="wrap-break-word">駐車場は150台分ございます。ご予約は不要です。</li>
+        <li className="wrap-break-word">駐車料金は、平日500円、土日祝日は1,000円です。</li>
+        <li className="wrap-break-word">
+          <strong className="font-semibold text-slate-900">
+            駐車料金のお支払いは、SmartParkアプリでの決済のみとなります。
+          </strong>
+        </li>
+        <li className="wrap-break-word">
+          <strong className="font-semibold text-slate-900">現地での現金精算はできません。</strong>
+        </li>
+      </ul>
+      <p>当日スムーズにご利用いただくため、事前にSmartParkアプリのダウンロードをお願いいたします。</p>
+      <div className="space-y-2">
+        <p className="font-medium text-slate-800">アプリのダウンロードはこちら：</p>
+        {/* スマホ: テキストボタンで遷移 */}
+        <div className="grid grid-cols-1 gap-2 sm:hidden">
+          <a
+            href={iosUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            ［iPhoneの方はこちら］
+          </a>
+          <a
+            href={androidUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
+          >
+            ［Androidの方はこちら］
+          </a>
+        </div>
+        {/* PC: QR画像を表示 */}
+        <div className="hidden sm:block">
+          <div className="w-full max-w-[520px]">
+            <Image
+              src="/images/smartpark-store-qr.png"
+              alt="SmartParkアプリ ダウンロード用QRコード（iPhone / Android）"
+              width={760}
+              height={240}
+              className="h-auto w-full rounded-xl border border-slate-200 bg-white"
+              sizes="(min-width: 640px) 520px, 100vw"
+            />
+            {/* 注釈はQR画像の下（PCのみ） */}
+            <ul className="mt-3 space-y-1 text-xs leading-relaxed text-slate-500">
+              <li>
+                ※「App store」は、米国およびその他の国で登録された Apple Inc. の商標です。
+              </li>
+              <li>※「Google Play および Google Play ロゴ」は、Google LLC の商標です。</li>
+              <li>
+                ※アプリのダウンロードやご利用に伴う通信料は、ご利用者様の負担となります。
+              </li>
+              <li>※ご使用の機種によってはご利用いただけない場合がございます。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <p>当日は、現地の案内に沿ってSmartParkアプリを操作し、駐車料金をお支払いください。</p>
+      <div>
+        <p className="font-medium text-slate-800">
+          SmartParkアプリ内では、以下の方法でお支払いいただけます。
+        </p>
+        <ul className="mt-1.5 list-disc space-y-1.5 pl-5">
+          <li>クレジットカード</li>
+          <li>PayPay</li>
+          <li>メルペイ</li>
+        </ul>
+      </div>
+      <p>詳しい操作方法は、SmartParkアプリ内の案内をご確認ください。</p>
+    </div>
   );
 }
 
