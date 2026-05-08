@@ -46,7 +46,9 @@ export function NotificationSummaryClient({ eventDayId }: { eventDayId: string }
   }, [eventDayId]);
 
   useEffect(() => {
-    void load();
+    queueMicrotask(() => {
+      void load();
+    });
   }, [load]);
 
   return (
