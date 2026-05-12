@@ -282,7 +282,9 @@ export default function ReserveCompletePage() {
               <h3 className="text-base font-extrabold tracking-tight text-zinc-900 sm:text-lg">
                 予約番号
               </h3>
-              <p className="text-xs font-medium text-zinc-600 sm:text-sm">お問い合わせ用</p>
+              <p className="text-xs font-medium text-zinc-600 sm:text-sm">
+                予約番号はお問い合わせ用です。
+              </p>
               <div className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-2 shadow-sm sm:px-3 sm:py-2.5">
                 <p className="min-w-0 flex-1 break-all font-mono text-base font-bold tracking-wide text-zinc-900 sm:text-lg">
                   {formatReservationPublicRefForDisplay(stored.publicRef)}
