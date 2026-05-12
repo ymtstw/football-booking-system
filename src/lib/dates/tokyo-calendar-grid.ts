@@ -132,11 +132,21 @@ export function addDaysIsoDate(isoDate: string, deltaDays: number): string {
   return isoDate;
 }
 
-/** 開催日の最も早い日がある月を表示用の初期値に */
+/**
+ * 開催日の最も早い日がある月を表示用の初期値にする。
+ * `notBeforeIsoDate`（例: 東京の今日）を渡すと、その日を含む以降の開催日だけを対象にし、
+ * 過去月だけが並ぶ一覧でも「直近の開催がある月」から開く。
+ */
 export function initialYearMonthFromEvents(
-  eventDatesIso: readonly string[]
+  eventDatesIso: readonly string[],
+  options?: { notBeforeIsoDate?: string }
 ): { year: number; month: number } {
-  const sorted = [...eventDatesIso].filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s)).sort();
+  const floor = options?.notBeforeIsoDate;
+  const floorOk = typeof floor === "string" && /^\d{4}-\d{2}-\d{2}$/.test(floor);
+  let sorted = [...eventDatesIso].filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s)).sort();
+  if (floorOk) {
+    sorted = sorted.filter((s) => s >= floor!);
+  }
   if (sorted.length === 0) return tokyoYearMonthNow();
   const first = sorted[0]!;
   const [y, m] = first.split("-").map(Number);

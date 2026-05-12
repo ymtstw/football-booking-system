@@ -27,7 +27,10 @@ import {
   ReserveSubPanel,
 } from "../_components/ui";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
-import { initialYearMonthFromEvents } from "@/lib/dates/tokyo-calendar-grid";
+import {
+  initialYearMonthFromEvents,
+  tokyoIsoDateToday,
+} from "@/lib/dates/tokyo-calendar-grid";
 import {
   ReserveEventDaysCalendar,
   type EventDayPublic,
@@ -88,7 +91,9 @@ export function ReserveCalendarClient({
 
   const calendarInitialMonth = useMemo(() => {
     if (!days || days.length === 0) return null;
-    return initialYearMonthFromEvents(days.map((d) => d.event_date));
+    return initialYearMonthFromEvents(days.map((d) => d.event_date), {
+      notBeforeIsoDate: tokyoIsoDateToday(),
+    });
   }, [days]);
 
   /** スマホ: 日付タップは常に「その日を選んだ」扱い（再タップで解除しない）。同じ日なら枠モーダルを開き直す。 */
