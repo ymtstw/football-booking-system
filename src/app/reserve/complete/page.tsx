@@ -415,7 +415,7 @@ export default function ReserveCompletePage() {
         aria-labelledby="complete-next-heading"
       >
         <h2 id="complete-next-heading" className="text-sm font-bold text-rp-navy sm:text-base">
-          予約語のご案内
+          予約後のご案内
         </h2>
         <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-zinc-800">
           <li>・確認メールをご確認ください。</li>
@@ -428,8 +428,18 @@ export default function ReserveCompletePage() {
         className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950 shadow-sm sm:px-5 sm:py-4"
         aria-label="メールが届かない場合のご案内"
       >
-        <p>
-          メールが届かず、確認コードもお控えでない場合は、再度予約登録を行わず、
+        <p>メールが届かない場合は、迷惑メールフォルダに入っていないかご確認ください。</p>
+        <p className="mt-2">
+          見つからない場合でも、重複予約を防ぐため、再度予約は行わず、予約番号を添えて
+          <Link
+            href="/reserve/contact"
+            className="font-semibold text-amber-950 underline decoration-amber-600/50 underline-offset-2"
+          >
+            お問い合わせください
+          </Link>。
+        </p>
+        <p className="mt-2">
+          お急ぎの場合は、
           <a
             href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
             className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
