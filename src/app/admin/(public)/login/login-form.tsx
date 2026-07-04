@@ -84,9 +84,9 @@ export function LoginForm() {
     });
 
     if (checkRes.ok) {
-      setLoading(false);
+      // 遷移完了まで loading を維持（ボタンは「ログイン中…」のまま。無反応時間を作らない）
+      // 新規遷移では router.refresh() は不要なので呼ばない（往復削減）
       router.push(next);
-      router.refresh();
       return;
     }
 
@@ -154,6 +154,11 @@ export function LoginForm() {
           {loading ? <InlineSpinner variant="onDark" /> : null}
           {loading ? "ログイン中…" : "ログイン"}
         </button>
+        {loading ? (
+          <p className="text-center text-xs leading-relaxed text-zinc-500" role="status">
+            ログインに時間がかかる場合があります。そのままお待ちください。
+          </p>
+        ) : null}
       </form>
     </main>
   );

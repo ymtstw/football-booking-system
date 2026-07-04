@@ -385,10 +385,10 @@ export async function sendReservationCreatedEmailAndUpdateNotification(params: {
   const tokenHtml = `<pre style="font-size:15px;letter-spacing:0.02em;word-break:break-all;background:#f4f4f5;padding:12px;border-radius:8px;border:1px solid #e4e4e7">${escaped(reservationTokenDisplay)}</pre>`;
 
   const confirmLinkHtml = manageDirectUrl
-    ? `<p style="margin-top:16px"><strong>予約内容を確認する</strong><br/><a href="${escaped(manageDirectUrl)}">予約内容を確認する</a></p>`
+    ? `<p style="margin-top:16px"><a href="${escaped(manageDirectUrl)}">予約内容を確認する</a></p>`
     : manageUrl
-      ? `<p style="margin-top:16px"><strong>予約内容を確認する</strong><br/><a href="${escaped(manageUrl)}">予約の確認・キャンセルページへ</a></p>`
-      : `<p style="margin-top:16px"><strong>予約内容を確認する</strong><br/>サイトの「予約の確認・キャンセル」ページで、確認コードを入力してご確認ください。</p>`;
+      ? `<p style="margin-top:16px"><a href="${escaped(manageUrl)}">予約の確認・キャンセルページへ</a></p>`
+      : `<p style="margin-top:16px">予約内容の確認・変更・キャンセルは、サイトの「予約の確認・キャンセル」ページで確認コードを入力してください。</p>`;
 
   const refAndCodeHtml = `<p style="margin-top:20px;font-size:15px"><strong>【予約番号・確認コード】</strong></p>
 <p style="margin-top:10px;font-size:14px;color:#52525b;line-height:1.6">予約番号はお問い合わせ用です。<br/>
