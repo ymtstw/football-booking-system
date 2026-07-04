@@ -6,8 +6,10 @@
  * 雨天: `weather_day_before_rain_scheduled` かつ中止判断があれば、この処理で `cancelled_weather` に確定してから送る。
  * 即時 `weather_cancel_immediate` または `operational_cancel_immediate` 済みの予約には `day_before_final` を送らない（二重防止）。
  */
+import { revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { buildReservationScheduleLines } from "@/lib/day-before/reservation-schedule-lines";
 import {
   sendDayBeforeFinalEmailAndUpdateNotification,
@@ -79,6 +81,9 @@ export async function GET(request: NextRequest) {
     skippedReason?: string;
   }[] = [];
 
+  // 雨天確定で status を書き換えたら、最後に一覧カレンダーのキャッシュを無効化する
+  let eventDayStatusChanged = false;
+
   for (const ed of eventDays ?? []) {
     const eventDayId = ed.id as string;
     const eventDate = ed.event_date as string;
@@ -131,6 +136,7 @@ export async function GET(request: NextRequest) {
 
       if (applied) {
         status = "cancelled_weather";
+        eventDayStatusChanged = true;
       }
     }
 
@@ -321,6 +327,10 @@ export async function GET(request: NextRequest) {
     }
 
     summary.push({ eventDayId, eventDate, status, sent, skipped, failed });
+  }
+
+  if (eventDayStatusChanged) {
+    revalidateTag(EVENT_DAYS_TAG, "max");
   }
 
   return NextResponse.json({

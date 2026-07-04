@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ReservationsDateGetInput } from "@/app/admin/(protected)/reservations/reservations-date-get-input";
 import { eventDayStatusLabelJa } from "@/app/admin/(protected)/event-days/event-day-status-label";
 import { ReservationStatusBadge } from "@/components/admin/reservation-status-badge";
+import { getEventDaysDateOptionsCached } from "@/lib/admin/event-days-cache";
 import { getNearestUpcomingEventDateIso } from "@/lib/admin/nearest-upcoming-event-date";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
 import { tokyoIsoDateToday } from "@/lib/dates/tokyo-calendar-grid";
@@ -109,11 +110,8 @@ export default async function AdminReservationsPage({
     ? Promise.resolve(null)
     : getNearestUpcomingEventDateIso(supabase, todayTokyo).catch(() => null);
 
-  const dateOptionsPromise = supabase
-    .from("event_days")
-    .select("event_date")
-    .order("event_date", { ascending: true })
-    .limit(400);
+  // 日付ドロップダウンは全管理者共通なのでキャッシュ版（60秒）を使い Disk IO を抑える
+  const dateOptionsPromise = getEventDaysDateOptionsCached();
 
   const eventDayByIdPromise = hasEventDayIdParam
     ? supabase

@@ -17,6 +17,7 @@ import {
   logPublicReserveApiSupabaseError,
   PUBLIC_RESERVE_API_WRITE_ERROR_JA,
 } from "@/lib/http/public-reserve-api-error";
+import { revalidatePublicReserveCaches } from "@/lib/event-days/public-reserve-cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 type RpcResult = {
@@ -67,6 +68,8 @@ export async function POST(
 
   if (result.success === true && result.reservationId) {
     if (result.alreadyCancelled !== true) {
+      // 有効予約が減り残数が変わったので公開表示のキャッシュを無効化
+      revalidatePublicReserveCaches();
       const rid = String(result.reservationId);
       const { data: mailRow } = await supabase
         .from("reservations")

@@ -23,6 +23,7 @@ import {
   parseSlotPatchRowsFromJson,
   verifySlotIdsBelongToEventDay,
 } from "@/lib/event-days/admin-event-day-slot-mutations";
+import { revalidatePublicReserveCaches } from "@/lib/event-days/public-reserve-cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 function readAck(json: unknown): boolean {
@@ -141,6 +142,8 @@ export async function PATCH(
     });
   }
 
+  // 予約ありでも枠を変更したため公開の空きに影響する。キャッシュを無効化
+  revalidatePublicReserveCaches();
   return NextResponse.json({
     eventDay: { id: day.id, status: day.status },
     slots: slotsResult.slots,
@@ -224,5 +227,7 @@ export async function POST(
     );
   }
 
+  // 枠が増え公開の空きに影響するのでキャッシュを無効化
+  revalidatePublicReserveCaches();
   return NextResponse.json({ slot: inserted.slot }, { status: 201 });
 }

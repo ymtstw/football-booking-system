@@ -6,6 +6,7 @@ import {
   ADMIN_EVENT_DAY_LIST_BEFORE_ANCHOR,
   ADMIN_EVENT_DAY_LIST_FROM_ANCHOR,
 } from "@/lib/admin/event-day-list-limits";
+import { getEventDaysCalendarCached } from "@/lib/admin/event-days-cache";
 import { parseAroundParam } from "@/lib/admin/parse-around-param";
 import {
   formatDateTimeTokyoWithWeekday,
@@ -54,12 +55,6 @@ export default async function AdminEventDaysPage({
 
   const supabase = await createClient();
 
-  const calendarPromise = supabase
-    .from("event_days")
-    .select("id, event_date, grade_band, status")
-    .order("event_date", { ascending: true })
-    .limit(ADMIN_EVENT_DAY_CALENDAR_MAX);
-
   const beforePromise = supabase
     .from("event_days")
     .select(LIST_SELECT)
@@ -74,15 +69,16 @@ export default async function AdminEventDaysPage({
     .order("event_date", { ascending: true })
     .limit(ADMIN_EVENT_DAY_LIST_FROM_ANCHOR);
 
-  const [calRes, beforeRes, fromRes] = await Promise.all([
-    calendarPromise,
+  const [calCached, beforeRes, fromRes] = await Promise.all([
+    getEventDaysCalendarCached(),
     beforePromise,
     fromPromise,
   ]);
 
-  const error = calRes.error ?? beforeRes.error ?? fromRes.error;
+  const error =
+    calCached.error ?? beforeRes.error?.message ?? fromRes.error?.message ?? null;
 
-  const calendarRowsRaw = calRes.data ?? [];
+  const calendarRowsRaw = calCached.rows;
   const beforeRaw = (beforeRes.data ?? []) as ListRow[];
   const fromRaw = (fromRes.data ?? []) as ListRow[];
 

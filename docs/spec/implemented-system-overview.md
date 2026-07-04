@@ -55,6 +55,55 @@
 
 利用者向けの時刻表記は **`src/lib/copy/reserve-public-mail-schedule.ts`**（マッチング案内 **16:00頃**・前日最終 **16:30頃**＋到着の前後注記）と予約 UI で一致させる。
 
+## パフォーマンス / キャッシュ（Disk IO 対策）
+
+複数管理者が管理コンソールを同時に開くと、遷移ごとに同じ集計・一覧クエリが走り Supabase の Disk IO を消費する。**全管理者で共通の値**は Next.js の **`unstable_cache`（TTL 60 秒・サービスロールで取得）** で共有し、変更時に **`revalidateTag(tag, "max")`** で即時無効化する。キャッシュモジュールは **`import "server-only"`** で管理サーバ専用。
+
+### キャッシュ対象と無効化タグ
+
+| モジュール | 対象 | タグ | 無効化トリガー |
+|-----------|------|------|----------------|
+| `src/lib/admin/inquiry-count-cache.ts` | 問い合わせ件数（ベル・一覧タブ） | `admin-inquiry-counts` | 作成 `POST /api/camp-inquiries`・`/api/tournament-inquiries`、状態更新 `PATCH /api/admin/{camp,tournament}-inquiries/[id]` |
+| `src/lib/admin/event-days-cache.ts` | 開催日一覧カレンダー（最大2000件・`getEventDaysCalendarCached`）／予約一覧の日付選択（最大400件・`getEventDaysDateOptionsCached`） | `admin-event-days` | 下表の「開催日 status / 存在」を変える操作 |
+| `src/lib/event-days/public-reserve-cache.ts` | 公開 予約一覧（`getPublicEventDaysRawCached`・TTL60秒）／日付別空き状況（`getPublicAvailabilityCached`・TTL30秒） | `public-reserve` ＋ `admin-event-days` | 予約作成・取消、枠の編集・追加（強制含む）。開催日 status 変更は `admin-event-days` 経由で同時に無効化 |
+
+### `admin-event-days` を無効化する操作
+
+| 操作 | 経路 |
+|------|------|
+| 作成 | `POST /api/admin/event-days` |
+| 公開 / 非公開 / 締切ロック | `PATCH /api/admin/event-days/[id]` |
+| 締切リカバリ（手動・1日） | `POST /api/admin/event-days/[id]/apply-deadline-catchup`（`locked` / `cancelled_minimum` 発生時） |
+| 削除 | `DELETE /api/admin/event-days/[id]` |
+| 運営中止 / 復帰 | `POST .../operational-cancel` · `operational-restore` |
+| 雨天判断（即時中止・復帰） | `POST .../weather-decision` |
+| Cron 締切ロック / 最少催行中止 | `lock-event-days`（`locked` / `cancelled_minimum` 発生時のみ） |
+| Cron 前日雨天の自動確定中止 | `send-day-before-final`（`cancelled_weather` 発生時のみ） |
+
+### `public-reserve` を無効化する操作
+
+公開の空き状況に影響する書き込みは、共通ヘルパー **`revalidatePublicReserveCaches()`**（`public-reserve` タグのみ）を呼ぶ。開催日 status を変える操作は上表の `admin-event-days` 無効化で公開キャッシュも同時に無効化される（公開キャッシュは両タグを付与）。
+
+| 操作 | 経路 |
+|------|------|
+| 予約作成 | `POST /api/reservations` |
+| 予約取消 | `POST /api/reservations/[token]/cancel` |
+| 枠 編集 / 追加 | `PATCH` · `POST /api/admin/event-days/[id]/slots` |
+| 枠 強制編集 / 強制追加 | `PATCH` · `POST /api/admin/event-days/[id]/slots/force` |
+| 開催日 status 変更（公開・中止 等） | `admin-event-days` の各操作（上表）が公開キャッシュも無効化 |
+
+### 方針・非対象
+
+- **キャッシュ列は `id / event_date / grade_band / status` のみ**。`notes`・`slots`・昼食・`matching_proposal_notice_sent_at` はカレンダー表示に影響しないため無効化不要。マッチング実行は `event_days.status` を変えないため対象外。
+- **変動値（予約人数・昼食数など）はキャッシュしない**（都度取得）。件数キャッシュは無効化で常に整合を保つ。
+- **開催日ハブ（`/admin/event-days/[id]`）はキャッシュではなく、予約の2重読みを1回に統合**。`buildDashboardEventDaySummaryPayload` に事前取得予約を渡す `activeReservations` 引数を追加し、ハブは1回の予約取得を集計と昼食内訳で使い回す。ダッシュボード・`/api/admin/dashboard/next-event-day` は引数なしのままで挙動不変。
+- **公開キャッシュは専用モジュール**（`public-reserve-cache.ts`）。取得時に `status` を明示フィルタするため `draft` は公開側に出ない。枠変更ヘルパーは `status` を変えないため `public-reserve` のみ無効化（`admin-event-days` は対象外）。
+- **時刻依存の判定はキャッシュしない**。`acceptingReservations`・`bookable`（＝`open` かつ締切前）はキャッシュ後に**都度計算**するため、締切をまたいでも表示は正しい。定員・締切の整合は RPC（`create_public_reservation` / `cancel_public_reservation`）が行ロックで担保し、表示が古くても定員超過・締切後確定は起きない。
+
+### 表示系の環境変数（連絡先）
+
+- `NEXT_PUBLIC_CONTACT_PHONE`（既定 `090-2901-0015`）／`NEXT_PUBLIC_CONTACT_HOURS_JA`（既定 `9:00〜18:00`）。予約フッター・完了・お問い合わせ・予約管理の各画面で共通利用。未設定時は既定値にフォールバック。
+
 ## 仕様ドキュメントのマップ
 
 | 文書 | 用途 |

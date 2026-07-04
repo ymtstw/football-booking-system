@@ -3,12 +3,14 @@
  * 本体: `applyReservationDeadlineCatchupForEventDayId`（最少催行中止分岐・通知含む）。
  * `locked` になった場合は続けて自動編成（`applyMatchingForEventDayId`）まで実行する（Vercel の JOB02 Cron は廃止したため）。
  */
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
   ADMIN_API_DB_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { applyReservationDeadlineCatchupForEventDayId } from "@/lib/event-days/process-reservation-deadline";
 import { applyMatchingForEventDayId } from "@/lib/matching/run-matching-for-event-day";
@@ -77,6 +79,8 @@ export async function POST(
         { status: statusForCode(result.code) }
       );
     }
+    // status が locked / cancelled_minimum に変わったので一覧カレンダーのキャッシュを無効化
+    revalidateTag(EVENT_DAYS_TAG, "max");
     if (result.outcome !== "locked") {
       return NextResponse.json({ ok: true, outcome: result.outcome });
     }

@@ -2,6 +2,7 @@
  * 管理者のみ PATCH:
  * - draft↔open、または open→locked（仕様: docs/spec/implemented-behavior-catalog.md §1・§2）
  */
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
@@ -9,6 +10,7 @@ import {
   ADMIN_API_SAVE_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -91,6 +93,7 @@ export async function PATCH(
         { status: 409 }
       );
     }
+    revalidateTag(EVENT_DAYS_TAG, "max");
     return NextResponse.json({ eventDay: updated });
   }
 
@@ -140,6 +143,7 @@ export async function PATCH(
     );
   }
 
+  revalidateTag(EVENT_DAYS_TAG, "max");
   return NextResponse.json({ eventDay: updated });
 }
 
@@ -203,5 +207,6 @@ export async function DELETE(
     return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
+  revalidateTag(EVENT_DAYS_TAG, "max");
   return NextResponse.json({ ok: true });
 }

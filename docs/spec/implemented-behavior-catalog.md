@@ -197,6 +197,24 @@
 | 通知再送 | `POST /api/admin/notifications/[id]/retry` |
 | 枠強制変更（朝）と利用者への枠・時刻案内 | `PATCH /api/admin/event-days/[id]/slots/force`（§1.4.1） |
 
+### 4.2 一覧キャッシュと無効化（Disk IO 対策）
+
+管理コンソールの **全管理者共通の読み取り**は `unstable_cache`（60秒）で共有し、変更時に `revalidateTag(tag, "max")` で無効化する（設計は [implemented-system-overview.md](./implemented-system-overview.md) 「パフォーマンス / キャッシュ」）。
+
+| タグ | 無効化する Command |
+|------|-------------------|
+| `admin-inquiry-counts` | 問い合わせ作成（公開 `POST /api/{camp,tournament}-inquiries`）・状態更新（`PATCH /api/admin/{camp,tournament}-inquiries/[id]`） |
+| `admin-event-days` | `POST /api/admin/event-days`、`PATCH`・`DELETE /api/admin/event-days/[id]`、`apply-deadline-catchup`、`operational-cancel`・`operational-restore`・`weather-decision`、Cron `lock-event-days`（`locked`/`cancelled_minimum` 時）・`send-day-before-final`（`cancelled_weather` 時） |
+| `public-reserve` | 予約作成 `POST /api/reservations`・取消 `POST /api/reservations/[token]/cancel`、枠 編集/追加 `PATCH`・`POST /api/admin/event-days/[id]/slots`（`/force` 含む）。開催日 status 変更は `admin-event-days` 経由で公開キャッシュも無効化 |
+
+- キャッシュ列は開催日の `id / event_date / grade_band / status` のみ。`notes`・`slots`・昼食・`matching_proposal_notice_sent_at` は無効化不要。変動値（予約人数・昼食数）はキャッシュしない。
+- 開催日ハブは予約の2重読みを1回に統合（`buildDashboardEventDaySummaryPayload` の `activeReservations` 引数）。ダッシュボード・`next-event-day` は挙動不変。
+- 公開キャッシュ（`public-reserve-cache.ts`）は `status` を明示フィルタするため `draft` は非露出。`acceptingReservations`・`bookable` はキャッシュ後に都度計算し、締切をまたいでも正しい（定員・締切の整合は RPC の行ロックで担保）。
+
+**BC-ADM-CACHE-01:** 上表の Command 成功後、対応する一覧（開催日カレンダー・予約日付選択・問い合わせ件数）が **再取得で最新**を返すこと（60秒 TTL を待たない）。
+
+**BC-PUB-CACHE-01:** 枠の編集/追加（`/slots`・`/slots/force`）や予約作成・取消の成功後、公開の予約一覧・空き状況が **再取得で最新**を返すこと（TTL を待たない）。
+
 ---
 
 ## 5. 一般公開 API（一覧）
@@ -284,6 +302,8 @@
 
 **BC-ADM-UI-*** では、上記各画面が **読み取り専用サマリと command 画面の責務分離**（運営まとめ上段は P のみ、更新は下位画面）を満たすこと。
 
+- **運営まとめ（`/admin/event-days/[id]`）の「対戦編成の注意」導線**は、警告の内容（注意列・件数）が表示される **前日結果の「試合表」タブ**（`/admin/pre-day-results?date=...&tab=matches`）へ遷移する。
+
 ---
 
 ## 8. 自動編成
@@ -311,4 +331,6 @@
 
 ### 10.1 改訂履歴（抜粋）
 
+- **2026-07-04:** Disk IO 対策の一覧キャッシュを追加（§4.2・system-overview「パフォーマンス / キャッシュ」）。問い合わせ件数・開催日カレンダー・予約日付選択を 60 秒キャッシュ＋変更時 `revalidateTag` 無効化。開催日ハブは予約の2重読みを1回に統合。連絡先の既定値を `090-2901-0015` / `9:00〜18:00` に更新。運営まとめの「対戦編成の注意」導線を前日結果「試合表」タブに修正（§7）。
+- **2026-07-04:** 公開ページのキャッシュを追加（`public-reserve-cache.ts`・予約一覧60秒／空き状況30秒）。空きに影響する書き込み（予約作成・取消、枠の編集/追加・強制）は共通ヘルパー `revalidatePublicReserveCaches()` で `public-reserve` を即時無効化。時刻依存（`acceptingReservations`・`bookable`）は都度計算、整合は RPC の行ロックで担保（§4.2・BC-PUB-CACHE-01）。
 - **2026-04-27:** §5.1 を追加。予約番号（`public_ref`）と短い確認コードの分離、旧 64 hex 確認コードの互換、管理再送時の「確認コードのみ再発行」を文書化。旧 §5.1「昼食メニュー」を **§5.2** に繰り下げ。

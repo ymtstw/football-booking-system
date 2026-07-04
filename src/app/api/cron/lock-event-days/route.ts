@@ -8,8 +8,10 @@
  * 自動編成専用の Vercel Cron（旧 JOB02）は廃止。`/api/cron/run-matching-locked` は手動・スクリプト用に残す。
  * 認証: `CRON_SECRET`。
  */
+import { revalidateTag } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { authorizeCronBearer, cronSecretConfigured } from "@/lib/cron/cron-auth";
 import { processReservationDeadlinePassed } from "@/lib/event-days/process-reservation-deadline";
 import { applyMatchingForEventDayId } from "@/lib/matching/run-matching-for-event-day";
@@ -39,6 +41,11 @@ export async function GET(request: NextRequest) {
   try {
     const { minimumCancelledIds, lockedIds } =
       await processReservationDeadlinePassed(supabase, nowIso);
+
+    // 締切超過で status を locked / cancelled_minimum に変えたら一覧カレンダーのキャッシュを無効化
+    if (minimumCancelledIds.length > 0 || lockedIds.length > 0) {
+      revalidateTag(EVENT_DAYS_TAG, "max");
+    }
 
     const matchingAfterLock: {
       eventDayId: string;

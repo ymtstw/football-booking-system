@@ -186,7 +186,37 @@ export default async function AdminEventDayHubPage({
   }
 
   const supabase = await createClient();
-  const loaded = await loadEventDayHubPayload(supabase, id);
+
+  // 当日の有効予約を1回だけ取得し、集計（loadEventDayHubPayload）と
+  // 昼食内訳（teamLunchRows）で使い回す（予約の2重読みを回避・Disk IO 削減）
+  const { data: reservationRowsRaw } = await supabase
+    .from("reservations")
+    .select(
+      `
+      id,
+      participant_count,
+      display_name,
+      teams ( team_name ),
+      reservation_lunch_items ( item_name_snapshot, quantity )
+    `
+    )
+    .eq("event_day_id", id)
+    .eq("status", "active")
+    .order("created_at", { ascending: true });
+
+  const activeReservationRows = (reservationRowsRaw ?? []) as Array<{
+    id: string;
+    participant_count: number;
+    display_name: string | null;
+    teams: { team_name: string } | { team_name: string }[] | null;
+    reservation_lunch_items:
+      | { item_name_snapshot: string; quantity: number }[]
+      | null;
+  }>;
+
+  const loaded = await loadEventDayHubPayload(supabase, id, {
+    activeReservations: activeReservationRows,
+  });
 
   if (!loaded.ok && loaded.kind === "db_error") {
     return (
@@ -229,28 +259,7 @@ export default async function AdminEventDayHubPage({
   const reservationsHref = `/admin/reservations?eventDayId=${encodeURIComponent(day.id)}`;
   const notificationsHref = `/admin/event-days/${day.id}/notifications`;
 
-  const { data: reservationLunchRowsRaw } = await supabase
-    .from("reservations")
-    .select(
-      `
-      id,
-      display_name,
-      teams ( team_name ),
-      reservation_lunch_items ( item_name_snapshot, quantity )
-    `
-    )
-    .eq("event_day_id", day.id)
-    .eq("status", "active")
-    .order("created_at", { ascending: true });
-
-  const teamLunchRows = buildTeamLunchRows(
-    (reservationLunchRowsRaw ?? []) as Array<{
-      id: string;
-      display_name: string | null;
-      teams: { team_name: string } | { team_name: string }[] | null;
-      reservation_lunch_items: { item_name_snapshot: string; quantity: number }[] | null;
-    }>
-  );
+  const teamLunchRows = buildTeamLunchRows(activeReservationRows);
 
   const warnings: { key: string; label: string; href?: string }[] = [];
   if (summary.warningCount != null && summary.warningCount > 0) {

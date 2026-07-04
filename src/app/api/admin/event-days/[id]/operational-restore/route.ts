@@ -2,6 +2,7 @@
  * 運営都合中止の取り消し。締切ロック前（中止時点が open / locked）のみ可。
  * 確定（confirmed）後に中止した場合は取り消せない。
  */
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
@@ -9,6 +10,7 @@ import {
   ADMIN_API_SAVE_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -87,6 +89,9 @@ export async function POST(
     logAdminApiDbError("POST operational-restore update event_days", upErr);
     return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
+
+  // 開催日の status が戻ったので一覧カレンダーのキャッシュを無効化
+  revalidateTag(EVENT_DAYS_TAG, "max");
 
   return NextResponse.json({ ok: true, eventDayId, restoredStatus: nextStatus });
 }

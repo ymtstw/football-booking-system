@@ -22,6 +22,7 @@ import {
 } from "@/lib/reservations/confirmation-code";
 import { generateReservationPublicRef } from "@/lib/reservations/public-ref";
 import { hashReservationTokenPlain } from "@/lib/reservations/reservation-token-hash";
+import { revalidatePublicReserveCaches } from "@/lib/event-days/public-reserve-cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
   exceedsReserveCountMaxAllowed,
@@ -308,6 +309,9 @@ export async function POST(request: Request) {
     }
 
     if (result.success === true && result.reservationId) {
+      // 残数・件数が変わったので公開表示（一覧・空き）のキャッシュを無効化
+      revalidatePublicReserveCaches();
+
       const { data: eventDayRow } = await supabase
         .from("event_days")
         .select("event_date, grade_band")

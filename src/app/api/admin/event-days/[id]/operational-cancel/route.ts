@@ -2,6 +2,7 @@
  * 運営都合による開催中止（雨天判断とは別）。`event_days.status = cancelled_operational` と
  * `operational_cancellation_notice` を保存。オプションで即時メール（`operational_cancel_immediate`）。
  */
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
@@ -9,6 +10,7 @@ import {
   ADMIN_API_SAVE_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { sendOperationalCancelImmediateEmailAndUpdateNotification } from "@/lib/email/day-before-final-mail";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -262,6 +264,9 @@ export async function POST(
       };
     }
   }
+
+  // 開催日の status が変わったので一覧カレンダーのキャッシュを無効化
+  revalidateTag(EVENT_DAYS_TAG, "max");
 
   return NextResponse.json({
     ok: true,

@@ -2,6 +2,7 @@
  * 雨天判断（go / cancel）の登録。`weather_decisions` に履歴を残し `event_days` を更新。
  * オプションで cancel 時のみ、参加者へ即時メール（例外運用）。
  */
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
@@ -9,6 +10,7 @@ import {
   ADMIN_API_SAVE_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { sendWeatherCancelImmediateEmailAndUpdateNotification } from "@/lib/email/day-before-final-mail";
 import { assertEventDayAcceptsBookableLunchMenus } from "@/lib/lunch/effective-lunch-menu-for-event-day";
 import { getAdminUser } from "@/lib/auth/require-admin";
@@ -215,6 +217,8 @@ export async function POST(
         logAdminApiDbError("POST weather-decision update cancel immediate", upErr);
         return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
       }
+      // status が cancelled_weather に変わったので一覧カレンダーのキャッシュを無効化
+      revalidateTag(EVENT_DAYS_TAG, "max");
     }
   } else {
     const prevSnapshot = ed.status_before_weather_cancel as string | null;
@@ -239,6 +243,8 @@ export async function POST(
       logAdminApiDbError("POST weather-decision update go branch", upErr);
       return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
     }
+    // status が復帰（go）で変わり得るので一覧カレンダーのキャッシュを無効化
+    revalidateTag(EVENT_DAYS_TAG, "max");
   }
 
   let immediateSent = 0;

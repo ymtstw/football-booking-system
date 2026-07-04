@@ -21,6 +21,7 @@ import {
   SLOTS_BLOCKED_BY_RESERVATIONS_MESSAGE_JA,
   verifySlotIdsBelongToEventDay,
 } from "@/lib/event-days/admin-event-day-slot-mutations";
+import { revalidatePublicReserveCaches } from "@/lib/event-days/public-reserve-cache";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
 export async function GET(
@@ -155,6 +156,8 @@ export async function PATCH(
     logAdminApiDbError("PATCH event-days/[id]/slots loadSlotsOrdered", slotsResult.error);
     return NextResponse.json({ error: ADMIN_API_READ_ERROR_JA }, { status: 500 });
   }
+  // 枠（容量・時刻・有効）が変わり公開の空きに影響するのでキャッシュを無効化
+  revalidatePublicReserveCaches();
   return NextResponse.json({
     eventDay: { id: day.id, status: day.status },
     slots: slotsResult.slots,
@@ -243,5 +246,7 @@ export async function POST(
     );
   }
 
+  // 枠が増え公開の空きに影響するのでキャッシュを無効化
+  revalidatePublicReserveCaches();
   return NextResponse.json({ slot: inserted.slot }, { status: 201 });
 }

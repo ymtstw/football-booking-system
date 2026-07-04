@@ -1,4 +1,5 @@
 /** 管理者のみ POST: 開催日 insert ＋ 既定枠（`default-slots` の件数ぶん `event_day_slots`）insert。 */
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
@@ -6,6 +7,7 @@ import {
   toEventDaySlotRows,
   type DefaultSlotPreset,
 } from "@/domains/event-days/default-slots";
+import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import {
   ADMIN_API_SAVE_ERROR_JA,
@@ -184,6 +186,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: lunch.message }, { status: 422 });
     }
   }
+
+  // 開催日一覧のカレンダー・日付選択キャッシュを無効化
+  revalidateTag(EVENT_DAYS_TAG, "max");
 
   return NextResponse.json(
     {

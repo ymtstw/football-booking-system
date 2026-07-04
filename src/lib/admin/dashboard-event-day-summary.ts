@@ -23,65 +23,113 @@ type EventDayRow = {
   weather_status: string | null;
 };
 
-/** 開催日1件分のダッシュボード用集計 */
+/**
+ * 集計で使う「当日の有効予約」1件分（参加人数＋昼食内訳）。
+ * ハブ画面などが既に取得済みの場合に渡すと、集計側の予約・昼食クエリを省略できる。
+ */
+export type ActiveReservationForSummary = {
+  id: string;
+  participant_count: number;
+  reservation_lunch_items:
+    | { item_name_snapshot: string; quantity: number }[]
+    | null;
+};
+
+/**
+ * 開催日1件分のダッシュボード用集計。
+ * opts.activeReservations を渡すと予約・昼食の取得を省略する（呼び出し側で取得済みのとき用・Disk IO 削減）。
+ */
 export async function buildDashboardEventDaySummaryPayload(
   supabase: SupabaseClient,
-  day: EventDayRow
+  day: EventDayRow,
+  opts?: { activeReservations?: ActiveReservationForSummary[] }
 ): Promise<DashboardEventDaySummaryPayload> {
   const dayId = day.id;
+  const prefetched = opts?.activeReservations;
 
-  const [activeRes, runRes, failedRes] = await Promise.all([
-    supabase
-      .from("reservations")
-      .select("id, participant_count")
-      .eq("event_day_id", dayId)
-      .eq("status", "active"),
-    supabase
-      .from("matching_runs")
-      .select("warning_count")
-      .eq("event_day_id", dayId)
-      .eq("is_current", true)
-      .maybeSingle(),
-    supabase
-      .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("event_day_id", dayId)
-      .eq("status", "failed")
-      .is("resolved_at", null),
+  const runPromise = supabase
+    .from("matching_runs")
+    .select("warning_count")
+    .eq("event_day_id", dayId)
+    .eq("is_current", true)
+    .maybeSingle();
+  const failedPromise = supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("event_day_id", dayId)
+    .eq("status", "failed")
+    .is("resolved_at", null);
+
+  // 予約（参加人数）は事前取得があれば再取得しない
+  const activeRowsPromise: Promise<{ id: string; participant_count: number }[]> =
+    prefetched
+      ? Promise.resolve(
+          prefetched.map((r) => ({
+            id: r.id,
+            participant_count: r.participant_count,
+          }))
+        )
+      : (async () => {
+          const res = await supabase
+            .from("reservations")
+            .select("id, participant_count")
+            .eq("event_day_id", dayId)
+            .eq("status", "active");
+          return (res.data ?? []) as {
+            id: string;
+            participant_count: number;
+          }[];
+        })();
+
+  const [activeRows, runRes, failedRes] = await Promise.all([
+    activeRowsPromise,
+    runPromise,
+    failedPromise,
   ]);
 
-  const activeRows = activeRes.data ?? [];
   const activeTeamCount = activeRows.length;
   const totalParticipants = activeRows.reduce(
-    (s, r) =>
-      s + (Number((r as { participant_count: number }).participant_count) || 0),
+    (s, r) => s + (Number(r.participant_count) || 0),
     0
   );
 
+  // 昼食行: 事前取得があればそこから、なければ有効予約IDで取得
+  let lunchRows: { item_name_snapshot: string; quantity: number }[];
+  if (prefetched) {
+    lunchRows = prefetched.flatMap((r) => r.reservation_lunch_items ?? []);
+  } else {
+    const resIds = activeRows.map((r) => r.id);
+    if (resIds.length > 0) {
+      const { data } = await supabase
+        .from("reservation_lunch_items")
+        .select("item_name_snapshot, quantity")
+        .in("reservation_id", resIds);
+      lunchRows = (data ?? []) as {
+        item_name_snapshot: string;
+        quantity: number;
+      }[];
+    } else {
+      lunchRows = [];
+    }
+  }
+
   let totalMeals = 0;
   const lunchByMenu: { itemName: string; quantity: number }[] = [];
-  const resIds = activeRows.map((r) => (r as { id: string }).id);
-  if (resIds.length > 0) {
-    const { data: lunchRows } = await supabase
-      .from("reservation_lunch_items")
-      .select("item_name_snapshot, quantity")
-      .in("reservation_id", resIds);
-    const byName = new Map<string, number>();
-    for (const row of lunchRows ?? []) {
-      const name = String((row as { item_name_snapshot: string }).item_name_snapshot ?? "").trim();
-      const label = name.length > 0 ? name : "（名称なし）";
-      const q = Number((row as { quantity: number }).quantity) || 0;
-      if (q <= 0) continue;
-      byName.set(label, (byName.get(label) ?? 0) + q);
-      totalMeals += q;
-    }
-    for (const [itemName, quantity] of byName) {
-      lunchByMenu.push({ itemName, quantity });
-    }
-    lunchByMenu.sort(
-      (a, b) => b.quantity - a.quantity || a.itemName.localeCompare(b.itemName, "ja")
-    );
+  const byName = new Map<string, number>();
+  for (const row of lunchRows) {
+    const name = String(row.item_name_snapshot ?? "").trim();
+    const label = name.length > 0 ? name : "（名称なし）";
+    const q = Number(row.quantity) || 0;
+    if (q <= 0) continue;
+    byName.set(label, (byName.get(label) ?? 0) + q);
+    totalMeals += q;
   }
+  for (const [itemName, quantity] of byName) {
+    lunchByMenu.push({ itemName, quantity });
+  }
+  lunchByMenu.sort(
+    (a, b) => b.quantity - a.quantity || a.itemName.localeCompare(b.itemName, "ja")
+  );
 
   const run = runRes.data as { warning_count: number } | null;
   const warningCount = run != null ? run.warning_count : null;

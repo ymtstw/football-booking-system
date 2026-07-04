@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildDashboardEventDaySummaryPayload,
   isValidIsoDateParam,
+  type ActiveReservationForSummary,
 } from "./dashboard-event-day-summary";
 import type { DashboardEventDaySummaryPayload } from "./dashboard-event-day-summary.types";
 
@@ -42,7 +43,8 @@ type SummaryInput = {
  */
 export async function loadEventDayHubPayload(
   supabase: SupabaseClient,
-  eventDayId: string
+  eventDayId: string,
+  opts?: { activeReservations?: ActiveReservationForSummary[] }
 ): Promise<
   | { ok: true; data: EventDayHubPayload }
   | { ok: false; kind: "not_found" }
@@ -70,7 +72,11 @@ export async function loadEventDayHubPayload(
     weather_status: day.weather_status,
   };
 
-  const summary = await buildDashboardEventDaySummaryPayload(supabase, summaryInput);
+  const summary = await buildDashboardEventDaySummaryPayload(
+    supabase,
+    summaryInput,
+    opts
+  );
 
   return { ok: true, data: { day, summary } };
 }
