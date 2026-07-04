@@ -25,12 +25,11 @@ function detectMobile(): boolean {
 /**
  * 電話番号の表示。
  * - モバイル: tel: リンク（タップで発信）
- * - PC: リンクにせず、クリックでクリップボードにコピー（発信アプリを起動しない）
+ * - PC / 判定前: 非リンクのテキスト（クリックしても何も起きない。手動で選択・コピーは可能）
  */
 export function PhoneNumber({ phone, className }: PhoneNumberProps) {
-  // 判定前（SSR・初回描画）は null。ハイドレーション不一致を避けるため双方で同じ描画にする
-  const [isMobile, setIsMobile] = useState<boolean | null>(null);
-  const [copied, setCopied] = useState(false);
+  // 既定 false でSSRと初回描画を揃える（ハイドレーション不一致を回避）
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setIsMobile(detectMobile());
@@ -45,46 +44,6 @@ export function PhoneNumber({ phone, className }: PhoneNumberProps) {
     );
   }
 
-  // 判定前: 非リンクのテキスト（PC で無関係なアプリを起動させない）
-  if (isMobile === null) {
-    return <span className={className}>{phone}</span>;
-  }
-
-  // PC: クリック / Enter・Space でクリップボードにコピー
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(phone);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // コピー不可の環境では何もしない（テキストは選択可能）
-    }
-  }
-
-  return (
-    <span
-      role="button"
-      tabIndex={0}
-      onClick={copy}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          void copy();
-        }
-      }}
-      title="クリックで電話番号をコピー"
-      aria-label={`電話番号 ${phone}、クリックでコピー`}
-      className={`relative cursor-pointer ${className ?? ""}`}
-    >
-      {phone}
-      {copied ? (
-        <span
-          role="status"
-          className="pointer-events-none absolute -top-7 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow"
-        >
-          コピーしました
-        </span>
-      ) : null}
-    </span>
-  );
+  // PC / 判定前: 発信リンクにしない（クリックで無関係なアプリを起動させない）
+  return <span className={className}>{phone}</span>;
 }

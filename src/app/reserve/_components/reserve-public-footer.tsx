@@ -22,7 +22,7 @@ export function ReservePublicFooter() {
             phone={phone}
             className="mt-0.5 block text-2xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:mt-2"
           />
-          <p className="mt-0.5 text-sm leading-relaxed text-slate-600 sm:mt-2">{hours}</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-slate-600 sm:mt-2">受付時間 {hours}</p>
           <Link
             href="/reserve/contact"
             className="mt-2 inline-flex min-h-11 items-center gap-1 text-sm font-bold text-green-700 underline underline-offset-2 hover:text-green-800 sm:mt-4"
