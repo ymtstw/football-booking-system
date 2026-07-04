@@ -224,6 +224,8 @@ export default async function AdminEventDayHubPage({
 
   const preDayBase = `/admin/pre-day-results?date=${encodeURIComponent(day.event_date)}`;
   const preDayAdjustHref = `${preDayBase}&tab=adjust`;
+  // 警告の内容（注意列・件数）は既定の「試合表」タブに表示される
+  const preDayMatchesHref = `${preDayBase}&tab=matches`;
   const reservationsHref = `/admin/reservations?eventDayId=${encodeURIComponent(day.id)}`;
   const notificationsHref = `/admin/event-days/${day.id}/notifications`;
 
@@ -255,7 +257,7 @@ export default async function AdminEventDayHubPage({
     warnings.push({
       key: "warn",
       label: `対戦編成の注意が ${summary.warningCount} 件あります`,
-      href: preDayAdjustHref,
+      href: preDayMatchesHref,
     });
   }
 
