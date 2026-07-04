@@ -23,7 +23,7 @@ import { strengthCategoryLabelJa } from "@/lib/reservations/strength-labels";
 
 const SESSION_COMPLETE_KEY = "football_reservation_complete_v1";
 const CONTACT_PHONE =
-  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "04-1234-5678";
+  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "090-2901-0015";
 
 type Stored = {
   reservationToken: string;

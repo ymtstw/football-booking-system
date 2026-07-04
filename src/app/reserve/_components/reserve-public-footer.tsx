@@ -3,10 +3,10 @@ import Link from "next/link";
 /** フッター: お問い合わせ・合宿（管理者ログインは /admin/login を直接利用） */
 export function ReservePublicFooter() {
   const phone =
-    process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "04-1234-5678";
+    process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "090-2901-0015";
   const hours =
     process.env.NEXT_PUBLIC_CONTACT_HOURS_JA?.trim() ||
-    "平日 9:00〜17:00（祝日除く）";
+    "9:00〜18:00";
 
   const cardClass =
     "rounded-[20px] border border-green-200 border-l-4 border-l-green-600 bg-green-50/80 p-3 pl-4 text-center shadow-sm sm:p-5 sm:pl-6 sm:text-left";

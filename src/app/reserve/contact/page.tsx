@@ -19,7 +19,7 @@ const RESERVATION_INQUIRY_HINT_LINES_JA = [
 
 const CONTACT_REPLY_NOTE_JA = "お問い合わせ内容を確認のうえ、担当者よりご連絡いたします。";
 const CONTACT_PHONE =
-  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "04-1234-5678";
+  process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "090-2901-0015";
 
 export default function ReserveContactPage() {
   const [name, setName] = useState("");
