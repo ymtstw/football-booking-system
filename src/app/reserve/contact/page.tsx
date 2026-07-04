@@ -8,6 +8,7 @@ import {
   reserveFlowUserVisibleMessage,
   RESERVE_FLOW_NETWORK_ERROR_JA,
 } from "@/lib/reserve/reserve-flow-user-message";
+import { PhoneNumber } from "@/components/ui/phone-number";
 import { IconCheck, IconInfoCircle } from "../_components/reserve-icons";
 import { ReserveHeadingWithIcon } from "../_components/ui/reserve-heading-with-icon";
 
@@ -111,12 +112,10 @@ export default function ReserveContactPage() {
 
       <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-950 sm:px-4 sm:py-2.5">
         メールが届かず、確認コードもお控えでない場合は、再度予約登録を行わず、
-        <a
-          href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
+        <PhoneNumber
+          phone={CONTACT_PHONE}
           className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
-        >
-          {CONTACT_PHONE}
-        </a>
+        />
         までお電話ください。
       </div>
 

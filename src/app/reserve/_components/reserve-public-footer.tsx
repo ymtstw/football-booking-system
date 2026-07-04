@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { PhoneNumber } from "@/components/ui/phone-number";
+
 /** フッター: お問い合わせ・合宿（管理者ログインは /admin/login を直接利用） */
 export function ReservePublicFooter() {
   const phone =
@@ -16,12 +18,10 @@ export function ReservePublicFooter() {
       <div className="mx-auto grid max-w-[1280px] gap-3 px-4 py-4 sm:gap-4 sm:px-6 sm:py-8 md:px-8 md:py-12 lg:grid-cols-2 lg:gap-6 lg:px-10">
         <div className={cardClass}>
           <p className="text-base font-bold text-slate-900">お問い合わせ</p>
-          <a
-            href={`tel:${phone.replace(/-/g, "")}`}
+          <PhoneNumber
+            phone={phone}
             className="mt-0.5 block text-2xl font-extrabold tabular-nums tracking-tight text-slate-900 sm:mt-2"
-          >
-            {phone}
-          </a>
+          />
           <p className="mt-0.5 text-sm leading-relaxed text-slate-600 sm:mt-2">{hours}</p>
           <Link
             href="/reserve/contact"

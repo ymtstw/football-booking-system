@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 
 import { InlineSpinner } from "@/components/ui/inline-spinner";
+import { PhoneNumber } from "@/components/ui/phone-number";
 import { formatTaxIncludedYen } from "@/lib/money/format-tax-included-jpy";
 import {
   formatDateTimeTokyoWithWeekday,
@@ -440,12 +441,10 @@ export default function ReserveCompletePage() {
         </p>
         <p className="mt-2">
           お急ぎの場合は、
-          <a
-            href={`tel:${CONTACT_PHONE.replace(/-/g, "")}`}
+          <PhoneNumber
+            phone={CONTACT_PHONE}
             className="mx-1 font-semibold underline decoration-amber-600/50 underline-offset-2"
-          >
-            {CONTACT_PHONE}
-          </a>
+          />
           までお電話ください。
         </p>
       </section>
