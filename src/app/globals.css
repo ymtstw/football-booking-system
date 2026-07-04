@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  /* アプリはライトテーマ固定（OS のダークモードでも配色を反転させない） */
+  color-scheme: light;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -21,13 +23,6 @@
   --color-rp-page: #f3f4f6;
   --color-rp-navy: #0f172a;
   --color-rp-card: #ffffff;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 html {
