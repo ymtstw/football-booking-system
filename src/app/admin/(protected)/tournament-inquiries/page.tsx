@@ -10,7 +10,7 @@ import {
   parseInquiryListQuery,
   rollingThirtyDaysCutoffIso,
 } from "@/lib/admin/inquiry-admin-list-query";
-import { fetchInquiryTabCountsForPage } from "@/lib/admin/inquiry-count-queries";
+import { getInquiryTabCountsCached } from "@/lib/admin/inquiry-count-cache";
 import { formatDateTimeTokyoWithWeekday } from "@/lib/dates/format-jp-display";
 import { createClient } from "@/lib/supabase/server";
 
@@ -74,12 +74,11 @@ export default async function AdminTournamentInquiriesPage({
   const cutoffIso = rollingThirtyDaysCutoffIso();
   const filters = inquiryListSupabaseFilters(tab, period, cutoffIso);
 
-  const supabase = await createClient();
-  const tabCounts = await fetchInquiryTabCountsForPage(
-    supabase,
+  const tabCounts = await getInquiryTabCountsCached(
     "tournament_inquiries",
     period
   );
+  const supabase = await createClient();
 
   let query = supabase
     .from("tournament_inquiries")

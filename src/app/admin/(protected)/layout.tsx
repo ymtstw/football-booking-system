@@ -1,9 +1,8 @@
 /** 管理の保護ルート共通。getAdminGate で未ログインと権限なしを分け、ログインへ。ヘッダ・ナビ・ログアウト。 */
 import { redirect } from "next/navigation";
 
-import { fetchInquiryBellCounts } from "@/lib/admin/inquiry-count-queries";
+import { getInquiryBellCountsCached } from "@/lib/admin/inquiry-count-cache";
 import { getAdminGate } from "@/lib/auth/require-admin";
-import { createClient } from "@/lib/supabase/server";
 
 import { AdminBreadcrumbBar } from "./admin-breadcrumb-bar";
 import { AdminProtectedHeader } from "./admin-protected-header";
@@ -22,11 +21,11 @@ export default async function AdminProtectedLayout({
   }
   const user = gate.user;
 
-  let inquiryBellCounts: Awaited<ReturnType<typeof fetchInquiryBellCounts>> | null =
-    null;
+  let inquiryBellCounts: Awaited<
+    ReturnType<typeof getInquiryBellCountsCached>
+  > | null = null;
   try {
-    const supabase = await createClient();
-    inquiryBellCounts = await fetchInquiryBellCounts(supabase);
+    inquiryBellCounts = await getInquiryBellCountsCached();
   } catch {
     inquiryBellCounts = null;
   }

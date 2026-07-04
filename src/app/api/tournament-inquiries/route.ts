@@ -1,5 +1,7 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
+import { INQUIRY_COUNTS_TAG } from "@/lib/admin/inquiry-count-cache";
 import { sendTournamentInquiryNotifyEmail } from "@/lib/email/tournament-inquiry-notify-mail";
 import {
   logPublicReserveApiSupabaseError,
@@ -142,6 +144,9 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error: PUBLIC_RESERVE_API_WRITE_ERROR_JA }, { status: 500 });
   }
+
+  // 新着は要対応件数（ベル・タブ）に影響するためキャッシュを無効化
+  revalidateTag(INQUIRY_COUNTS_TAG, "max");
 
   const inquiryId = row.id as string;
   const createdAtIso = String((row as { created_at?: string }).created_at ?? "");

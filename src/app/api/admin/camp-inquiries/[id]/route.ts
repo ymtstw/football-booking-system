@@ -1,9 +1,11 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
   ADMIN_API_SAVE_ERROR_JA,
   logAdminApiDbError,
 } from "@/lib/admin/admin-api-db-error";
+import { INQUIRY_COUNTS_TAG } from "@/lib/admin/inquiry-count-cache";
 import { appendInternalNoteToPatchIfPresent } from "@/lib/admin/inquiry-internal-note-api";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import {
@@ -80,6 +82,11 @@ export async function PATCH(
   }
   if (!data) {
     return NextResponse.json({ error: "合宿相談が見つかりません" }, { status: 404 });
+  }
+
+  // 状態変更は件数（ベル・タブ）に影響するためキャッシュを無効化
+  if (hasStatus) {
+    revalidateTag(INQUIRY_COUNTS_TAG, "max");
   }
 
   return NextResponse.json({ ok: true, ...data });
