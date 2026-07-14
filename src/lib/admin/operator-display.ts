@@ -40,6 +40,8 @@ export function assignmentTypeLabelJa(t: string): string {
       return "午後の試合";
     case "morning_fixed":
       return "午前の試合";
+    case "round_robin":
+      return "総当たり";
     default:
       return t;
   }
@@ -54,6 +56,8 @@ export function assignmentTypeShortLabelJa(t: string): string {
       return "補完";
     case "afternoon_auto":
       return "自動割当";
+    case "round_robin":
+      return "総当たり";
     default:
       return t;
   }

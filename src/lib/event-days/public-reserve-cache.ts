@@ -54,6 +54,7 @@ export type PublicEventDayRawRow = {
   status: string;
   reservation_deadline_at: string;
   matching_proposal_notice_sent_at: string | null;
+  max_teams: number;
 };
 
 export type PublicEventDaysRawData = {
@@ -77,7 +78,7 @@ export const getPublicEventDaysRawCached = unstable_cache(
     const { data, error } = await supabase
       .from("event_days")
       .select(
-        "id, event_date, grade_band, status, reservation_deadline_at, matching_proposal_notice_sent_at"
+        "id, event_date, grade_band, status, reservation_deadline_at, matching_proposal_notice_sent_at, max_teams"
       )
       .in("status", [...PUBLIC_LIST_STATUSES])
       .order("event_date", { ascending: true });
@@ -96,13 +97,15 @@ export const getPublicEventDaysRawCached = unstable_cache(
       matching_proposal_notice_sent_at:
         (r as { matching_proposal_notice_sent_at?: string | null })
           .matching_proposal_notice_sent_at ?? null,
+      max_teams:
+        typeof (r as { max_teams?: number }).max_teams === "number"
+          ? (r as { max_teams: number }).max_teams
+          : 4,
     })) as PublicEventDayRawRow[];
 
     const eventDayIds = rows.map((r) => r.id);
 
     const vacancyMap = await sumMorningRemainingVacanciesByEventDay(supabase, eventDayIds);
-    const vacancyByEventDayId: Record<string, number> = {};
-    for (const [id, v] of vacancyMap) vacancyByEventDayId[id] = v;
 
     const activeCountByEventDayId: Record<string, number> = {};
     if (eventDayIds.length > 0) {
@@ -117,6 +120,14 @@ export const getPublicEventDaysRawCached = unstable_cache(
           activeCountByEventDayId[id] = (activeCountByEventDayId[id] ?? 0) + 1;
         }
       }
+    }
+
+    const vacancyByEventDayId: Record<string, number> = {};
+    for (const row of rows) {
+      const active = activeCountByEventDayId[row.id] ?? 0;
+      const slotVacancy = vacancyMap.get(row.id) ?? 0;
+      const teamVacancy = Math.max(0, row.max_teams - active);
+      vacancyByEventDayId[row.id] = Math.min(slotVacancy, teamVacancy);
     }
 
     return { ok: true, data: { rows, vacancyByEventDayId, activeCountByEventDayId } };
@@ -140,7 +151,7 @@ export const getPublicAvailabilityCached = unstable_cache(
     const { data: day, error } = await supabase
       .from("event_days")
       .select(
-        "id, event_date, grade_band, status, reservation_deadline_at, matching_proposal_notice_sent_at"
+        "id, event_date, grade_band, status, reservation_deadline_at, matching_proposal_notice_sent_at, max_teams"
       )
       .eq("event_date", eventDate)
       .in("status", [...publicEventDayStatuses()])

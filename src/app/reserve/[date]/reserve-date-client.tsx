@@ -24,6 +24,7 @@ import {
   RESERVE_CONTACT_NAME_MAX_CHARS,
 } from "@/lib/validators/reserve-contact-name";
 import {
+  gradeBandLabelJa,
   gradeYearLabelJa,
   representativeGradeYearChoicesForBand,
 } from "@/lib/reservations/grade-year";
@@ -87,6 +88,9 @@ type AvailabilityJson = {
   eventDayStatus?: string;
   reservationDeadlineAt: string;
   acceptingReservations: boolean;
+  maxTeams?: number;
+  dayFull?: boolean;
+  remainingTeamSlots?: number;
   morningSlots: MorningSlot[];
   error?: string;
 };
@@ -96,17 +100,9 @@ function pickInitialMorningSlot(
   morningId: string | undefined
 ): string {
   const id = morningId?.trim();
-  if (!id || !json.acceptingReservations || !json.morningSlots?.length) return "";
+  if (!id || !json.acceptingReservations || json.dayFull || !json.morningSlots?.length) return "";
   const s = json.morningSlots.find((x) => x.id === id);
   return s?.bookable ? id : "";
-}
-
-function gradeBandLabelJa(band: string): string {
-  const g = band.trim();
-  if (g === "1-2") return "1〜2年生";
-  if (g === "3-4") return "3〜4年生";
-  if (g === "5-6") return "5〜6年生";
-  return g;
 }
 
 type AvailabilityLoadIssue =
@@ -348,12 +344,18 @@ export function ReserveDateClient({
       const json = (await res.json().catch(() => ({}))) as {
         error?: string;
         detail?: string;
+        code?: string;
         reservationToken?: string;
         reservationTokenDisplay?: string;
         publicRef?: string;
       };
 
       if (!res.ok) {
+        if (json.code === "day_full") {
+          setSubmitError("申し訳ございません。予約枠が埋まりました。");
+          router.push("/");
+          return;
+        }
         const combined =
           typeof json.detail === "string" && json.detail.trim()
             ? json.detail
@@ -507,7 +509,22 @@ export function ReserveDateClient({
       {data && phase === "edit" && (
         <>
           <div className="space-y-6">
-            {data.acceptingReservations && !hasBookableMorningSlot ? (
+            {data.acceptingReservations && data.dayFull ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+                <p className="font-semibold">申し訳ございません。この開催日の予約枠は埋まりました。</p>
+                <p className="mt-1">別の開催日をお選びください。</p>
+                <p className="mt-3">
+                  <Link
+                    href="/"
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg bg-amber-900 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-950"
+                  >
+                    ホームへ戻る
+                  </Link>
+                </p>
+              </div>
+            ) : null}
+
+            {data.acceptingReservations && !data.dayFull && !hasBookableMorningSlot ? (
               <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
                 <p className="font-semibold">この開催日は、午前の予約枠が埋まっています。</p>
                 <p className="mt-1">別の開催日をお選びください。</p>

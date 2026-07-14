@@ -23,8 +23,8 @@ export async function insertEventDayWithSlots(input: {
   status: "draft" | "open" | "locked";
   reservationDeadlineAtIso: string;
   eventDate?: string;
-  /** 既定以外にすると、Cron 系テストの掃除用に `deleteEventDaysByGradeBand` と併用しやすい */
   gradeBand?: string;
+  maxTeams?: number;
 }): Promise<{
   eventDayId: string;
   morningSlotId: string;
@@ -32,7 +32,7 @@ export async function insertEventDayWithSlots(input: {
 }> {
   const supabase = getIntegrationSupabase();
   const event_date = input.eventDate ?? nextUniqueEventDate();
-  const grade_band = input.gradeBand ?? "結合テスト";
+  const grade_band = input.gradeBand ?? "U-3";
   const { data: day, error } = await supabase
     .from("event_days")
     .insert({
@@ -40,12 +40,15 @@ export async function insertEventDayWithSlots(input: {
       grade_band,
       status: input.status,
       reservation_deadline_at: input.reservationDeadlineAtIso,
+      max_teams: input.maxTeams ?? 4,
+      min_teams: 2,
+      formation_mode: "round_robin",
     })
     .select("id")
     .single();
   if (error) throw error;
 
-  const slotRows = toEventDaySlotRows(day.id);
+  const slotRows = toEventDaySlotRows(day.id, grade_band);
   const { error: slotsErr } = await supabase.from("event_day_slots").insert(slotRows);
   if (slotsErr) {
     await supabase.from("event_days").delete().eq("id", day.id);

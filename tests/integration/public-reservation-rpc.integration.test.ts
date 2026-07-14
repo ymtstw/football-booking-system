@@ -100,10 +100,12 @@ describe.skipIf(!hasSupabaseEnv())("integration: create_public_reservation / can
     }
   });
 
-  it("open + 3+3: 6件まで成功し7件目は day_full", async () => {
+  it("open: 4件まで成功し5件目は day_full", async () => {
     const { eventDayId } = await insertEventDayWithSlots({
       status: "open",
       reservationDeadlineAtIso: futureDeadlineIso,
+      gradeBand: "U-3",
+      maxTeams: 4,
     });
     try {
       const supabase = getIntegrationSupabase();
@@ -116,26 +118,25 @@ describe.skipIf(!hasSupabaseEnv())("integration: create_public_reservation / can
         .order("slot_code", { ascending: true });
       expect(mErr).toBeNull();
       const ids = (morningRows ?? []).map((r) => r.id as string);
-      expect(ids.length).toBe(3);
+      expect(ids.length).toBeGreaterThanOrEqual(1);
 
-      const slotSequence = [ids[0], ids[0], ids[1], ids[1], ids[2], ids[2]];
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 4; i++) {
         const tokenHash = randomBytes(32).toString("hex");
         const { data, error } = await supabase.rpc("create_public_reservation", {
-          ...baseCreateRpcParams(eventDayId, slotSequence[i]!, tokenHash),
+          ...baseCreateRpcParams(eventDayId, ids[i % ids.length]!, tokenHash),
           p_contact_email: `cap-${i}-${eventDayId.slice(0, 8)}@example.test`,
         });
         expect(error).toBeNull();
         expect(data).toMatchObject({ success: true });
       }
 
-      const tokenHash7 = randomBytes(32).toString("hex");
-      const { data: seventh, error: e7 } = await supabase.rpc("create_public_reservation", {
-        ...baseCreateRpcParams(eventDayId, ids[0]!, tokenHash7),
-        p_contact_email: `cap-7-${eventDayId.slice(0, 8)}@example.test`,
+      const tokenHash5 = randomBytes(32).toString("hex");
+      const { data: fifth, error: e5 } = await supabase.rpc("create_public_reservation", {
+        ...baseCreateRpcParams(eventDayId, ids[0]!, tokenHash5),
+        p_contact_email: `cap-5-${eventDayId.slice(0, 8)}@example.test`,
       });
-      expect(e7).toBeNull();
-      expect(seventh).toMatchObject({ success: false, error: "day_full" });
+      expect(e5).toBeNull();
+      expect(fifth).toMatchObject({ success: false, error: "day_full" });
     } finally {
       await deleteEventDayById(eventDayId);
     }

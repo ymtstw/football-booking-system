@@ -3,10 +3,10 @@ import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 
 import {
-  isDefaultSlotPreset,
   toEventDaySlotRows,
-  type DefaultSlotPreset,
 } from "@/domains/event-days/default-slots";
+import { isFormationMode } from "@/lib/event-days/formation-mode";
+import { isGradeBand } from "@/lib/event-days/grade-band";
 import { EVENT_DAYS_TAG } from "@/lib/admin/event-days-cache";
 import { getAdminUser } from "@/lib/auth/require-admin";
 import {
@@ -31,7 +31,9 @@ type CreateBody = {
   gradeBand?: string;
   reservationDeadlineAt?: string;
   status?: EventDayStatus;
-  defaultSlotPreset?: DefaultSlotPreset;
+  maxTeams?: number;
+  minTeams?: number;
+  formationMode?: string;
 };
 
 function parseCreateBody(body: unknown): CreateBody | null {
@@ -44,9 +46,9 @@ function parseCreateBody(body: unknown): CreateBody | null {
       : typeof gradeRaw === "number"
         ? String(gradeRaw)
         : undefined;
-  const presetRaw = o.defaultSlotPreset;
-  const defaultSlotPreset =
-    presetRaw !== undefined && isDefaultSlotPreset(presetRaw) ? presetRaw : undefined;
+  const maxTeamsRaw = o.maxTeams ?? o.max_teams;
+  const minTeamsRaw = o.minTeams ?? o.min_teams;
+  const formationModeRaw = o.formationMode ?? o.formation_mode;
 
   return {
     eventDate: typeof o.eventDate === "string" ? o.eventDate : undefined,
@@ -56,7 +58,16 @@ function parseCreateBody(body: unknown): CreateBody | null {
         ? o.reservationDeadlineAt
         : undefined,
     status: typeof o.status === "string" ? (o.status as EventDayStatus) : undefined,
-    defaultSlotPreset,
+    maxTeams:
+      typeof maxTeamsRaw === "number" && Number.isInteger(maxTeamsRaw)
+        ? maxTeamsRaw
+        : undefined,
+    minTeams:
+      typeof minTeamsRaw === "number" && Number.isInteger(minTeamsRaw)
+        ? minTeamsRaw
+        : undefined,
+    formationMode:
+      typeof formationModeRaw === "string" ? formationModeRaw.trim() : undefined,
   };
 }
 
@@ -93,7 +104,9 @@ export async function POST(request: Request) {
     parsed?.status && ALLOWED_STATUS.includes(parsed.status)
       ? parsed.status
       : "draft";
-  const slotPreset: DefaultSlotPreset = parsed?.defaultSlotPreset ?? "six";
+  const maxTeams = parsed?.maxTeams ?? 4;
+  const minTeams = parsed?.minTeams ?? 2;
+  const formationMode = parsed?.formationMode ?? "round_robin";
 
   if (!eventDate || !isIsoDateOnly(eventDate)) {
     return NextResponse.json(
@@ -101,9 +114,27 @@ export async function POST(request: Request) {
       { status: 422 }
     );
   }
-  if (!gradeBand) {
+  if (!gradeBand || !isGradeBand(gradeBand)) {
     return NextResponse.json(
-      { error: "gradeBand は必須です" },
+      { error: "gradeBand は U-1 〜 U-6 を指定してください" },
+      { status: 422 }
+    );
+  }
+  if (maxTeams < 2 || maxTeams > 16) {
+    return NextResponse.json(
+      { error: "maxTeams は 2〜16 の整数で指定してください" },
+      { status: 422 }
+    );
+  }
+  if (minTeams < 2 || minTeams > maxTeams) {
+    return NextResponse.json(
+      { error: "minTeams は 2 以上かつ maxTeams 以下で指定してください" },
+      { status: 422 }
+    );
+  }
+  if (!isFormationMode(formationMode)) {
+    return NextResponse.json(
+      { error: "formationMode は round_robin / tournament / legacy を指定してください" },
       { status: 422 }
     );
   }
@@ -128,8 +159,13 @@ export async function POST(request: Request) {
       grade_band: gradeBand,
       status,
       reservation_deadline_at: new Date(deadlineMs).toISOString(),
+      max_teams: maxTeams,
+      min_teams: minTeams,
+      formation_mode: formationMode,
     })
-    .select("id, event_date, grade_band, status, reservation_deadline_at")
+    .select(
+      "id, event_date, grade_band, status, reservation_deadline_at, max_teams, min_teams, formation_mode"
+    )
     .single();
 
   if (dayErr) {
@@ -157,7 +193,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: ADMIN_API_SAVE_ERROR_JA }, { status: 500 });
   }
 
-  const slotRows = toEventDaySlotRows(day.id, slotPreset);
+  const slotRows = toEventDaySlotRows(day.id, gradeBand);
   const { error: slotsErr } = await supabase.from("event_day_slots").insert(slotRows);
 
   if (slotsErr) {

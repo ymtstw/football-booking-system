@@ -23,7 +23,7 @@ export type PublicAvailabilityDayRow = {
   grade_band: string;
   status: string;
   reservation_deadline_at: string;
-  /** 2日前16:00の対戦案内メール（matching_proposal）送信済みの記録。null の間は公開側で「確定」と見せない。 */
+  max_teams?: number;
   matching_proposal_notice_sent_at?: string | null;
 };
 
@@ -37,6 +37,9 @@ export type PublicAvailabilityPayload = {
   /** 対戦案内メール送信済み（公開側の「試合スケジュール確定」判定に使用） */
   matchingProposalNoticeSentAt?: string | null;
   activeReservationCount: number;
+  maxTeams: number;
+  dayFull: boolean;
+  remainingTeamSlots: number;
   morningSlots: Array<{
     id: string;
     slotCode: string;
@@ -111,6 +114,10 @@ export async function buildPublicAvailabilityPayloadForDay(
   }
 
   const activeReservationTotal = (activeAll ?? []).length;
+  const maxTeams =
+    typeof day.max_teams === "number" && day.max_teams >= 2 ? day.max_teams : 4;
+  const dayFull = activeReservationTotal >= maxTeams;
+  const remainingTeamSlots = Math.max(0, maxTeams - activeReservationTotal);
   const resRows = (activeAll ?? []).filter(
     (row) => row.selected_morning_slot_id != null
   );
@@ -196,7 +203,11 @@ export async function buildPublicAvailabilityPayloadForDay(
     const activeCount = a.total;
     const full = activeCount >= cap;
     const bookable =
-      status === "open" && acceptingReservations && !s.is_locked && !full;
+      status === "open" &&
+      acceptingReservations &&
+      !dayFull &&
+      !s.is_locked &&
+      !full;
 
     return {
       id: s.id,
@@ -226,6 +237,9 @@ export async function buildPublicAvailabilityPayloadForDay(
     acceptingReservations,
     matchingProposalNoticeSentAt: day.matching_proposal_notice_sent_at ?? null,
     activeReservationCount: activeReservationTotal,
+    maxTeams,
+    dayFull,
+    remainingTeamSlots,
     morningSlots,
   };
 

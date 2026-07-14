@@ -117,7 +117,13 @@ function mapRpcError(error: string): { status: number; body: Record<string, stri
     case "slot_locked":
     case "slot_full":
     case "day_full":
-      return { status: 409, body: { error: "この枠または開催日は予約できません" } };
+      return {
+        status: 409,
+        body: {
+          error: "申し訳ございません。予約枠が埋まりました。",
+          code: "day_full",
+        },
+      };
     case "team_inactive":
       return {
         status: 409,

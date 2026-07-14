@@ -1,6 +1,11 @@
 import "server-only";
 
 import { buildMatchingAssignments } from "@/domains/matching/build-matching-assignments";
+import { buildRoundRobinAssignments } from "@/domains/matching/build-round-robin-assignments";
+import {
+  isTournamentFormationMode,
+  resolveMatchingAlgorithm,
+} from "@/lib/matching/matching-algorithm";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type RpcApplyResult = {
@@ -19,16 +24,22 @@ export type ApplyMatchingForEventDayResult =
       matchingRunId?: string;
       assignmentCount: number;
       meta: ReturnType<typeof buildMatchingAssignments>["meta"];
+      algorithm: "v2" | "legacy";
     }
   | {
       ok: false;
-      error: "not_found" | "not_locked" | "already_matched" | "event_not_found" | "unknown";
+      error:
+        | "not_found"
+        | "not_locked"
+        | "already_matched"
+        | "event_not_found"
+        | "tournament_not_implemented"
+        | "unknown";
       message: string;
     };
 
 /**
- * 開催日1件に対し `buildMatchingAssignments` → `admin_apply_matching_run` を実行する。
- * 管理 API・JOB02 Cron から共用する。
+ * 開催日1件に対し編成 → `admin_apply_matching_run` を実行する。
  */
 export async function applyMatchingForEventDayId(
   supabase: SupabaseClient,
@@ -36,7 +47,7 @@ export async function applyMatchingForEventDayId(
 ): Promise<ApplyMatchingForEventDayResult> {
   const { data: eventDay, error: dayErr } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status")
+    .select("id, event_date, grade_band, status, formation_mode")
     .eq("id", eventDayId)
     .maybeSingle();
 
@@ -46,6 +57,18 @@ export async function applyMatchingForEventDayId(
   if (!eventDay) {
     return { ok: false, error: "not_found", message: "開催日が見つかりません" };
   }
+
+  if (isTournamentFormationMode(eventDay.formation_mode as string | null)) {
+    return {
+      ok: false,
+      error: "tournament_not_implemented",
+      message: "トーナメント形式の自動編成は未実装です",
+    };
+  }
+
+  const algorithm = resolveMatchingAlgorithm({
+    formationMode: eventDay.formation_mode as string | null,
+  });
 
   const dayId = eventDay.id as string;
 
@@ -103,13 +126,19 @@ export async function applyMatchingForEventDayId(
     currentAssignments = (asg ?? []) as typeof currentAssignments;
   }
 
-  const built = buildMatchingAssignments({
-    slots: (slots ?? []) as Parameters<typeof buildMatchingAssignments>[0]["slots"],
-    reservationsActive: (reservations ?? []) as Parameters<
-      typeof buildMatchingAssignments
-    >[0]["reservationsActive"],
-    currentAssignments,
-  });
+  const built =
+    algorithm === "legacy"
+      ? buildMatchingAssignments({
+          slots: (slots ?? []) as Parameters<typeof buildMatchingAssignments>[0]["slots"],
+          reservationsActive: (reservations ?? []) as Parameters<
+            typeof buildMatchingAssignments
+          >[0]["reservationsActive"],
+          currentAssignments,
+        })
+      : buildRoundRobinAssignments({
+          slots: (slots ?? []) as Parameters<typeof buildRoundRobinAssignments>[0]["slots"],
+          reservationsActive: (reservations ?? []).map((r) => ({ id: r.id as string })),
+        });
 
   const { data: rpcData, error: rpcErr } = await supabase.rpc("admin_apply_matching_run", {
     p_event_day_id: dayId,
@@ -158,5 +187,6 @@ export async function applyMatchingForEventDayId(
     matchingRunId: result.matchingRunId,
     assignmentCount: result.assignmentCount ?? built.assignments.length,
     meta: built.meta,
+    algorithm,
   };
 }

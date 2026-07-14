@@ -152,12 +152,6 @@ export async function POST(request: NextRequest) {
         { status: 422 }
       );
     }
-    if (p.refereeReservationId !== null && (p.refereeReservationId === p.reservationAId || p.refereeReservationId === p.reservationBId)) {
-      return NextResponse.json(
-        { error: "審判の予約は A/B と別の予約である必要があります" },
-        { status: 422 }
-      );
-    }
     patches.push(p);
   }
 

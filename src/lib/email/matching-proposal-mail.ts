@@ -5,6 +5,7 @@ import { Resend } from "resend";
 import { RESERVE_MAIL_PUBLIC_JA } from "@/lib/copy/reserve-public-mail-schedule";
 import type { ReservationScheduleRow } from "@/lib/day-before/reservation-schedule-lines";
 import { formatIsoDateWithWeekdayJa } from "@/lib/dates/format-jp-display";
+import { gradeBandLabelJa } from "@/lib/event-days/grade-band";
 import { MAIL_BODY_SERVICE_NAME, MAIL_SUBJECT_BRAND_USER } from "@/lib/email/mail-brand";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -29,9 +30,7 @@ function escaped(s: string): string {
 function formatGradeBandForMail(gradeBand: string | null): string | null {
   const g = gradeBand?.trim();
   if (!g) return null;
-  if (g === "1-2" || g === "3-4" || g === "5-6") return `${g}年`;
-  if (/^\d+-\d+$/.test(g)) return `${g}年`;
-  return g;
+  return gradeBandLabelJa(g);
 }
 
 function reserveContactUrl(): string | null {

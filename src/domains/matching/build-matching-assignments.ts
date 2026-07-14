@@ -17,7 +17,7 @@
 export type RpcAssignmentRow = {
   event_day_slot_id: string;
   match_phase: "morning" | "afternoon";
-  assignment_type: "morning_fixed" | "morning_fill" | "afternoon_auto";
+  assignment_type: "morning_fixed" | "morning_fill" | "afternoon_auto" | "round_robin";
   reservation_a_id: string;
   reservation_b_id: string;
   referee_reservation_id: string | null;

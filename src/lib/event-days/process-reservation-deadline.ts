@@ -7,7 +7,7 @@ import {
 } from "@/lib/email/minimum-cancel-mail";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const MIN_TEAMS_TO_HOLD = 3;
+const DEFAULT_MIN_TEAMS_TO_HOLD = 2;
 
 async function sendMinimumCancelNoticesForEventDay(
   supabase: SupabaseClient,
@@ -142,7 +142,7 @@ export async function processReservationDeadlinePassed(
 }> {
   const { data: dueRows, error: listErr } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band")
+    .select("id, event_date, grade_band, min_teams")
     .eq("status", "open")
     .lte("reservation_deadline_at", nowIso);
 
@@ -162,6 +162,7 @@ export async function processReservationDeadlinePassed(
       id,
       event_date: eventDate,
       grade_band: gradeBand,
+      min_teams: (row.min_teams as number | null) ?? null,
     });
     if (out === "cancelled_minimum") minimumCancelledIds.push(id);
     else if (out === "locked") lockedIds.push(id);
@@ -174,6 +175,7 @@ export type DueOpenDeadlineRow = {
   id: string;
   event_date: string;
   grade_band: string | null;
+  min_teams?: number | null;
 };
 
 /** Cron JOB01 と同一判定・同一更新（1 開催日ぶん） */
@@ -196,8 +198,12 @@ export async function applyDeadlinePassOutcomeForDueOpenRow(
   }
 
   const activeCount = count ?? 0;
+  const minTeams =
+    typeof row.min_teams === "number" && row.min_teams >= 2
+      ? row.min_teams
+      : DEFAULT_MIN_TEAMS_TO_HOLD;
 
-  if (activeCount < MIN_TEAMS_TO_HOLD) {
+  if (activeCount < minTeams) {
     const { data: updated } = await supabase
       .from("event_days")
       .update({ status: "cancelled_minimum" })
@@ -241,7 +247,7 @@ export async function applyReservationDeadlineCatchupForEventDayId(
 ): Promise<ApplyDeadlineCatchupResult> {
   const { data: row, error } = await supabase
     .from("event_days")
-    .select("id, event_date, grade_band, status, reservation_deadline_at")
+    .select("id, event_date, grade_band, status, reservation_deadline_at, min_teams")
     .eq("id", eventDayId)
     .maybeSingle();
 
@@ -269,6 +275,7 @@ export async function applyReservationDeadlineCatchupForEventDayId(
     id: row.id as string,
     event_date: row.event_date as string,
     grade_band: ((row as { grade_band?: string | null }).grade_band as string) ?? null,
+    min_teams: ((row as { min_teams?: number | null }).min_teams as number) ?? null,
   });
 
   if (out === "unchanged") {
@@ -283,4 +290,4 @@ export async function applyReservationDeadlineCatchupForEventDayId(
 }
 
 /** テスト・仕様書用に export */
-export { MIN_TEAMS_TO_HOLD };
+export { DEFAULT_MIN_TEAMS_TO_HOLD as MIN_TEAMS_TO_HOLD };

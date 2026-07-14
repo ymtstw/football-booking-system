@@ -7,27 +7,20 @@ import {
   formatDateTimeTokyoWithWeekday,
   formatIsoDateWithWeekdayJa,
 } from "@/lib/dates/format-jp-display";
+import { defaultSlotPresetForGradeBand } from "@/domains/event-days/default-slots";
 import {
-  isDefaultSlotPreset,
-  type DefaultSlotPreset,
-} from "@/domains/event-days/default-slots";
+  FORMATION_MODE_OPTIONS,
+  type FormationMode,
+} from "@/lib/event-days/formation-mode";
+import { GRADE_BAND_OPTIONS } from "@/lib/event-days/grade-band";
 import { defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst } from "@/lib/dates/reservation-deadline-default";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const GRADE_BAND_OPTIONS = [
-  { value: "1-2", label: "1-2年生" },
-  { value: "3-4", label: "3-4年生" },
-  { value: "5-6", label: "5-6年生" },
-] as const;
-
-/** このブラウザでの「開催日作成時の枠プリセット」既定（切替するまで維持）。 */
-const SLOT_PRESET_STORAGE_KEY = "fb_admin_create_event_day_slot_preset_v1";
-
 export function CreateEventDayForm() {
   const router = useRouter();
   const [eventDate, setEventDate] = useState("");
-  const [gradeBand, setGradeBand] = useState("3-4");
+  const [gradeBand, setGradeBand] = useState("U-3");
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
@@ -39,31 +32,16 @@ export function CreateEventDayForm() {
   const [completionBanner, setCompletionBanner] = useState<string | null>(null);
   const [globalLunchMenuCount, setGlobalLunchMenuCount] = useState<number | null>(null);
   const [globalLunchMenuLoading, setGlobalLunchMenuLoading] = useState(false);
-  /** 作成時に挿入する既定枠テンプレ（localStorage と同期・切替するまで維持）。 */
-  const [slotPreset, setSlotPreset] = useState<DefaultSlotPreset>("six");
+  const [maxTeams, setMaxTeams] = useState(4);
+  const [formationMode, setFormationMode] = useState<FormationMode>("round_robin");
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const createdDayRef = useRef(createdDay);
   createdDayRef.current = createdDay;
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(SLOT_PRESET_STORAGE_KEY);
-      if (raw !== null && isDefaultSlotPreset(raw)) {
-        setSlotPreset(raw);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const persistSlotPreset = useCallback((next: DefaultSlotPreset) => {
-    setSlotPreset(next);
-    try {
-      window.localStorage.setItem(SLOT_PRESET_STORAGE_KEY, next);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+  const slotPresetLabel =
+    defaultSlotPresetForGradeBand(gradeBand) === "under_2"
+      ? "30分×6（午前のみ）"
+      : "45分×6（午前4+午後2）";
 
   const declinePublish = useCallback(() => {
     const d = createdDayRef.current;
@@ -180,7 +158,8 @@ export function CreateEventDayForm() {
         eventDate: eventDateVal,
         gradeBand: gradeBandVal,
         status: "draft",
-        defaultSlotPreset: slotPreset,
+        maxTeams,
+        formationMode,
       }),
     });
     setLoading(false);
@@ -284,16 +263,31 @@ export function CreateEventDayForm() {
             ))}
           </select>
         </label>
-        <div className="flex min-w-0 w-full flex-col gap-1 text-sm sm:min-w-[min(100%,18rem)] sm:w-auto sm:flex-1">
-          <span className="text-zinc-600">予約締切（自動設定）</span>
-          <p className="min-h-11 rounded border border-dashed border-zinc-300 bg-zinc-50 px-3 py-2.5 text-sm leading-snug text-zinc-800 sm:min-h-10">
-            {eventDate.trim()
-              ? formatDateTimeTokyoWithWeekday(
-                  defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate.trim())
-                )
-              : "開催日を選択すると自動で表示されます"}
-          </p>
-        </div>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[6rem] sm:flex-none">
+          <span className="text-zinc-600">予約上限</span>
+          <input
+            type="number"
+            min={2}
+            max={16}
+            value={maxTeams}
+            onChange={(e) => setMaxTeams(Number.parseInt(e.target.value, 10) || 4)}
+            className="min-h-11 w-full rounded border border-zinc-300 px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
+          />
+        </label>
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm sm:min-w-[9rem] sm:flex-none">
+          <span className="text-zinc-600">編成様式</span>
+          <select
+            value={formationMode}
+            onChange={(e) => setFormationMode(e.target.value as FormationMode)}
+            className="min-h-11 w-full min-w-0 rounded border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 sm:min-h-10 sm:text-sm"
+          >
+            {FORMATION_MODE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value} disabled={o.disabled}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
           <button
             type="submit"
             disabled={loading || globalLunchMenuLoading}
@@ -305,31 +299,18 @@ export function CreateEventDayForm() {
         </div>
 
         <div className="min-w-0 border-t border-emerald-100/70 pt-3 text-sm leading-snug text-zinc-600">
-          {slotPreset === "six" ? (
-            <span className="inline-flex min-h-10 w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span>現在設定；6枠</span>
-              <button
-                type="button"
-                onClick={() => persistSlotPreset("eight")}
-                className="inline-flex min-h-8 shrink-0 items-center rounded-md border border-emerald-200/90 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/55"
-                aria-label="作成時の枠を8枠運用で登録する"
-              >
-                8枠に切り替える
-              </button>
-            </span>
-          ) : (
-            <span className="inline-flex min-h-10 w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-              <span>現在設定；8枠</span>
-              <button
-                type="button"
-                onClick={() => persistSlotPreset("six")}
-                className="inline-flex min-h-10 shrink-0 items-center rounded-md border border-emerald-200/90 bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-800 shadow-sm hover:bg-emerald-100 hover:border-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600/55"
-                aria-label="作成時の枠を6枠運用で登録する"
-              >
-                6枠に切り替える
-              </button>
-            </span>
-          )}
+          <p>
+            標準枠テンプレ: <span className="font-medium text-zinc-800">{slotPresetLabel}</span>
+            （学年帯に応じて自動設定。作成後に枠画面で調整できます）
+          </p>
+          <p className="mt-1">
+            予約締切（自動）:{" "}
+            {eventDate.trim()
+              ? formatDateTimeTokyoWithWeekday(
+                  defaultReservationDeadlineAtIsoTwoDaysBefore1500Jst(eventDate.trim())
+                )
+              : "開催日を選択すると表示されます"}
+          </p>
         </div>
       </form>
       {message ? <p className="mt-2 text-sm text-red-600">{message}</p> : null}
